@@ -1076,16 +1076,61 @@ tr:hover td{background:#f0fdf4!important}
 }
 
 
+
 /* =========================================================
-   FIX RIÊNG MOBILE LOGIN: NÚT ĐĂNG NHẬP KHÔNG DÍNH Ô PASSWORD
-   Chỉ tác động trang đăng nhập trên điện thoại.
+   LỊCH SỬ HÓA ĐƠN PRO - XEM CHI TIẾT / IN LẠI
    ========================================================= */
-@media (max-width:768px){
-  .login-card .pass-row{
-    margin-bottom:14px!important;
-  }
-  .login-card button.btn-blue.full{
-    margin-top:16px!important;
+.bill-filter-row{
+  display:grid;
+  grid-template-columns:1.2fr .9fr .9fr;
+  gap:10px;
+  margin:12px 0 14px;
+  align-items:end;
+}
+.bill-detail-box{
+  margin-top:14px;
+  border:1px solid rgba(14,165,233,.18);
+  border-radius:20px;
+  padding:16px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  box-shadow:0 12px 30px rgba(15,76,129,.08);
+}
+.bill-detail-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+.bill-detail-head h3{margin:0;color:#064e3b!important}
+.bill-detail-meta{color:#334155;font-weight:700;line-height:1.55}
+.bill-action-group{display:flex;gap:8px;flex-wrap:wrap}
+.bill-action-group button{padding:8px 12px;border-radius:12px;font-size:13px}
+.bill-total-line{
+  display:flex;
+  justify-content:flex-end;
+  gap:14px;
+  font-size:20px;
+  font-weight:900;
+  color:#059669;
+  margin-top:12px;
+}
+@media(max-width:768px){
+  .bill-filter-row{grid-template-columns:1fr!important;gap:8px!important}
+  .bill-detail-box{padding:12px!important;border-radius:18px!important}
+  .bill-detail-head{flex-direction:column!important}
+  .bill-action-group{width:100%}
+  .bill-action-group button{width:100%!important}
+  .bill-total-line{justify-content:space-between!important;font-size:18px!important}
+}
+
+
+
+/* FIX RIÊNG NÚT ĐĂNG NHẬP MOBILE: tăng khoảng cách với ô mật khẩu */
+@media(max-width:768px){
+  #loginPage .login-card .btn-blue.full{
+    margin-top:18px!important;
   }
 }
 
@@ -1249,9 +1294,7 @@ tr:hover td{background:#f0fdf4!important}
         </div>
         <div id="cashBox" class="pos-cash-box">
           <label>Khách đưa tiền</label>
-         <input id="customerCash" type="number" placeholder="Nhập số tiền khách đưa"
-       oninput="updatePaymentBox()"
-       onkeydown="if(event.key==='Enter'){event.preventDefault(); checkout();}">
+          <input id="customerCash" type="number" placeholder="Nhập số tiền khách đưa" oninput="updatePaymentBox()" onkeydown="if(event.key==='Enter'){event.preventDefault(); checkout();}">
         </div>
         <div id="paymentStatus" class="pos-status">💵 Đang chọn thanh toán tiền mặt. Hệ thống sẽ tính tiền thối lại.</div>
         <div class="pos-pay-row"><span>Tổng hóa đơn</span><span id="posPayTotal">0 VNĐ</span></div>
@@ -1602,7 +1645,45 @@ tr:hover td{background:#f0fdf4!important}
     </div>
   </section>
 
-  <section id="bills" class="page hidden card"><h2>🧾 Hóa đơn của tôi</h2><div class="table-wrap"><table><thead><tr><th>STT</th><th>Ngày</th><th>Nhân viên</th><th>Tổng tiền</th></tr></thead><tbody id="billBody"></tbody></table></div></section>
+  <section id="bills" class="page hidden card">
+    <h2>🧾 Lịch sử hóa đơn PRO</h2>
+    <p class="muted">Xem lại hóa đơn đã bán, xem chi tiết từng món và in lại hóa đơn khi khách cần.</p>
+
+    <div class="bill-filter-row">
+      <div>
+        <label>Tìm hóa đơn</label>
+        <input id="billSearch" placeholder="Nhập mã hóa đơn, nhân viên, sản phẩm..." oninput="renderAll()">
+      </div>
+      <div>
+        <label>Từ ngày</label>
+        <input id="billFromDate" type="date" onchange="renderAll()">
+      </div>
+      <div>
+        <label>Đến ngày</label>
+        <input id="billToDate" type="date" onchange="renderAll()">
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>STT</th>
+            <th>Mã HĐ</th>
+            <th>Ngày</th>
+            <th>Nhân viên</th>
+            <th>Thanh toán</th>
+            <th>Số món</th>
+            <th>Tổng tiền</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="billBody"></tbody>
+      </table>
+    </div>
+
+    <div id="billDetailBox" class="bill-detail-box hidden"></div>
+  </section>
   <section id="money" class="page hidden card"><h2>💵 Thu chi</h2><div class="table-wrap"><table><thead><tr><th>STT</th><th>Ngày</th><th>Loại</th><th>Số tiền</th></tr></thead><tbody id="moneyBody"></tbody></table></div></section>
   <section id="staff" class="page hidden card"><h2>👥 Quản lý nhân viên</h2><div class="grid"><input id="staffName" placeholder="Tên nhân viên"><input id="staffUser" placeholder="Tên đăng nhập"><input id="staffPass" placeholder="Mật khẩu"><select id="staffRole"><option value="cashier">Thu ngân</option><option value="admin">Admin</option></select></div><button class="btn-blue full" onclick="addStaff()">Thêm nhân viên</button><div class="table-wrap"><table><thead><tr><th>STT</th><th>Tên</th><th>Tài khoản</th><th>Quyền</th><th>Thao tác</th></tr></thead><tbody id="staffBody"></tbody></table></div></section>
   <section id="logs" class="page hidden card"><h2>📋 Nhật ký hoạt động</h2><div class="table-wrap"><table><thead><tr><th>STT</th><th>Thời gian</th><th>Nhân viên</th><th>Quyền</th><th>Hoạt động</th><th>Chi tiết</th></tr></thead><tbody id="logBody"></tbody></table></div></section>
@@ -1695,6 +1776,18 @@ function escapeHTML(s){
 
 function now(){
   return new Date().toLocaleString('vi-VN');
+}
+
+function makeBillCode(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return 'HD' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+}
+
+function getBillCode(b, index = 0){
+  if(b && b.code) return b.code;
+  const raw = String(b?.time || '').replace(/\D/g, '').slice(-10) || String(index + 1).padStart(4, '0');
+  return 'HD-CU-' + raw;
 }
 
 function cleanText(s){
@@ -2481,16 +2574,61 @@ function printBarcodeA4(){
 }
 
 
+
 /* =========================================================
-   FIX RIÊNG MOBILE LOGIN: NÚT ĐĂNG NHẬP KHÔNG DÍNH Ô PASSWORD
-   Chỉ tác động trang đăng nhập trên điện thoại.
+   LỊCH SỬ HÓA ĐƠN PRO - XEM CHI TIẾT / IN LẠI
    ========================================================= */
-@media (max-width:768px){
-  .login-card .pass-row{
-    margin-bottom:14px!important;
-  }
-  .login-card button.btn-blue.full{
-    margin-top:16px!important;
+.bill-filter-row{
+  display:grid;
+  grid-template-columns:1.2fr .9fr .9fr;
+  gap:10px;
+  margin:12px 0 14px;
+  align-items:end;
+}
+.bill-detail-box{
+  margin-top:14px;
+  border:1px solid rgba(14,165,233,.18);
+  border-radius:20px;
+  padding:16px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  box-shadow:0 12px 30px rgba(15,76,129,.08);
+}
+.bill-detail-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+.bill-detail-head h3{margin:0;color:#064e3b!important}
+.bill-detail-meta{color:#334155;font-weight:700;line-height:1.55}
+.bill-action-group{display:flex;gap:8px;flex-wrap:wrap}
+.bill-action-group button{padding:8px 12px;border-radius:12px;font-size:13px}
+.bill-total-line{
+  display:flex;
+  justify-content:flex-end;
+  gap:14px;
+  font-size:20px;
+  font-weight:900;
+  color:#059669;
+  margin-top:12px;
+}
+@media(max-width:768px){
+  .bill-filter-row{grid-template-columns:1fr!important;gap:8px!important}
+  .bill-detail-box{padding:12px!important;border-radius:18px!important}
+  .bill-detail-head{flex-direction:column!important}
+  .bill-action-group{width:100%}
+  .bill-action-group button{width:100%!important}
+  .bill-total-line{justify-content:space-between!important;font-size:18px!important}
+}
+
+
+
+/* FIX RIÊNG NÚT ĐĂNG NHẬP MOBILE: tăng khoảng cách với ô mật khẩu */
+@media(max-width:768px){
+  #loginPage .login-card .btn-blue.full{
+    margin-top:18px!important;
   }
 }
 
@@ -2704,16 +2842,61 @@ tbody tr:hover td{background:#f8fffb!important}
   .card,.page,.stat,.misa-card,.dashboard-quick-actions{border-radius:20px!important}
 }
 
+
 /* =========================================================
-   FIX RIÊNG MOBILE LOGIN: NÚT ĐĂNG NHẬP KHÔNG DÍNH Ô PASSWORD
-   Chỉ tác động trang đăng nhập trên điện thoại.
+   LỊCH SỬ HÓA ĐƠN PRO - XEM CHI TIẾT / IN LẠI
    ========================================================= */
-@media (max-width:768px){
-  .login-card .pass-row{
-    margin-bottom:14px!important;
-  }
-  .login-card button.btn-blue.full{
-    margin-top:16px!important;
+.bill-filter-row{
+  display:grid;
+  grid-template-columns:1.2fr .9fr .9fr;
+  gap:10px;
+  margin:12px 0 14px;
+  align-items:end;
+}
+.bill-detail-box{
+  margin-top:14px;
+  border:1px solid rgba(14,165,233,.18);
+  border-radius:20px;
+  padding:16px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  box-shadow:0 12px 30px rgba(15,76,129,.08);
+}
+.bill-detail-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+.bill-detail-head h3{margin:0;color:#064e3b!important}
+.bill-detail-meta{color:#334155;font-weight:700;line-height:1.55}
+.bill-action-group{display:flex;gap:8px;flex-wrap:wrap}
+.bill-action-group button{padding:8px 12px;border-radius:12px;font-size:13px}
+.bill-total-line{
+  display:flex;
+  justify-content:flex-end;
+  gap:14px;
+  font-size:20px;
+  font-weight:900;
+  color:#059669;
+  margin-top:12px;
+}
+@media(max-width:768px){
+  .bill-filter-row{grid-template-columns:1fr!important;gap:8px!important}
+  .bill-detail-box{padding:12px!important;border-radius:18px!important}
+  .bill-detail-head{flex-direction:column!important}
+  .bill-action-group{width:100%}
+  .bill-action-group button{width:100%!important}
+  .bill-total-line{justify-content:space-between!important;font-size:18px!important}
+}
+
+
+
+/* FIX RIÊNG NÚT ĐĂNG NHẬP MOBILE: tăng khoảng cách với ô mật khẩu */
+@media(max-width:768px){
+  #loginPage .login-card .btn-blue.full{
+    margin-top:18px!important;
   }
 }
 
@@ -3553,6 +3736,7 @@ function checkout(){
   });
 
   bills.push({
+    code: makeBillCode(),
     time: now(),
     staff: current.name,
     total,
@@ -5025,16 +5209,61 @@ function buildImportReceiptPrintHtml(data){
 }
 
 
+
 /* =========================================================
-   FIX RIÊNG MOBILE LOGIN: NÚT ĐĂNG NHẬP KHÔNG DÍNH Ô PASSWORD
-   Chỉ tác động trang đăng nhập trên điện thoại.
+   LỊCH SỬ HÓA ĐƠN PRO - XEM CHI TIẾT / IN LẠI
    ========================================================= */
-@media (max-width:768px){
-  .login-card .pass-row{
-    margin-bottom:14px!important;
-  }
-  .login-card button.btn-blue.full{
-    margin-top:16px!important;
+.bill-filter-row{
+  display:grid;
+  grid-template-columns:1.2fr .9fr .9fr;
+  gap:10px;
+  margin:12px 0 14px;
+  align-items:end;
+}
+.bill-detail-box{
+  margin-top:14px;
+  border:1px solid rgba(14,165,233,.18);
+  border-radius:20px;
+  padding:16px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  box-shadow:0 12px 30px rgba(15,76,129,.08);
+}
+.bill-detail-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+.bill-detail-head h3{margin:0;color:#064e3b!important}
+.bill-detail-meta{color:#334155;font-weight:700;line-height:1.55}
+.bill-action-group{display:flex;gap:8px;flex-wrap:wrap}
+.bill-action-group button{padding:8px 12px;border-radius:12px;font-size:13px}
+.bill-total-line{
+  display:flex;
+  justify-content:flex-end;
+  gap:14px;
+  font-size:20px;
+  font-weight:900;
+  color:#059669;
+  margin-top:12px;
+}
+@media(max-width:768px){
+  .bill-filter-row{grid-template-columns:1fr!important;gap:8px!important}
+  .bill-detail-box{padding:12px!important;border-radius:18px!important}
+  .bill-detail-head{flex-direction:column!important}
+  .bill-action-group{width:100%}
+  .bill-action-group button{width:100%!important}
+  .bill-total-line{justify-content:space-between!important;font-size:18px!important}
+}
+
+
+
+/* FIX RIÊNG NÚT ĐĂNG NHẬP MOBILE: tăng khoảng cách với ô mật khẩu */
+@media(max-width:768px){
+  #loginPage .login-card .btn-blue.full{
+    margin-top:18px!important;
   }
 }
 
@@ -5262,16 +5491,61 @@ tbody tr:hover td{background:#f8fffb!important}
   .card,.page,.stat,.misa-card,.dashboard-quick-actions{border-radius:20px!important}
 }
 
+
 /* =========================================================
-   FIX RIÊNG MOBILE LOGIN: NÚT ĐĂNG NHẬP KHÔNG DÍNH Ô PASSWORD
-   Chỉ tác động trang đăng nhập trên điện thoại.
+   LỊCH SỬ HÓA ĐƠN PRO - XEM CHI TIẾT / IN LẠI
    ========================================================= */
-@media (max-width:768px){
-  .login-card .pass-row{
-    margin-bottom:14px!important;
-  }
-  .login-card button.btn-blue.full{
-    margin-top:16px!important;
+.bill-filter-row{
+  display:grid;
+  grid-template-columns:1.2fr .9fr .9fr;
+  gap:10px;
+  margin:12px 0 14px;
+  align-items:end;
+}
+.bill-detail-box{
+  margin-top:14px;
+  border:1px solid rgba(14,165,233,.18);
+  border-radius:20px;
+  padding:16px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  box-shadow:0 12px 30px rgba(15,76,129,.08);
+}
+.bill-detail-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+.bill-detail-head h3{margin:0;color:#064e3b!important}
+.bill-detail-meta{color:#334155;font-weight:700;line-height:1.55}
+.bill-action-group{display:flex;gap:8px;flex-wrap:wrap}
+.bill-action-group button{padding:8px 12px;border-radius:12px;font-size:13px}
+.bill-total-line{
+  display:flex;
+  justify-content:flex-end;
+  gap:14px;
+  font-size:20px;
+  font-weight:900;
+  color:#059669;
+  margin-top:12px;
+}
+@media(max-width:768px){
+  .bill-filter-row{grid-template-columns:1fr!important;gap:8px!important}
+  .bill-detail-box{padding:12px!important;border-radius:18px!important}
+  .bill-detail-head{flex-direction:column!important}
+  .bill-action-group{width:100%}
+  .bill-action-group button{width:100%!important}
+  .bill-total-line{justify-content:space-between!important;font-size:18px!important}
+}
+
+
+
+/* FIX RIÊNG NÚT ĐĂNG NHẬP MOBILE: tăng khoảng cách với ô mật khẩu */
+@media(max-width:768px){
+  #loginPage .login-card .btn-blue.full{
+    margin-top:18px!important;
   }
 }
 
@@ -5471,16 +5745,61 @@ function buildDailyImportReportPrintHtml(selected, list){
 }
 
 
+
 /* =========================================================
-   FIX RIÊNG MOBILE LOGIN: NÚT ĐĂNG NHẬP KHÔNG DÍNH Ô PASSWORD
-   Chỉ tác động trang đăng nhập trên điện thoại.
+   LỊCH SỬ HÓA ĐƠN PRO - XEM CHI TIẾT / IN LẠI
    ========================================================= */
-@media (max-width:768px){
-  .login-card .pass-row{
-    margin-bottom:14px!important;
-  }
-  .login-card button.btn-blue.full{
-    margin-top:16px!important;
+.bill-filter-row{
+  display:grid;
+  grid-template-columns:1.2fr .9fr .9fr;
+  gap:10px;
+  margin:12px 0 14px;
+  align-items:end;
+}
+.bill-detail-box{
+  margin-top:14px;
+  border:1px solid rgba(14,165,233,.18);
+  border-radius:20px;
+  padding:16px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  box-shadow:0 12px 30px rgba(15,76,129,.08);
+}
+.bill-detail-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+.bill-detail-head h3{margin:0;color:#064e3b!important}
+.bill-detail-meta{color:#334155;font-weight:700;line-height:1.55}
+.bill-action-group{display:flex;gap:8px;flex-wrap:wrap}
+.bill-action-group button{padding:8px 12px;border-radius:12px;font-size:13px}
+.bill-total-line{
+  display:flex;
+  justify-content:flex-end;
+  gap:14px;
+  font-size:20px;
+  font-weight:900;
+  color:#059669;
+  margin-top:12px;
+}
+@media(max-width:768px){
+  .bill-filter-row{grid-template-columns:1fr!important;gap:8px!important}
+  .bill-detail-box{padding:12px!important;border-radius:18px!important}
+  .bill-detail-head{flex-direction:column!important}
+  .bill-action-group{width:100%}
+  .bill-action-group button{width:100%!important}
+  .bill-total-line{justify-content:space-between!important;font-size:18px!important}
+}
+
+
+
+/* FIX RIÊNG NÚT ĐĂNG NHẬP MOBILE: tăng khoảng cách với ô mật khẩu */
+@media(max-width:768px){
+  #loginPage .login-card .btn-blue.full{
+    margin-top:18px!important;
   }
 }
 
@@ -5707,16 +6026,61 @@ tbody tr:hover td{background:#f8fffb!important}
   .card,.page,.stat,.misa-card,.dashboard-quick-actions{border-radius:20px!important}
 }
 
+
 /* =========================================================
-   FIX RIÊNG MOBILE LOGIN: NÚT ĐĂNG NHẬP KHÔNG DÍNH Ô PASSWORD
-   Chỉ tác động trang đăng nhập trên điện thoại.
+   LỊCH SỬ HÓA ĐƠN PRO - XEM CHI TIẾT / IN LẠI
    ========================================================= */
-@media (max-width:768px){
-  .login-card .pass-row{
-    margin-bottom:14px!important;
-  }
-  .login-card button.btn-blue.full{
-    margin-top:16px!important;
+.bill-filter-row{
+  display:grid;
+  grid-template-columns:1.2fr .9fr .9fr;
+  gap:10px;
+  margin:12px 0 14px;
+  align-items:end;
+}
+.bill-detail-box{
+  margin-top:14px;
+  border:1px solid rgba(14,165,233,.18);
+  border-radius:20px;
+  padding:16px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  box-shadow:0 12px 30px rgba(15,76,129,.08);
+}
+.bill-detail-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+.bill-detail-head h3{margin:0;color:#064e3b!important}
+.bill-detail-meta{color:#334155;font-weight:700;line-height:1.55}
+.bill-action-group{display:flex;gap:8px;flex-wrap:wrap}
+.bill-action-group button{padding:8px 12px;border-radius:12px;font-size:13px}
+.bill-total-line{
+  display:flex;
+  justify-content:flex-end;
+  gap:14px;
+  font-size:20px;
+  font-weight:900;
+  color:#059669;
+  margin-top:12px;
+}
+@media(max-width:768px){
+  .bill-filter-row{grid-template-columns:1fr!important;gap:8px!important}
+  .bill-detail-box{padding:12px!important;border-radius:18px!important}
+  .bill-detail-head{flex-direction:column!important}
+  .bill-action-group{width:100%}
+  .bill-action-group button{width:100%!important}
+  .bill-total-line{justify-content:space-between!important;font-size:18px!important}
+}
+
+
+
+/* FIX RIÊNG NÚT ĐĂNG NHẬP MOBILE: tăng khoảng cách với ô mật khẩu */
+@media(max-width:768px){
+  #loginPage .login-card .btn-blue.full{
+    margin-top:18px!important;
   }
 }
 
@@ -6244,6 +6608,182 @@ function editImportHistory(index){
 
   alert('Đã sửa dòng nhập và cập nhật lại tồn kho, giá lô, báo cáo.');
 }
+
+/* =========================================================
+   27C. LỊCH SỬ HÓA ĐƠN PRO
+   ========================================================= */
+function billDateToInputValue(b){
+  const d = toDateVN(getBillDate(b));
+  if(!d || isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
+function getVisibleBillsWithIndex(visibleBills){
+  return visibleBills.map(b => ({
+    bill: b,
+    globalIndex: bills.indexOf(b)
+  })).filter(x => x.globalIndex >= 0);
+}
+
+function renderBillHistory(visibleBills){
+  const body = document.getElementById('billBody');
+  if(!body) return;
+
+  let rows = getVisibleBillsWithIndex(visibleBills);
+
+  const q = String(document.getElementById('billSearch')?.value || '').trim().toLowerCase();
+  const from = document.getElementById('billFromDate')?.value || '';
+  const to = document.getElementById('billToDate')?.value || '';
+
+  if(from){
+    rows = rows.filter(x => billDateToInputValue(x.bill) >= from);
+  }
+  if(to){
+    rows = rows.filter(x => billDateToInputValue(x.bill) <= to);
+  }
+  if(q){
+    rows = rows.filter(x => {
+      const b = x.bill;
+      const itemsText = (b.items || []).map(i => i.name).join(' ');
+      return [getBillCode(b, x.globalIndex), b.time, b.staff, b.paymentMethod, itemsText, money(b.total)]
+        .join(' ')
+        .toLowerCase()
+        .includes(q);
+    });
+  }
+
+  rows = rows.reverse();
+
+  body.innerHTML = rows.length ? rows.map((x, i) => {
+    const b = x.bill;
+    const itemCount = (b.items || []).reduce((s, it) => s + Number(it.qty || 0), 0);
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td><b>${escapeHTML(getBillCode(b, x.globalIndex))}</b></td>
+        <td>${escapeHTML(b.time || '')}</td>
+        <td>${escapeHTML(b.staff || '')}</td>
+        <td>${escapeHTML(b.paymentMethod || 'Tiền mặt')}</td>
+        <td>${itemCount || (b.items || []).length}</td>
+        <td><b>${money(b.total)}</b></td>
+        <td>
+          <button class="btn-blue" onclick="viewBillDetail(${x.globalIndex})">Xem chi tiết</button>
+          <button class="btn-green" onclick="printBillReceiptByIndex(${x.globalIndex})">In lại</button>
+        </td>
+      </tr>
+    `;
+  }).join('') : `
+    <tr>
+      <td colspan="8" style="text-align:center;color:#64748b;font-weight:700">Chưa có hóa đơn phù hợp</td>
+    </tr>
+  `;
+}
+
+function viewBillDetail(index){
+  const b = bills[index];
+  const box = document.getElementById('billDetailBox');
+  if(!b || !box) return;
+
+  const rows = (b.items || []).map((it, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHTML(it.name || '')}</td>
+      <td>${Number(it.qty || 0)}</td>
+      <td>${money(it.price)}</td>
+      <td>${money(Number(it.total || (it.qty || 0) * (it.price || 0)))}</td>
+    </tr>
+  `).join('');
+
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <div class="bill-detail-head">
+      <div>
+        <h3>🧾 Chi tiết hóa đơn ${escapeHTML(getBillCode(b, index))}</h3>
+        <div class="bill-detail-meta">
+          Ngày: ${escapeHTML(b.time || '')}<br>
+          Nhân viên: ${escapeHTML(b.staff || '')}<br>
+          Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}
+        </div>
+      </div>
+      <div class="bill-action-group">
+        <button class="btn-green" onclick="printBillReceiptByIndex(${index})">🖨️ In lại hóa đơn</button>
+        <button class="btn-gray" onclick="closeBillDetail()">Đóng</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>STT</th><th>Tên hàng</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" style="text-align:center">Hóa đơn cũ chưa có dữ liệu chi tiết món</td></tr>'}</tbody>
+      </table>
+    </div>
+    <div class="bill-total-line"><span>Tổng cộng:</span><span>${money(b.total)}</span></div>
+  `;
+  box.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function closeBillDetail(){
+  const box = document.getElementById('billDetailBox');
+  if(box){
+    box.classList.add('hidden');
+    box.innerHTML = '';
+  }
+}
+
+function printBillReceiptByIndex(index){
+  const b = bills[index];
+  if(!b){
+    alert('Không tìm thấy hóa đơn để in lại');
+    return;
+  }
+
+  const itemHtml = (b.items || []).map(c => `
+    <div class="receipt-item">• ${escapeHTML(c.name)}</div>
+    <div class="receipt-money">
+      ${Number(c.qty)} x ${money(c.price)} = ${money(Number(c.total || c.qty * c.price))}
+    </div>
+  `).join('') || '<div class="receipt-item">Hóa đơn cũ chưa có chi tiết món</div>';
+
+  receiptPrint.classList.remove('hidden');
+  receiptPrint.innerHTML = `
+    <div class="receipt-title">SIÊU THỊ MINI GREEN MARKET</div>
+    <div class="receipt-line"></div>
+
+    <div>Mã HĐ: ${escapeHTML(getBillCode(b, index))}</div>
+    <div>Ngày: ${escapeHTML(b.time || '')}</div>
+    <div>Nhân viên: ${escapeHTML(b.staff || '')}</div>
+    <div>Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}</div>
+    <div class="receipt-line"></div>
+
+    ${itemHtml}
+
+    <div class="receipt-line"></div>
+    <div class="receipt-total">
+      <span>TỔNG:</span>
+      <span>${money(b.total)}</span>
+    </div>
+
+    <div style="text-align:center;margin-top:9px">
+      <div class="qr"></div>
+      <div>QR thanh toán</div>
+    </div>
+
+    <div style="text-align:center; margin-top:6px; font-size:14px; font-style:italic; font-weight:500;">
+      Cảm ơn quý khách!<br>
+      Hẹn gặp lại!
+    </div>
+
+    <div class="receipt-spacer"></div>
+  `;
+
+  window.print();
+
+  setTimeout(() => {
+    receiptPrint.classList.add('hidden');
+    receiptPrint.innerHTML = '';
+  }, 700);
+}
+
 /* =========================================================
    28. RENDER TOÀN BỘ GIAO DIỆN
    ========================================================= */
@@ -6287,14 +6827,7 @@ function renderAll(){
 
   
 
-  billBody.innerHTML = [...visibleBills].reverse().map((b, i) => `
-    <tr>
-  <td>${i + 1}</td>
-  <td>${b.time}</td>
-      <td>${b.staff}</td>
-      <td>${money(b.total)}</td>
-    </tr>
-  `).join('');
+  renderBillHistory(visibleBills);
 
   moneyBody.innerHTML = [...moneyList].reverse().map((m, i) => `
     <tr>
@@ -6978,16 +7511,61 @@ tbody tr:hover td{background:#f8fffb!important}
   .card,.page,.stat,.misa-card,.dashboard-quick-actions{border-radius:20px!important}
 }
 
+
 /* =========================================================
-   FIX RIÊNG MOBILE LOGIN: NÚT ĐĂNG NHẬP KHÔNG DÍNH Ô PASSWORD
-   Chỉ tác động trang đăng nhập trên điện thoại.
+   LỊCH SỬ HÓA ĐƠN PRO - XEM CHI TIẾT / IN LẠI
    ========================================================= */
-@media (max-width:768px){
-  .login-card .pass-row{
-    margin-bottom:14px!important;
-  }
-  .login-card button.btn-blue.full{
-    margin-top:16px!important;
+.bill-filter-row{
+  display:grid;
+  grid-template-columns:1.2fr .9fr .9fr;
+  gap:10px;
+  margin:12px 0 14px;
+  align-items:end;
+}
+.bill-detail-box{
+  margin-top:14px;
+  border:1px solid rgba(14,165,233,.18);
+  border-radius:20px;
+  padding:16px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  box-shadow:0 12px 30px rgba(15,76,129,.08);
+}
+.bill-detail-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+.bill-detail-head h3{margin:0;color:#064e3b!important}
+.bill-detail-meta{color:#334155;font-weight:700;line-height:1.55}
+.bill-action-group{display:flex;gap:8px;flex-wrap:wrap}
+.bill-action-group button{padding:8px 12px;border-radius:12px;font-size:13px}
+.bill-total-line{
+  display:flex;
+  justify-content:flex-end;
+  gap:14px;
+  font-size:20px;
+  font-weight:900;
+  color:#059669;
+  margin-top:12px;
+}
+@media(max-width:768px){
+  .bill-filter-row{grid-template-columns:1fr!important;gap:8px!important}
+  .bill-detail-box{padding:12px!important;border-radius:18px!important}
+  .bill-detail-head{flex-direction:column!important}
+  .bill-action-group{width:100%}
+  .bill-action-group button{width:100%!important}
+  .bill-total-line{justify-content:space-between!important;font-size:18px!important}
+}
+
+
+
+/* FIX RIÊNG NÚT ĐĂNG NHẬP MOBILE: tăng khoảng cách với ô mật khẩu */
+@media(max-width:768px){
+  #loginPage .login-card .btn-blue.full{
+    margin-top:18px!important;
   }
 }
 
