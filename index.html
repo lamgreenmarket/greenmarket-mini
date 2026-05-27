@@ -953,109 +953,126 @@ tr:nth-child(even) td{
 
 
 /* =========================================================
-   POS MOBILE PRO - KHÔNG CÒN NÚT THANH TOÁN DƯ
-   Chỉ chỉnh giao diện điện thoại, không đổi logic bán hàng.
+   GREEN MARKET UI PREMIUM - bản giao diện xịn hơn
+   Chỉ nâng giao diện, không đổi logic bán hàng/kho/Excel/backup.
    ========================================================= */
-@media (max-width:768px){
-  /* Tắt hoàn toàn thanh thanh toán nổi vì đã có nút thanh toán chính trong POS */
-  .mobile-pos-bottom-bar,
-  body.mobile-pos-active .mobile-pos-bottom-bar,
-  #mobilePosBar{
-    display:none!important;
-    visibility:hidden!important;
-    opacity:0!important;
-    pointer-events:none!important;
-  }
-  .app{padding-bottom:18px!important;}
+:root{
+  --premium-green:#059669;
+  --premium-green-dark:#047857;
+  --premium-blue:#0284c7;
+  --premium-soft:#f0fdf4;
+  --premium-ink:#0f172a;
+  --premium-shadow:0 18px 45px rgba(15,118,110,.13);
+}
+body{
+  background:
+    radial-gradient(circle at top left, rgba(14,165,233,.14), transparent 28%),
+    radial-gradient(circle at top right, rgba(34,197,94,.16), transparent 28%),
+    linear-gradient(180deg,#eafff7 0%,#eef8ff 48%,#f7fbff 100%)!important;
+}
+.header{
+  background:linear-gradient(135deg,#ffffff 0%,#f0fdf4 55%,#ecfeff 100%)!important;
+  border:1px solid rgba(5,150,105,.16)!important;
+  box-shadow:var(--premium-shadow)!important;
+}
+.header h1{
+  color:#064e3b!important;
+  text-shadow:0 1px 0 rgba(255,255,255,.8);
+}
+.menu{
+  background:rgba(255,255,255,.88)!important;
+  border:1px solid rgba(14,165,233,.16)!important;
+  box-shadow:0 14px 35px rgba(2,132,199,.12)!important;
+}
+.menu button,.menu-dropdown .menu-btn{
+  background:linear-gradient(135deg,#10b981,#047857)!important;
+  box-shadow:0 8px 18px rgba(5,150,105,.22)!important;
+}
+.menu button:hover,.menu-dropdown .menu-btn:hover{
+  transform:translateY(-2px)!important;
+  filter:brightness(1.03)!important;
+}
+.card,.stat,.pos-panel,.import-science-box,.dashboard-quick-actions,.alert-box{
+  border:1px solid rgba(14,165,233,.13)!important;
+  box-shadow:0 14px 35px rgba(15,76,129,.09)!important;
+}
+.dashboard-title{
+  background:linear-gradient(135deg,rgba(255,255,255,.72),rgba(240,253,244,.72));
+  border:1px solid rgba(5,150,105,.12);
+  border-radius:24px;
+  padding:18px!important;
+  box-shadow:0 12px 30px rgba(15,76,129,.07);
+}
+.dashboard-title h2{color:#064e3b!important;font-size:30px!important}
+.stat{
+  background:linear-gradient(135deg,#ffffff 0%,#f0fdf4 100%)!important;
+  transition:transform .18s ease, box-shadow .18s ease!important;
+}
+.stat:hover{transform:translateY(-4px);box-shadow:0 22px 45px rgba(5,150,105,.16)!important}
+.stat h3{color:#075985!important}
+.stat p{color:#059669!important}
+.dashboard-quick-actions{
+  background:linear-gradient(135deg,#ffffff,#f0fdf4)!important;
+  border-left:6px solid #10b981!important;
+}
+.dashboard-quick-actions h3{color:#064e3b!important;font-size:20px!important}
+.chart-row .card h3,.card h3,.page h2{
+  color:#064e3b!important;
+}
+.pos-page{
+  background:linear-gradient(180deg,#ffffff,#f8fffb)!important;
+}
+.pos-panel{
+  background:linear-gradient(180deg,#ffffff,#f8fcff)!important;
+}
+.pos-title h3{color:#075985!important}
+#posSearch{
+  border:2px solid #86efac!important;
+  box-shadow:0 0 0 4px rgba(34,197,94,.10)!important;
+}
+.pos-product-card{
+  border:1px solid rgba(14,165,233,.20)!important;
+  box-shadow:0 8px 20px rgba(15,76,129,.06)!important;
+}
+.pos-product-card:hover{
+  border-color:#22c55e!important;
+  box-shadow:0 14px 28px rgba(5,150,105,.14)!important;
+}
+.pos-total-box{
+  background:linear-gradient(135deg,#0284c7,#059669)!important;
+  box-shadow:0 18px 36px rgba(2,132,199,.25)!important;
+}
+.pos-methods button.active-pay,.btn-green,.btn-blue,.btn-orange{
+  box-shadow:0 10px 20px rgba(15,76,129,.14)!important;
+}
+.table-wrap{
+  border:1px solid rgba(14,165,233,.16)!important;
+  box-shadow:0 10px 25px rgba(15,76,129,.06)!important;
+}
+th{
+  background:linear-gradient(135deg,#e0f2fe,#dcfce7)!important;
+  color:#0f4c81!important;
+}
+tr:hover td{background:#f0fdf4!important}
+.dropdown-content{
+  box-shadow:0 22px 50px rgba(15,76,129,.22)!important;
+}
 
-  /* POS nhìn gọn như app thu ngân */
-  .pos-page.card{
-    background:linear-gradient(180deg,#ffffff,#f4fbff)!important;
-    border:1px solid #d7e7f5!important;
-  }
-  .pos-page>h2{
-    display:flex!important;
-    align-items:center!important;
-    gap:8px!important;
-    font-size:23px!important;
-    color:#12324a!important;
-  }
-  .pos-page>p.muted{
-    background:#eef9ff!important;
-    border:1px solid #d7e7f5!important;
-    padding:9px 10px!important;
-    border-radius:14px!important;
-  }
-
-  /* Ô quét mã rõ, không tràn */
-  .pos-search{
-    top:52px!important;
-    padding:10px!important;
-    border:1px solid #d7e7f5!important;
-  }
-  #posSearch{
-    height:52px!important;
-    font-size:15px!important;
-    padding-left:14px!important;
-    border-radius:16px!important;
-  }
-
-  /* Sản phẩm 1 cột: dễ bấm, không vỡ layout */
-  .pos-products{
-    grid-template-columns:1fr!important;
-    max-height:300px!important;
-  }
-  .pos-product-card{
-    display:block!important;
-    border-left:5px solid #0ea5e9!important;
-    background:linear-gradient(135deg,#ffffff,#f8fffb)!important;
-  }
-  .pos-product-card .pos-quick-btn{
-    height:42px!important;
-    font-size:14px!important;
-    border-radius:14px!important;
-    margin-top:6px!important;
-  }
-
-  /* Giỏ hàng + thanh toán trong luồng chính, không dùng nút nổi */
-  .pos-cart .table-wrap{
-    max-height:230px!important;
-    border-radius:14px!important;
-  }
-  .pos-panel:last-child{
-    border:2px solid #bbf7d0!important;
-    background:linear-gradient(180deg,#ffffff,#f3fff8)!important;
-  }
-  .pos-total-box{
-    background:linear-gradient(135deg,#0284c7,#16a34a)!important;
-    box-shadow:0 10px 22px rgba(2,132,199,.18)!important;
-  }
-  .pos-methods{
-    grid-template-columns:repeat(3,1fr)!important;
-    gap:6px!important;
-  }
-  .pos-methods button{
-    min-width:0!important;
-    height:44px!important;
-    font-size:12px!important;
-    padding:0 4px!important;
-    border-radius:14px!important;
-  }
-  .pos-panel:last-child .actions button.btn-green{
-    height:52px!important;
-    font-size:16px!important;
-    border-radius:18px!important;
-    background:linear-gradient(135deg,#0ea5e9,#16a34a)!important;
-    box-shadow:0 10px 22px rgba(14,165,233,.25)!important;
-  }
-  .pos-panel:last-child .actions button.btn-red{
-    height:44px!important;
-    border-radius:16px!important;
-  }
-
-  /* Menu và các khối không đẩy ngang màn hình */
-  .menu,.header,.page,.card,.pos-shell,.pos-panel{max-width:100vw!important;}
-  body{overflow-x:hidden!important;}
+@media(max-width:768px){
+  body{background:linear-gradient(180deg,#ecfeff,#f0fdf4 42%,#ffffff)!important}
+  .header{padding:12px!important;border-radius:20px!important}
+  .header h1{font-size:22px!important}
+  .menu{border-radius:18px!important;padding:7px 8px!important}
+  .menu button,.menu-dropdown .menu-btn{height:38px!important;min-width:88px!important;font-size:12.5px!important}
+  .dashboard-title{padding:14px!important;border-radius:20px!important}
+  .dashboard-title h2{font-size:22px!important}
+  .stat{padding:15px!important;border-radius:18px!important}
+  .stat p{font-size:25px!important}
+  .pos-panel,.card,.import-science-box{border-radius:18px!important}
+  .pos-products{grid-template-columns:1fr!important}
+  .pos-product-card{border-radius:16px!important}
+  .pos-total-box .total{font-size:25px!important}
+  .mobile-pos-bottom-bar{display:none!important}
 }
 
 </style>
@@ -2462,6 +2479,202 @@ ${area.innerHTML}
     setTimeout(function(){ window.print(); }, 250);
   };
 <\/script>
+
+
+<!-- =========================================================
+     GREEN MARKET - UI PRO WINMART/BHX OVERRIDE
+     Chỉ nâng màu, bóng đổ, độ tương phản. Không đụng logic JS.
+     ========================================================= -->
+<style id="greenmarket-pro-polish">
+:root{
+  --gm-primary:#008f5a;
+  --gm-primary-2:#12b76a;
+  --gm-primary-dark:#006b45;
+  --gm-blue:#0284c7;
+  --gm-bg:#f4f8f7;
+  --gm-card:#ffffff;
+  --gm-text:#12302b;
+  --gm-muted:#64748b;
+  --gm-line:#dbe7e2;
+  --gm-shadow:0 14px 34px rgba(8,47,73,.10);
+  --gm-shadow-strong:0 18px 42px rgba(0,107,69,.16);
+}
+html,body{
+  background:
+    radial-gradient(circle at top left, rgba(18,183,106,.12), transparent 28%),
+    linear-gradient(180deg,#eefaf6 0%,#f7fafc 42%,#f4f8f7 100%) !important;
+  color:var(--gm-text)!important;
+}
+#appPage::before{
+  background:linear-gradient(180deg,rgba(238,250,246,.98) 0%,rgba(244,248,247,.96) 78%,rgba(244,248,247,.80) 100%)!important;
+}
+.header{
+  background:linear-gradient(135deg,#ffffff 0%,#f3fff9 54%,#e9f8ff 100%)!important;
+  border:1px solid rgba(0,143,90,.14)!important;
+  box-shadow:0 16px 42px rgba(0,107,69,.12)!important;
+}
+.header h1{
+  color:#065f46!important;
+  letter-spacing:.2px!important;
+  text-shadow:0 1px 0 rgba(255,255,255,.8);
+}
+.header .btn-gray,
+button.btn-gray{
+  background:#f1f5f9!important;
+  color:#0f172a!important;
+  border:1px solid #e2e8f0!important;
+}
+.menu{
+  background:rgba(255,255,255,.92)!important;
+  border:1px solid rgba(0,143,90,.16)!important;
+  box-shadow:0 16px 38px rgba(8,47,73,.10)!important;
+}
+.menu button,
+.menu-dropdown .menu-btn,
+button:not(.btn-gray):not(.btn-red):not(.btn-blue):not(.btn-orange):not(.eye){
+  background:linear-gradient(135deg,var(--gm-primary-2),var(--gm-primary-dark))!important;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  box-shadow:0 8px 18px rgba(0,107,69,.22)!important;
+}
+.menu button:hover,
+.menu-dropdown .menu-btn:hover,
+button:not(.btn-gray):not(.btn-red):not(.btn-blue):not(.btn-orange):not(.eye):hover{
+  filter:saturate(1.08) brightness(1.02)!important;
+  box-shadow:0 12px 26px rgba(0,107,69,.30)!important;
+}
+.menu button.menu-active,
+button.active{
+  background:linear-gradient(135deg,#0ea5e9,#059669)!important;
+  box-shadow:0 12px 28px rgba(14,165,233,.28)!important;
+}
+.btn-blue{background:linear-gradient(135deg,#0ea5e9,#0369a1)!important;color:#fff!important}
+.btn-green{background:linear-gradient(135deg,#10b981,#047857)!important;color:#fff!important}
+.btn-orange{background:linear-gradient(135deg,#f59e0b,#f97316)!important;color:#fff!important}
+.btn-red{background:linear-gradient(135deg,#ef4444,#b91c1c)!important;color:#fff!important}
+.card,.page,.import-science-box,.pos-panel,.table-wrap,.alert-box,.dashboard-quick-actions,.misa-dashboard,.misa-card{
+  background:linear-gradient(180deg,#ffffff 0%,#fbfffd 100%)!important;
+  border:1px solid var(--gm-line)!important;
+  box-shadow:var(--gm-shadow)!important;
+}
+.card:hover,.stat:hover,.misa-card:hover,.dashboard-quick-actions:hover{
+  box-shadow:var(--gm-shadow-strong)!important;
+}
+.dashboard-title,
+.page.card>h2:first-child,
+.import-science-title,
+.misa-dashboard h3{
+  color:#064e3b!important;
+}
+.dashboard-title h2,
+.page.card h2,
+.import-science-title h2{
+  color:#064e3b!important;
+  letter-spacing:-.4px!important;
+}
+.dashboard-title p,
+.page.card>p,.misa-dashboard p,.dashboard-quick-actions p{
+  color:#64748b!important;
+}
+.stat{
+  background:linear-gradient(135deg,#ffffff 0%,#f1fff8 100%)!important;
+  border:1px solid rgba(0,143,90,.14)!important;
+  box-shadow:0 14px 30px rgba(8,47,73,.09)!important;
+}
+.stat:before{
+  background:linear-gradient(135deg,rgba(18,183,106,.22),rgba(14,165,233,.08))!important;
+}
+.stat h3{
+  color:#075985!important;
+  font-weight:900!important;
+}
+.stat p,
+.misa-card b,
+.import-summary strong{
+  color:#059669!important;
+  font-weight:950!important;
+  letter-spacing:-.5px!important;
+}
+#statLow span:first-child{color:#f59e0b!important}
+#statLow span:nth-child(3),#statLow span:last-child{color:#ef4444!important}
+input,select,textarea{
+  border:1px solid #cbded8!important;
+  background:#ffffff!important;
+  box-shadow:inset 0 1px 0 rgba(15,23,42,.03)!important;
+}
+input:focus,select:focus,textarea:focus{
+  outline:3px solid rgba(18,183,106,.18)!important;
+  border-color:#10b981!important;
+}
+th{
+  background:linear-gradient(180deg,#ecfdf5,#dff7ee)!important;
+  color:#064e3b!important;
+  font-weight:900!important;
+  border-color:#cfe8de!important;
+}
+td{border-color:#e2ebe7!important}
+tbody tr:hover td{background:#f8fffb!important}
+.table-wrap{
+  border-radius:18px!important;
+  overflow:auto!important;
+}
+.chart-row .card{
+  border-top:4px solid rgba(16,185,129,.45)!important;
+}
+.dashboard-quick-actions{
+  border-left:6px solid #10b981!important;
+}
+.dashboard-quick-actions h3{
+  color:#064e3b!important;
+}
+.pos-product-card{
+  background:linear-gradient(180deg,#ffffff,#f3fff9)!important;
+  border:1px solid rgba(0,143,90,.16)!important;
+  box-shadow:0 8px 20px rgba(15,23,42,.06)!important;
+}
+.pos-product-card:hover{
+  border-color:#10b981!important;
+  box-shadow:0 12px 28px rgba(0,143,90,.16)!important;
+}
+.pos-product-card .price{color:#059669!important}
+.pos-status{
+  background:linear-gradient(135deg,#ecfeff,#f0fdf4)!important;
+  border-color:#bdebd8!important;
+  color:#065f46!important;
+}
+.dropdown-content{
+  border:1px solid #dbe7e2!important;
+  box-shadow:0 18px 42px rgba(8,47,73,.18)!important;
+}
+.dropdown-content button{
+  background:#fff!important;
+  color:#12302b!important;
+  box-shadow:none!important;
+  border:none!important;
+}
+.dropdown-content button:hover{background:#ecfdf5!important;color:#065f46!important}
+.login-card{
+  background:linear-gradient(180deg,#ffffff,#f3fff9)!important;
+  box-shadow:0 30px 70px rgba(0,107,69,.18)!important;
+  border:1px solid rgba(0,143,90,.12)!important;
+}
+.logo{color:#065f46!important}
+.slogan{color:#047857!important}
+@media(max-width:768px){
+  html,body{background:#f4f8f7!important}
+  .header{
+    background:linear-gradient(135deg,#ffffff,#f2fff8)!important;
+    box-shadow:0 10px 28px rgba(0,107,69,.12)!important;
+  }
+  .menu{
+    background:rgba(255,255,255,.96)!important;
+    box-shadow:0 10px 28px rgba(8,47,73,.12)!important;
+  }
+  .stat p{font-size:32px!important}
+  .card,.page,.stat,.misa-card,.dashboard-quick-actions{border-radius:20px!important}
+}
+</style>
+
 </body>
 </html>`;
 
@@ -4796,6 +5009,202 @@ function buildImportReceiptPrintHtml(data){
   </div>
 </div>
 <script>setTimeout(function(){window.print()},300);<\/script>
+
+
+<!-- =========================================================
+     GREEN MARKET - UI PRO WINMART/BHX OVERRIDE
+     Chỉ nâng màu, bóng đổ, độ tương phản. Không đụng logic JS.
+     ========================================================= -->
+<style id="greenmarket-pro-polish">
+:root{
+  --gm-primary:#008f5a;
+  --gm-primary-2:#12b76a;
+  --gm-primary-dark:#006b45;
+  --gm-blue:#0284c7;
+  --gm-bg:#f4f8f7;
+  --gm-card:#ffffff;
+  --gm-text:#12302b;
+  --gm-muted:#64748b;
+  --gm-line:#dbe7e2;
+  --gm-shadow:0 14px 34px rgba(8,47,73,.10);
+  --gm-shadow-strong:0 18px 42px rgba(0,107,69,.16);
+}
+html,body{
+  background:
+    radial-gradient(circle at top left, rgba(18,183,106,.12), transparent 28%),
+    linear-gradient(180deg,#eefaf6 0%,#f7fafc 42%,#f4f8f7 100%) !important;
+  color:var(--gm-text)!important;
+}
+#appPage::before{
+  background:linear-gradient(180deg,rgba(238,250,246,.98) 0%,rgba(244,248,247,.96) 78%,rgba(244,248,247,.80) 100%)!important;
+}
+.header{
+  background:linear-gradient(135deg,#ffffff 0%,#f3fff9 54%,#e9f8ff 100%)!important;
+  border:1px solid rgba(0,143,90,.14)!important;
+  box-shadow:0 16px 42px rgba(0,107,69,.12)!important;
+}
+.header h1{
+  color:#065f46!important;
+  letter-spacing:.2px!important;
+  text-shadow:0 1px 0 rgba(255,255,255,.8);
+}
+.header .btn-gray,
+button.btn-gray{
+  background:#f1f5f9!important;
+  color:#0f172a!important;
+  border:1px solid #e2e8f0!important;
+}
+.menu{
+  background:rgba(255,255,255,.92)!important;
+  border:1px solid rgba(0,143,90,.16)!important;
+  box-shadow:0 16px 38px rgba(8,47,73,.10)!important;
+}
+.menu button,
+.menu-dropdown .menu-btn,
+button:not(.btn-gray):not(.btn-red):not(.btn-blue):not(.btn-orange):not(.eye){
+  background:linear-gradient(135deg,var(--gm-primary-2),var(--gm-primary-dark))!important;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  box-shadow:0 8px 18px rgba(0,107,69,.22)!important;
+}
+.menu button:hover,
+.menu-dropdown .menu-btn:hover,
+button:not(.btn-gray):not(.btn-red):not(.btn-blue):not(.btn-orange):not(.eye):hover{
+  filter:saturate(1.08) brightness(1.02)!important;
+  box-shadow:0 12px 26px rgba(0,107,69,.30)!important;
+}
+.menu button.menu-active,
+button.active{
+  background:linear-gradient(135deg,#0ea5e9,#059669)!important;
+  box-shadow:0 12px 28px rgba(14,165,233,.28)!important;
+}
+.btn-blue{background:linear-gradient(135deg,#0ea5e9,#0369a1)!important;color:#fff!important}
+.btn-green{background:linear-gradient(135deg,#10b981,#047857)!important;color:#fff!important}
+.btn-orange{background:linear-gradient(135deg,#f59e0b,#f97316)!important;color:#fff!important}
+.btn-red{background:linear-gradient(135deg,#ef4444,#b91c1c)!important;color:#fff!important}
+.card,.page,.import-science-box,.pos-panel,.table-wrap,.alert-box,.dashboard-quick-actions,.misa-dashboard,.misa-card{
+  background:linear-gradient(180deg,#ffffff 0%,#fbfffd 100%)!important;
+  border:1px solid var(--gm-line)!important;
+  box-shadow:var(--gm-shadow)!important;
+}
+.card:hover,.stat:hover,.misa-card:hover,.dashboard-quick-actions:hover{
+  box-shadow:var(--gm-shadow-strong)!important;
+}
+.dashboard-title,
+.page.card>h2:first-child,
+.import-science-title,
+.misa-dashboard h3{
+  color:#064e3b!important;
+}
+.dashboard-title h2,
+.page.card h2,
+.import-science-title h2{
+  color:#064e3b!important;
+  letter-spacing:-.4px!important;
+}
+.dashboard-title p,
+.page.card>p,.misa-dashboard p,.dashboard-quick-actions p{
+  color:#64748b!important;
+}
+.stat{
+  background:linear-gradient(135deg,#ffffff 0%,#f1fff8 100%)!important;
+  border:1px solid rgba(0,143,90,.14)!important;
+  box-shadow:0 14px 30px rgba(8,47,73,.09)!important;
+}
+.stat:before{
+  background:linear-gradient(135deg,rgba(18,183,106,.22),rgba(14,165,233,.08))!important;
+}
+.stat h3{
+  color:#075985!important;
+  font-weight:900!important;
+}
+.stat p,
+.misa-card b,
+.import-summary strong{
+  color:#059669!important;
+  font-weight:950!important;
+  letter-spacing:-.5px!important;
+}
+#statLow span:first-child{color:#f59e0b!important}
+#statLow span:nth-child(3),#statLow span:last-child{color:#ef4444!important}
+input,select,textarea{
+  border:1px solid #cbded8!important;
+  background:#ffffff!important;
+  box-shadow:inset 0 1px 0 rgba(15,23,42,.03)!important;
+}
+input:focus,select:focus,textarea:focus{
+  outline:3px solid rgba(18,183,106,.18)!important;
+  border-color:#10b981!important;
+}
+th{
+  background:linear-gradient(180deg,#ecfdf5,#dff7ee)!important;
+  color:#064e3b!important;
+  font-weight:900!important;
+  border-color:#cfe8de!important;
+}
+td{border-color:#e2ebe7!important}
+tbody tr:hover td{background:#f8fffb!important}
+.table-wrap{
+  border-radius:18px!important;
+  overflow:auto!important;
+}
+.chart-row .card{
+  border-top:4px solid rgba(16,185,129,.45)!important;
+}
+.dashboard-quick-actions{
+  border-left:6px solid #10b981!important;
+}
+.dashboard-quick-actions h3{
+  color:#064e3b!important;
+}
+.pos-product-card{
+  background:linear-gradient(180deg,#ffffff,#f3fff9)!important;
+  border:1px solid rgba(0,143,90,.16)!important;
+  box-shadow:0 8px 20px rgba(15,23,42,.06)!important;
+}
+.pos-product-card:hover{
+  border-color:#10b981!important;
+  box-shadow:0 12px 28px rgba(0,143,90,.16)!important;
+}
+.pos-product-card .price{color:#059669!important}
+.pos-status{
+  background:linear-gradient(135deg,#ecfeff,#f0fdf4)!important;
+  border-color:#bdebd8!important;
+  color:#065f46!important;
+}
+.dropdown-content{
+  border:1px solid #dbe7e2!important;
+  box-shadow:0 18px 42px rgba(8,47,73,.18)!important;
+}
+.dropdown-content button{
+  background:#fff!important;
+  color:#12302b!important;
+  box-shadow:none!important;
+  border:none!important;
+}
+.dropdown-content button:hover{background:#ecfdf5!important;color:#065f46!important}
+.login-card{
+  background:linear-gradient(180deg,#ffffff,#f3fff9)!important;
+  box-shadow:0 30px 70px rgba(0,107,69,.18)!important;
+  border:1px solid rgba(0,143,90,.12)!important;
+}
+.logo{color:#065f46!important}
+.slogan{color:#047857!important}
+@media(max-width:768px){
+  html,body{background:#f4f8f7!important}
+  .header{
+    background:linear-gradient(135deg,#ffffff,#f2fff8)!important;
+    box-shadow:0 10px 28px rgba(0,107,69,.12)!important;
+  }
+  .menu{
+    background:rgba(255,255,255,.96)!important;
+    box-shadow:0 10px 28px rgba(8,47,73,.12)!important;
+  }
+  .stat p{font-size:32px!important}
+  .card,.page,.stat,.misa-card,.dashboard-quick-actions{border-radius:20px!important}
+}
+</style>
+
 </body>
 </html>`;
 }
@@ -5017,6 +5426,202 @@ function buildDailyImportReportPrintHtml(selected, list){
   </div>
 </div>
 <script>setTimeout(function(){ window.print(); }, 300);<\/script>
+
+
+<!-- =========================================================
+     GREEN MARKET - UI PRO WINMART/BHX OVERRIDE
+     Chỉ nâng màu, bóng đổ, độ tương phản. Không đụng logic JS.
+     ========================================================= -->
+<style id="greenmarket-pro-polish">
+:root{
+  --gm-primary:#008f5a;
+  --gm-primary-2:#12b76a;
+  --gm-primary-dark:#006b45;
+  --gm-blue:#0284c7;
+  --gm-bg:#f4f8f7;
+  --gm-card:#ffffff;
+  --gm-text:#12302b;
+  --gm-muted:#64748b;
+  --gm-line:#dbe7e2;
+  --gm-shadow:0 14px 34px rgba(8,47,73,.10);
+  --gm-shadow-strong:0 18px 42px rgba(0,107,69,.16);
+}
+html,body{
+  background:
+    radial-gradient(circle at top left, rgba(18,183,106,.12), transparent 28%),
+    linear-gradient(180deg,#eefaf6 0%,#f7fafc 42%,#f4f8f7 100%) !important;
+  color:var(--gm-text)!important;
+}
+#appPage::before{
+  background:linear-gradient(180deg,rgba(238,250,246,.98) 0%,rgba(244,248,247,.96) 78%,rgba(244,248,247,.80) 100%)!important;
+}
+.header{
+  background:linear-gradient(135deg,#ffffff 0%,#f3fff9 54%,#e9f8ff 100%)!important;
+  border:1px solid rgba(0,143,90,.14)!important;
+  box-shadow:0 16px 42px rgba(0,107,69,.12)!important;
+}
+.header h1{
+  color:#065f46!important;
+  letter-spacing:.2px!important;
+  text-shadow:0 1px 0 rgba(255,255,255,.8);
+}
+.header .btn-gray,
+button.btn-gray{
+  background:#f1f5f9!important;
+  color:#0f172a!important;
+  border:1px solid #e2e8f0!important;
+}
+.menu{
+  background:rgba(255,255,255,.92)!important;
+  border:1px solid rgba(0,143,90,.16)!important;
+  box-shadow:0 16px 38px rgba(8,47,73,.10)!important;
+}
+.menu button,
+.menu-dropdown .menu-btn,
+button:not(.btn-gray):not(.btn-red):not(.btn-blue):not(.btn-orange):not(.eye){
+  background:linear-gradient(135deg,var(--gm-primary-2),var(--gm-primary-dark))!important;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  box-shadow:0 8px 18px rgba(0,107,69,.22)!important;
+}
+.menu button:hover,
+.menu-dropdown .menu-btn:hover,
+button:not(.btn-gray):not(.btn-red):not(.btn-blue):not(.btn-orange):not(.eye):hover{
+  filter:saturate(1.08) brightness(1.02)!important;
+  box-shadow:0 12px 26px rgba(0,107,69,.30)!important;
+}
+.menu button.menu-active,
+button.active{
+  background:linear-gradient(135deg,#0ea5e9,#059669)!important;
+  box-shadow:0 12px 28px rgba(14,165,233,.28)!important;
+}
+.btn-blue{background:linear-gradient(135deg,#0ea5e9,#0369a1)!important;color:#fff!important}
+.btn-green{background:linear-gradient(135deg,#10b981,#047857)!important;color:#fff!important}
+.btn-orange{background:linear-gradient(135deg,#f59e0b,#f97316)!important;color:#fff!important}
+.btn-red{background:linear-gradient(135deg,#ef4444,#b91c1c)!important;color:#fff!important}
+.card,.page,.import-science-box,.pos-panel,.table-wrap,.alert-box,.dashboard-quick-actions,.misa-dashboard,.misa-card{
+  background:linear-gradient(180deg,#ffffff 0%,#fbfffd 100%)!important;
+  border:1px solid var(--gm-line)!important;
+  box-shadow:var(--gm-shadow)!important;
+}
+.card:hover,.stat:hover,.misa-card:hover,.dashboard-quick-actions:hover{
+  box-shadow:var(--gm-shadow-strong)!important;
+}
+.dashboard-title,
+.page.card>h2:first-child,
+.import-science-title,
+.misa-dashboard h3{
+  color:#064e3b!important;
+}
+.dashboard-title h2,
+.page.card h2,
+.import-science-title h2{
+  color:#064e3b!important;
+  letter-spacing:-.4px!important;
+}
+.dashboard-title p,
+.page.card>p,.misa-dashboard p,.dashboard-quick-actions p{
+  color:#64748b!important;
+}
+.stat{
+  background:linear-gradient(135deg,#ffffff 0%,#f1fff8 100%)!important;
+  border:1px solid rgba(0,143,90,.14)!important;
+  box-shadow:0 14px 30px rgba(8,47,73,.09)!important;
+}
+.stat:before{
+  background:linear-gradient(135deg,rgba(18,183,106,.22),rgba(14,165,233,.08))!important;
+}
+.stat h3{
+  color:#075985!important;
+  font-weight:900!important;
+}
+.stat p,
+.misa-card b,
+.import-summary strong{
+  color:#059669!important;
+  font-weight:950!important;
+  letter-spacing:-.5px!important;
+}
+#statLow span:first-child{color:#f59e0b!important}
+#statLow span:nth-child(3),#statLow span:last-child{color:#ef4444!important}
+input,select,textarea{
+  border:1px solid #cbded8!important;
+  background:#ffffff!important;
+  box-shadow:inset 0 1px 0 rgba(15,23,42,.03)!important;
+}
+input:focus,select:focus,textarea:focus{
+  outline:3px solid rgba(18,183,106,.18)!important;
+  border-color:#10b981!important;
+}
+th{
+  background:linear-gradient(180deg,#ecfdf5,#dff7ee)!important;
+  color:#064e3b!important;
+  font-weight:900!important;
+  border-color:#cfe8de!important;
+}
+td{border-color:#e2ebe7!important}
+tbody tr:hover td{background:#f8fffb!important}
+.table-wrap{
+  border-radius:18px!important;
+  overflow:auto!important;
+}
+.chart-row .card{
+  border-top:4px solid rgba(16,185,129,.45)!important;
+}
+.dashboard-quick-actions{
+  border-left:6px solid #10b981!important;
+}
+.dashboard-quick-actions h3{
+  color:#064e3b!important;
+}
+.pos-product-card{
+  background:linear-gradient(180deg,#ffffff,#f3fff9)!important;
+  border:1px solid rgba(0,143,90,.16)!important;
+  box-shadow:0 8px 20px rgba(15,23,42,.06)!important;
+}
+.pos-product-card:hover{
+  border-color:#10b981!important;
+  box-shadow:0 12px 28px rgba(0,143,90,.16)!important;
+}
+.pos-product-card .price{color:#059669!important}
+.pos-status{
+  background:linear-gradient(135deg,#ecfeff,#f0fdf4)!important;
+  border-color:#bdebd8!important;
+  color:#065f46!important;
+}
+.dropdown-content{
+  border:1px solid #dbe7e2!important;
+  box-shadow:0 18px 42px rgba(8,47,73,.18)!important;
+}
+.dropdown-content button{
+  background:#fff!important;
+  color:#12302b!important;
+  box-shadow:none!important;
+  border:none!important;
+}
+.dropdown-content button:hover{background:#ecfdf5!important;color:#065f46!important}
+.login-card{
+  background:linear-gradient(180deg,#ffffff,#f3fff9)!important;
+  box-shadow:0 30px 70px rgba(0,107,69,.18)!important;
+  border:1px solid rgba(0,143,90,.12)!important;
+}
+.logo{color:#065f46!important}
+.slogan{color:#047857!important}
+@media(max-width:768px){
+  html,body{background:#f4f8f7!important}
+  .header{
+    background:linear-gradient(135deg,#ffffff,#f2fff8)!important;
+    box-shadow:0 10px 28px rgba(0,107,69,.12)!important;
+  }
+  .menu{
+    background:rgba(255,255,255,.96)!important;
+    box-shadow:0 10px 28px rgba(8,47,73,.12)!important;
+  }
+  .stat p{font-size:32px!important}
+  .card,.page,.stat,.misa-card,.dashboard-quick-actions{border-radius:20px!important}
+}
+</style>
+
 </body>
 </html>`;
 }
@@ -6077,6 +6682,202 @@ init();
 <audio id="scanSound">
   <source src="https://www.soundjay.com/buttons/sounds/button-16.mp3">
 </audio>
+
+
+
+<!-- =========================================================
+     GREEN MARKET - UI PRO WINMART/BHX OVERRIDE
+     Chỉ nâng màu, bóng đổ, độ tương phản. Không đụng logic JS.
+     ========================================================= -->
+<style id="greenmarket-pro-polish">
+:root{
+  --gm-primary:#008f5a;
+  --gm-primary-2:#12b76a;
+  --gm-primary-dark:#006b45;
+  --gm-blue:#0284c7;
+  --gm-bg:#f4f8f7;
+  --gm-card:#ffffff;
+  --gm-text:#12302b;
+  --gm-muted:#64748b;
+  --gm-line:#dbe7e2;
+  --gm-shadow:0 14px 34px rgba(8,47,73,.10);
+  --gm-shadow-strong:0 18px 42px rgba(0,107,69,.16);
+}
+html,body{
+  background:
+    radial-gradient(circle at top left, rgba(18,183,106,.12), transparent 28%),
+    linear-gradient(180deg,#eefaf6 0%,#f7fafc 42%,#f4f8f7 100%) !important;
+  color:var(--gm-text)!important;
+}
+#appPage::before{
+  background:linear-gradient(180deg,rgba(238,250,246,.98) 0%,rgba(244,248,247,.96) 78%,rgba(244,248,247,.80) 100%)!important;
+}
+.header{
+  background:linear-gradient(135deg,#ffffff 0%,#f3fff9 54%,#e9f8ff 100%)!important;
+  border:1px solid rgba(0,143,90,.14)!important;
+  box-shadow:0 16px 42px rgba(0,107,69,.12)!important;
+}
+.header h1{
+  color:#065f46!important;
+  letter-spacing:.2px!important;
+  text-shadow:0 1px 0 rgba(255,255,255,.8);
+}
+.header .btn-gray,
+button.btn-gray{
+  background:#f1f5f9!important;
+  color:#0f172a!important;
+  border:1px solid #e2e8f0!important;
+}
+.menu{
+  background:rgba(255,255,255,.92)!important;
+  border:1px solid rgba(0,143,90,.16)!important;
+  box-shadow:0 16px 38px rgba(8,47,73,.10)!important;
+}
+.menu button,
+.menu-dropdown .menu-btn,
+button:not(.btn-gray):not(.btn-red):not(.btn-blue):not(.btn-orange):not(.eye){
+  background:linear-gradient(135deg,var(--gm-primary-2),var(--gm-primary-dark))!important;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  box-shadow:0 8px 18px rgba(0,107,69,.22)!important;
+}
+.menu button:hover,
+.menu-dropdown .menu-btn:hover,
+button:not(.btn-gray):not(.btn-red):not(.btn-blue):not(.btn-orange):not(.eye):hover{
+  filter:saturate(1.08) brightness(1.02)!important;
+  box-shadow:0 12px 26px rgba(0,107,69,.30)!important;
+}
+.menu button.menu-active,
+button.active{
+  background:linear-gradient(135deg,#0ea5e9,#059669)!important;
+  box-shadow:0 12px 28px rgba(14,165,233,.28)!important;
+}
+.btn-blue{background:linear-gradient(135deg,#0ea5e9,#0369a1)!important;color:#fff!important}
+.btn-green{background:linear-gradient(135deg,#10b981,#047857)!important;color:#fff!important}
+.btn-orange{background:linear-gradient(135deg,#f59e0b,#f97316)!important;color:#fff!important}
+.btn-red{background:linear-gradient(135deg,#ef4444,#b91c1c)!important;color:#fff!important}
+.card,.page,.import-science-box,.pos-panel,.table-wrap,.alert-box,.dashboard-quick-actions,.misa-dashboard,.misa-card{
+  background:linear-gradient(180deg,#ffffff 0%,#fbfffd 100%)!important;
+  border:1px solid var(--gm-line)!important;
+  box-shadow:var(--gm-shadow)!important;
+}
+.card:hover,.stat:hover,.misa-card:hover,.dashboard-quick-actions:hover{
+  box-shadow:var(--gm-shadow-strong)!important;
+}
+.dashboard-title,
+.page.card>h2:first-child,
+.import-science-title,
+.misa-dashboard h3{
+  color:#064e3b!important;
+}
+.dashboard-title h2,
+.page.card h2,
+.import-science-title h2{
+  color:#064e3b!important;
+  letter-spacing:-.4px!important;
+}
+.dashboard-title p,
+.page.card>p,.misa-dashboard p,.dashboard-quick-actions p{
+  color:#64748b!important;
+}
+.stat{
+  background:linear-gradient(135deg,#ffffff 0%,#f1fff8 100%)!important;
+  border:1px solid rgba(0,143,90,.14)!important;
+  box-shadow:0 14px 30px rgba(8,47,73,.09)!important;
+}
+.stat:before{
+  background:linear-gradient(135deg,rgba(18,183,106,.22),rgba(14,165,233,.08))!important;
+}
+.stat h3{
+  color:#075985!important;
+  font-weight:900!important;
+}
+.stat p,
+.misa-card b,
+.import-summary strong{
+  color:#059669!important;
+  font-weight:950!important;
+  letter-spacing:-.5px!important;
+}
+#statLow span:first-child{color:#f59e0b!important}
+#statLow span:nth-child(3),#statLow span:last-child{color:#ef4444!important}
+input,select,textarea{
+  border:1px solid #cbded8!important;
+  background:#ffffff!important;
+  box-shadow:inset 0 1px 0 rgba(15,23,42,.03)!important;
+}
+input:focus,select:focus,textarea:focus{
+  outline:3px solid rgba(18,183,106,.18)!important;
+  border-color:#10b981!important;
+}
+th{
+  background:linear-gradient(180deg,#ecfdf5,#dff7ee)!important;
+  color:#064e3b!important;
+  font-weight:900!important;
+  border-color:#cfe8de!important;
+}
+td{border-color:#e2ebe7!important}
+tbody tr:hover td{background:#f8fffb!important}
+.table-wrap{
+  border-radius:18px!important;
+  overflow:auto!important;
+}
+.chart-row .card{
+  border-top:4px solid rgba(16,185,129,.45)!important;
+}
+.dashboard-quick-actions{
+  border-left:6px solid #10b981!important;
+}
+.dashboard-quick-actions h3{
+  color:#064e3b!important;
+}
+.pos-product-card{
+  background:linear-gradient(180deg,#ffffff,#f3fff9)!important;
+  border:1px solid rgba(0,143,90,.16)!important;
+  box-shadow:0 8px 20px rgba(15,23,42,.06)!important;
+}
+.pos-product-card:hover{
+  border-color:#10b981!important;
+  box-shadow:0 12px 28px rgba(0,143,90,.16)!important;
+}
+.pos-product-card .price{color:#059669!important}
+.pos-status{
+  background:linear-gradient(135deg,#ecfeff,#f0fdf4)!important;
+  border-color:#bdebd8!important;
+  color:#065f46!important;
+}
+.dropdown-content{
+  border:1px solid #dbe7e2!important;
+  box-shadow:0 18px 42px rgba(8,47,73,.18)!important;
+}
+.dropdown-content button{
+  background:#fff!important;
+  color:#12302b!important;
+  box-shadow:none!important;
+  border:none!important;
+}
+.dropdown-content button:hover{background:#ecfdf5!important;color:#065f46!important}
+.login-card{
+  background:linear-gradient(180deg,#ffffff,#f3fff9)!important;
+  box-shadow:0 30px 70px rgba(0,107,69,.18)!important;
+  border:1px solid rgba(0,143,90,.12)!important;
+}
+.logo{color:#065f46!important}
+.slogan{color:#047857!important}
+@media(max-width:768px){
+  html,body{background:#f4f8f7!important}
+  .header{
+    background:linear-gradient(135deg,#ffffff,#f2fff8)!important;
+    box-shadow:0 10px 28px rgba(0,107,69,.12)!important;
+  }
+  .menu{
+    background:rgba(255,255,255,.96)!important;
+    box-shadow:0 10px 28px rgba(8,47,73,.12)!important;
+  }
+  .stat p{font-size:32px!important}
+  .card,.page,.stat,.misa-card,.dashboard-quick-actions{border-radius:20px!important}
+}
+</style>
 
 </body>
 </html>
