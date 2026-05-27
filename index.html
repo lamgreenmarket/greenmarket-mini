@@ -1259,19 +1259,16 @@ tr:hover td{background:#f0fdf4!important}
       <h2>📊 Tổng quan vận hành</h2>
       <p>Theo dõi nhanh doanh thu, đơn bán, tồn kho và hiệu suất bán hàng.</p>
     </div>
-    <div class="dashboard">
-      <div class="stat"><h3>💰 Doanh thu bán hàng</h3><p id="statRevenue">0 VNĐ</p></div>
-      <div class="stat"><h3>🧾 Số đơn bán</h3><p id="statBills">0 đơn</p></div>
-      <div class="stat"><h3>📦 Mặt hàng trong kho</h3><p id="statProducts">0 mặt hàng</p></div>
-      <div class="stat"><h3>⚠️ Tình trạng tồn kho</h3><p id="statLow" onclick="showLowStock()">0 sắp hết<br>0 hết hàng</p></div>
-    </div>
-    <div id="dashboardUpdated" class="dashboard-note"></div>
-
-    <div class="dashboard-pro-panel admin-only">
+    <div class="dashboard-pro-panel">
       <div class="dashboard-pro-card">
         <h3>📅 Doanh thu hôm nay</h3>
         <strong id="proTodayRevenue">0 VNĐ</strong>
-        <small id="proTodayBills">0 đơn hôm nay</small>
+        <small>theo hóa đơn trong ngày</small>
+      </div>
+      <div class="dashboard-pro-card">
+        <h3>🧾 Số đơn hôm nay</h3>
+        <strong id="proTodayBillCount">0 đơn</strong>
+        <small id="proTodayBills">hôm nay</small>
       </div>
       <div class="dashboard-pro-card">
         <h3>🗓️ Doanh thu tháng này</h3>
@@ -1283,10 +1280,15 @@ tr:hover td{background:#f0fdf4!important}
         <strong id="proTodayProfit">0 VNĐ</strong>
         <small>Tính theo giá nhập hiện tại trong kho</small>
       </div>
-      <div class="dashboard-pro-card dashboard-pro-warning">
-        <h3>⚠️ Cảnh báo tồn kho</h3>
-        <strong id="proStockWarning">0 mặt hàng</strong>
-        <small id="proStockDetail">Kho đang ổn định</small>
+      <div class="dashboard-pro-card">
+        <h3>📦 Mặt hàng trong kho</h3>
+        <strong id="statProducts">0 mặt hàng</strong>
+        <small>đang quản lý trong kho</small>
+      </div>
+      <div class="dashboard-pro-card dashboard-pro-warning" onclick="showLowStock()" style="cursor:pointer">
+        <h3>⚠️ Tình trạng tồn kho</h3>
+        <strong id="statLow">0 sắp hết<br>0 hết hàng</strong>
+        <small>bấm để xem chi tiết</small>
       </div>
       <div class="dashboard-pro-card dashboard-pro-wide">
         <h3>🔥 Top bán hôm nay</h3>
@@ -1297,6 +1299,7 @@ tr:hover td{background:#f0fdf4!important}
         <ol id="proTopStaffToday" class="dashboard-pro-list"><li>Chưa có dữ liệu</li></ol>
       </div>
     </div>
+    <div id="dashboardUpdated" class="dashboard-note"></div>
     <div class="dashboard-quick-actions admin-only">
       <h3>📘 Báo cáo nhanh kế toán / nhập kho</h3>
       <p>Đưa 3 nút quan trọng ra Trang chủ để in/xuất file nhanh, không cần vào mục Hàng mới nhập.</p>
@@ -3355,8 +3358,11 @@ function renderStock(){
       </tr>
     `;
 
-  statLow.innerHTML = `<span style="color:#f59e0b">⚠ ${low.length} sắp hết</span><br><span style="color:#ef4444">✖ ${out.length} hết hàng</span><small>bấm để xem chi tiết</small>`;
-  statLow.style.color = (out.length > 0 || low.length > 0) ? 'red' : '#16a34a';
+  const statLowEl = document.getElementById('statLow');
+  if(statLowEl){
+    statLowEl.innerHTML = `<span style="color:#f59e0b">⚠ ${low.length} sắp hết</span><br><span style="color:#ef4444">✖ ${out.length} hết hàng</span>`;
+    statLowEl.style.color = (out.length > 0 || low.length > 0) ? 'red' : '#16a34a';
+  }
 }
 
 /* =========================================================
@@ -6938,7 +6944,8 @@ function renderDashboardPro(){
   };
 
   setText('proTodayRevenue', money(todayRevenue));
-  setText('proTodayBills', `${todayBills.length} đơn hôm nay`);
+  setText('proTodayBillCount', `${todayBills.length} đơn`);
+  setText('proTodayBills', 'hôm nay');
   setText('proMonthRevenue', money(monthRevenue));
   setText('proMonthBills', `${monthBills.length} đơn trong tháng`);
   setText('proTodayProfit', money(todayProfit));
@@ -6989,9 +6996,12 @@ function renderAll(){
 
   const dashboardRevenue = visibleBills.reduce((s, b) => s + Number(b.total || 0), 0);
 
-  statRevenue.innerHTML = `${money(dashboardRevenue)}<small>${current.role === 'admin' ? 'toàn cửa hàng' : 'của nhân viên hiện tại'}</small>`;
-  statBills.innerHTML = `${visibleBills.length} đơn<small>${current.role === 'admin' ? 'toàn cửa hàng' : 'của tôi'}</small>`;
-  statProducts.innerHTML = `${products.length} mặt hàng<small>đang quản lý trong kho</small>`;
+  const statRevenueEl = document.getElementById('statRevenue');
+  if(statRevenueEl) statRevenueEl.innerHTML = `${money(dashboardRevenue)}<small>${current.role === 'admin' ? 'toàn cửa hàng' : 'của nhân viên hiện tại'}</small>`;
+  const statBillsEl = document.getElementById('statBills');
+  if(statBillsEl) statBillsEl.innerHTML = `${visibleBills.length} đơn<small>${current.role === 'admin' ? 'toàn cửa hàng' : 'của tôi'}</small>`;
+  const statProductsEl = document.getElementById('statProducts');
+  if(statProductsEl) statProductsEl.innerHTML = `${products.length} mặt hàng<small>đang quản lý trong kho</small>`;
   if(document.getElementById('dashboardUpdated')){
     dashboardUpdated.textContent = 'Cập nhật lần cuối: ' + now();
   }
