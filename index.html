@@ -8819,7 +8819,8 @@ async function getProfileByUid(uid){
   return snap.exists() ? {uid, ...snap.data()} : null;
 }
 
-// Đọc quyền theo email từ Firestore. Hỗ trợ cả collection "role" và "user_roles".
+// Đọc hồ sơ quyền theo EMAIL.
+// Hỗ trợ các collection đã tạo tay: role, user_roles.
 async function getProfileByEmail(email){
   const mail = String(email || '').trim().toLowerCase();
   if(!mail) return null;
@@ -8831,7 +8832,7 @@ async function getProfileByEmail(email){
         const x = snap.data() || {};
         return {
           email: mail,
-          name: x.name || x.displayName || authEmailToUsername(mail),
+          name: x.name || x.displayName || (mail === 'hieuthao@greenmarket.com' ? 'Hiếu Thảo' : (mail === 'thungan@greenmarket.com' ? 'Thu ngân' : authEmailToUsername(mail))),
           user: x.user || authEmailToUsername(mail),
           role: x.role === 'admin' ? 'admin' : 'cashier',
           active: x.active !== false,
@@ -8839,9 +8840,19 @@ async function getProfileByEmail(email){
         };
       }
     }catch(e){
-      console.warn('Không đọc được hồ sơ quyền', colName, mail, e);
+      console.warn('Không đọc được hồ sơ quyền theo email:', colName, mail, e);
     }
   }
+
+  // Dự phòng an toàn: 2 tài khoản nhân viên đã tạo trong Firebase Auth.
+  // Chỉ chạy sau khi Firebase Auth xác thực email/password thành công.
+  if(mail === 'thungan@greenmarket.com'){
+    return {email:mail, name:'Thu ngân', user:'thungan', role:'cashier', active:true, source:'fallback'};
+  }
+  if(mail === 'hieuthao@greenmarket.com'){
+    return {email:mail, name:'Hiếu Thảo', user:'hieuthao', role:'cashier', active:true, source:'fallback'};
+  }
+
   return null;
 }
 
@@ -8853,10 +8864,11 @@ async function setProfile(uid, profile){
     updatedAt: serverTimestamp()
   }, { merge: true });
 }
+
 window.greenMarketLoadUserProfiles = async function(){
   const map = new Map();
 
-  // Danh sách hồ sơ theo UID do app tạo trong mục Nhân viên.
+  // 1) Hồ sơ theo UID do app tạo trong collection greenmarket_auth_users.
   try{
     const qs = await getDocs(collection(db, AUTH_USERS_COLLECTION));
     qs.forEach(d => {
@@ -8876,7 +8888,7 @@ window.greenMarketLoadUserProfiles = async function(){
     console.warn('Không đọc được greenmarket_auth_users', e);
   }
 
-  // Danh sách role tạo tay theo email trong Firestore: role hoặc user_roles.
+  // 2) Hồ sơ tạo tay theo email trong collection role / user_roles.
   for(const colName of ['role', 'user_roles']){
     try{
       const qs = await getDocs(collection(db, colName));
@@ -8885,47 +8897,59 @@ window.greenMarketLoadUserProfiles = async function(){
         if(x.active === false) return;
         const email = String(x.email || d.id || '').trim().toLowerCase();
         if(!email || !email.includes('@')) return;
-        if(map.has(email)) return;
         map.set(email, {
           uid: d.id,
-          name: x.name || x.displayName || authEmailToUsername(email),
+          name: x.name || x.displayName || (email === 'hieuthao@greenmarket.com' ? 'Hiếu Thảo' : (email === 'thungan@greenmarket.com' ? 'Thu ngân' : authEmailToUsername(email))),
           user: x.user || authEmailToUsername(email),
           email,
           role: x.role === 'admin' ? 'admin' : 'cashier'
         });
       });
     }catch(e){
-      console.warn('Không đọc được collection role', colName, e);
+      console.warn('Không đọc được collection role/user_roles', colName, e);
     }
+  }
+
+  // 3) Đảm bảo danh sách có 2 nhân viên Auth đã tạo, phòng khi Firestore chưa kịp đọc.
+  if(!map.has('thungan@greenmarket.com')){
+    map.set('thungan@greenmarket.com', {uid:'thungan@greenmarket.com', name:'Thu ngân', user:'thungan', email:'thungan@greenmarket.com', role:'cashier'});
+  }
+  if(!map.has('hieuthao@greenmarket.com')){
+    map.set('hieuthao@greenmarket.com', {uid:'hieuthao@greenmarket.com', name:'Hiếu Thảo', user:'hieuthao', email:'hieuthao@greenmarket.com', role:'cashier'});
   }
 
   return Array.from(map.values()).sort((a,b) => (a.name || '').localeCompare(b.name || '', 'vi'));
 };
+
 async function buildGreenMarketSessionFromFirebaseUser(firebaseUser){
   if(!firebaseUser) return null;
   const email = String(firebaseUser.email || '').trim().toLowerCase();
-  let profile = await getProfileByUid(firebaseUser.uid);
 
-  // Nếu chưa có profile theo UID, đọc thêm quyền theo email trong collection role / user_roles.
+  // Ưu tiên 1: hồ sơ theo email để nhân viên tạo tay trong Firestore đăng nhập được ngay.
+  let profile = await getProfileByEmail(email);
+
+  // Ưu tiên 2: hồ sơ UID cũ nếu email chưa có trong role/user_roles.
   if(!profile){
-    profile = await getProfileByEmail(email);
-    if(profile){
-      await setProfile(firebaseUser.uid, {...profile, uid: firebaseUser.uid});
-    }
+    profile = await getProfileByUid(firebaseUser.uid);
   }
 
+  // Admin mặc định.
   if(!profile){
     const userKey = authEmailToUsername(email);
     if(userKey === 'admin'){
       profile = {name:'Admin', user:'admin', email, role:'admin', active:true};
-      await setProfile(firebaseUser.uid, profile);
     }else{
       throw new Error('Tài khoản này có Auth nhưng chưa có hồ sơ quyền trong Firestore. Hãy tạo document theo email trong collection role hoặc user_roles.');
     }
   }
+
   if(profile.active === false){
     throw new Error('Tài khoản này đã bị khóa trong Green Market.');
   }
+
+  // Lưu mirror theo UID để lần sau chạy nhanh hơn, nhưng không bắt buộc.
+  try{ await setProfile(firebaseUser.uid, {...profile, uid: firebaseUser.uid, email}); }catch(e){ console.warn('Không mirror được profile UID', e); }
+
   return {
     uid: firebaseUser.uid,
     name: profile.name || authEmailToUsername(email),
