@@ -1134,6 +1134,77 @@ tr:hover td{background:#f0fdf4!important}
   }
 }
 
+
+
+/* =========================================================
+   DASHBOARD PRO - BỔ SUNG TỔNG QUAN CHỦ SHOP
+   Chỉ thêm thẻ thống kê, không đụng logic POS/in hóa đơn.
+   ========================================================= */
+.dashboard-pro-panel{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin:16px 0 18px;
+}
+.dashboard-pro-card{
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1px solid rgba(14,165,233,.14);
+  border-radius:22px;
+  padding:18px;
+  box-shadow:0 14px 35px rgba(15,76,129,.08);
+  position:relative;
+  overflow:hidden;
+}
+.dashboard-pro-card:before{
+  content:"";
+  position:absolute;
+  right:-26px;
+  top:-26px;
+  width:82px;
+  height:82px;
+  border-radius:50%;
+  background:rgba(16,185,129,.12);
+}
+.dashboard-pro-card h3{
+  margin:0 0 9px;
+  color:#075985;
+  font-size:15px;
+  line-height:1.3;
+}
+.dashboard-pro-card strong{
+  display:block;
+  color:#047857;
+  font-size:25px;
+  line-height:1.15;
+  font-weight:900;
+}
+.dashboard-pro-card small{
+  display:block;
+  margin-top:7px;
+  color:#64748b;
+  font-weight:700;
+  line-height:1.35;
+}
+.dashboard-pro-wide{
+  grid-column:span 2;
+}
+.dashboard-pro-list{
+  margin:8px 0 0;
+  padding-left:18px;
+  color:#12324a;
+  line-height:1.7;
+  font-weight:800;
+}
+.dashboard-pro-list li{margin:2px 0}
+.dashboard-pro-danger strong{color:#dc2626!important}
+.dashboard-pro-warning strong{color:#f59e0b!important}
+@media(max-width:900px){
+  .dashboard-pro-panel{grid-template-columns:1fr!important;gap:10px!important;margin:12px 0!important}
+  .dashboard-pro-wide{grid-column:auto!important}
+  .dashboard-pro-card{padding:14px!important;border-radius:18px!important}
+  .dashboard-pro-card strong{font-size:22px!important}
+}
+
 </style>
 </head>
 <body>
@@ -1195,6 +1266,37 @@ tr:hover td{background:#f0fdf4!important}
       <div class="stat"><h3>⚠️ Tình trạng tồn kho</h3><p id="statLow" onclick="showLowStock()">0 sắp hết<br>0 hết hàng</p></div>
     </div>
     <div id="dashboardUpdated" class="dashboard-note"></div>
+
+    <div class="dashboard-pro-panel admin-only">
+      <div class="dashboard-pro-card">
+        <h3>📅 Doanh thu hôm nay</h3>
+        <strong id="proTodayRevenue">0 VNĐ</strong>
+        <small id="proTodayBills">0 đơn hôm nay</small>
+      </div>
+      <div class="dashboard-pro-card">
+        <h3>🗓️ Doanh thu tháng này</h3>
+        <strong id="proMonthRevenue">0 VNĐ</strong>
+        <small id="proMonthBills">0 đơn trong tháng</small>
+      </div>
+      <div class="dashboard-pro-card">
+        <h3>📈 Lãi tạm tính hôm nay</h3>
+        <strong id="proTodayProfit">0 VNĐ</strong>
+        <small>Tính theo giá nhập hiện tại trong kho</small>
+      </div>
+      <div class="dashboard-pro-card dashboard-pro-warning">
+        <h3>⚠️ Cảnh báo tồn kho</h3>
+        <strong id="proStockWarning">0 mặt hàng</strong>
+        <small id="proStockDetail">Kho đang ổn định</small>
+      </div>
+      <div class="dashboard-pro-card dashboard-pro-wide">
+        <h3>🔥 Top bán hôm nay</h3>
+        <ol id="proTopToday" class="dashboard-pro-list"><li>Chưa có dữ liệu</li></ol>
+      </div>
+      <div class="dashboard-pro-card dashboard-pro-wide">
+        <h3>👨‍💼 Nhân viên bán tốt hôm nay</h3>
+        <ol id="proTopStaffToday" class="dashboard-pro-list"><li>Chưa có dữ liệu</li></ol>
+      </div>
+    </div>
     <div class="dashboard-quick-actions admin-only">
       <h3>📘 Báo cáo nhanh kế toán / nhập kho</h3>
       <p>Đưa 3 nút quan trọng ra Trang chủ để in/xuất file nhanh, không cần vào mục Hàng mới nhập.</p>
@@ -6784,6 +6886,93 @@ function printBillReceiptByIndex(index){
   }, 700);
 }
 
+
+
+/* =========================================================
+   DASHBOARD PRO - THỐNG KÊ CHỦ SHOP
+   ========================================================= */
+function parseVNDateTimeForDashboard(text){
+  const parts = String(text || '').trim().split(/\s+/);
+  const datePart = parts.find(x => /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(x));
+  if(!datePart) return null;
+  const [d,m,y] = datePart.split('/').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function isSameDateForDashboard(a, b){
+  return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function isSameMonthForDashboard(a, b){
+  return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
+function estimateBillProfit(bill){
+  return (bill.items || []).reduce((sum, item) => {
+    const product = products.find(p => p.name === item.name || String(p.id) === String(item.id));
+    const importPrice = Number(product?.importPrice || item.importPrice || 0);
+    const sellPrice = Number(item.price || item.sellPrice || 0);
+    return sum + ((sellPrice - importPrice) * Number(item.qty || 0));
+  }, 0);
+}
+
+function renderDashboardPro(){
+  const today = new Date();
+  const visibleBills = current?.role === 'admin'
+    ? bills
+    : bills.filter(b => b.staff === current?.name);
+
+  const todayBills = visibleBills.filter(b => isSameDateForDashboard(parseVNDateTimeForDashboard(b.time), today));
+  const monthBills = visibleBills.filter(b => isSameMonthForDashboard(parseVNDateTimeForDashboard(b.time), today));
+
+  const todayRevenue = todayBills.reduce((s,b) => s + Number(b.total || 0), 0);
+  const monthRevenue = monthBills.reduce((s,b) => s + Number(b.total || 0), 0);
+  const todayProfit = todayBills.reduce((s,b) => s + estimateBillProfit(b), 0);
+
+  const lowCount = products.filter(p => Number(p.qty || 0) > 0 && Number(p.qty || 0) <= Number(p.lowLimit ?? 5)).length;
+  const outCount = products.filter(p => Number(p.qty || 0) <= 0).length;
+
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = value;
+  };
+
+  setText('proTodayRevenue', money(todayRevenue));
+  setText('proTodayBills', `${todayBills.length} đơn hôm nay`);
+  setText('proMonthRevenue', money(monthRevenue));
+  setText('proMonthBills', `${monthBills.length} đơn trong tháng`);
+  setText('proTodayProfit', money(todayProfit));
+  setText('proStockWarning', `${lowCount + outCount} mặt hàng`);
+  setText('proStockDetail', `${lowCount} sắp hết • ${outCount} hết hàng`);
+
+  const topProductMap = {};
+  todayBills.forEach(b => (b.items || []).forEach(i => {
+    topProductMap[i.name] = (topProductMap[i.name] || 0) + Number(i.qty || 0);
+  }));
+  const topProductsToday = Object.entries(topProductMap).sort((a,b) => b[1] - a[1]).slice(0,5);
+  const proTopToday = document.getElementById('proTopToday');
+  if(proTopToday){
+    proTopToday.innerHTML = topProductsToday.length
+      ? topProductsToday.map(([name, qty]) => `<li>${escapeHTML(name)} — ${qty} đã bán</li>`).join('')
+      : '<li>Chưa có dữ liệu</li>';
+  }
+
+  const staffMap = {};
+  todayBills.forEach(b => {
+    const staff = b.staff || 'Không rõ';
+    if(!staffMap[staff]) staffMap[staff] = {count:0,total:0};
+    staffMap[staff].count += 1;
+    staffMap[staff].total += Number(b.total || 0);
+  });
+  const topStaff = Object.entries(staffMap).sort((a,b) => b[1].total - a[1].total).slice(0,5);
+  const proTopStaffToday = document.getElementById('proTopStaffToday');
+  if(proTopStaffToday){
+    proTopStaffToday.innerHTML = topStaff.length
+      ? topStaff.map(([name, data]) => `<li>${escapeHTML(name)} — ${money(data.total)} / ${data.count} đơn</li>`).join('')
+      : '<li>Chưa có dữ liệu</li>';
+  }
+}
+
 /* =========================================================
    28. RENDER TOÀN BỘ GIAO DIỆN
    ========================================================= */
@@ -6806,6 +6995,7 @@ function renderAll(){
   if(document.getElementById('dashboardUpdated')){
     dashboardUpdated.textContent = 'Cập nhật lần cuối: ' + now();
   }
+  renderDashboardPro();
 
   sellProduct.innerHTML = products.map(p => `
     <option value="${p.id}">
