@@ -1337,6 +1337,48 @@ tr:hover td{background:#f0fdf4!important}
   .chart-row canvas{height:240px!important;max-height:240px!important}
 }
 
+
+
+/* =========================================================
+   FIX BẢNG CA LÀM VIỆC: KHỚP CỘT + CUỘN NGANG MOBILE
+   ========================================================= */
+#shift .table-wrap,
+#shiftReport .table-wrap{
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+}
+#shift table{
+  min-width:1180px!important;
+  table-layout:auto!important;
+}
+#shift th,#shift td,
+#shiftReport th,#shiftReport td{
+  vertical-align:middle!important;
+}
+#shift th:nth-child(4),#shift td:nth-child(4),
+#shift th:nth-child(5),#shift td:nth-child(5){
+  min-width:170px!important;
+}
+#shift th:nth-child(12),#shift td:nth-child(12){
+  min-width:100px!important;
+  text-align:center!important;
+}
+@media(max-width:768px){
+  #shift .table-wrap,
+  #shiftReport .table-wrap{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #shift table{
+    width:max-content!important;
+    min-width:1080px!important;
+  }
+  #shiftReport table{
+    width:max-content!important;
+    min-width:980px!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1607,9 +1649,10 @@ tr:hover td{background:#f0fdf4!important}
     <table>
       <thead>
         <tr>
-<th>STT</th>    
+<th>STT</th>
 <th>Nhân viên</th>
-<th>ca</th>
+<th>Ca</th>
+<th>Giờ mở ca</th>
 <th>Giờ kết ca</th>
 <th>Tiền đầu ca</th>
 <th>Doanh thu</th>
@@ -2919,6 +2962,48 @@ function printBarcodeA4(){
   .chart-row canvas{height:240px!important;max-height:240px!important}
 }
 
+
+
+/* =========================================================
+   FIX BẢNG CA LÀM VIỆC: KHỚP CỘT + CUỘN NGANG MOBILE
+   ========================================================= */
+#shift .table-wrap,
+#shiftReport .table-wrap{
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+}
+#shift table{
+  min-width:1180px!important;
+  table-layout:auto!important;
+}
+#shift th,#shift td,
+#shiftReport th,#shiftReport td{
+  vertical-align:middle!important;
+}
+#shift th:nth-child(4),#shift td:nth-child(4),
+#shift th:nth-child(5),#shift td:nth-child(5){
+  min-width:170px!important;
+}
+#shift th:nth-child(12),#shift td:nth-child(12){
+  min-width:100px!important;
+  text-align:center!important;
+}
+@media(max-width:768px){
+  #shift .table-wrap,
+  #shiftReport .table-wrap{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #shift table{
+    width:max-content!important;
+    min-width:1080px!important;
+  }
+  #shiftReport table{
+    width:max-content!important;
+    min-width:980px!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -3238,6 +3323,48 @@ tbody tr:hover td{background:#f8fffb!important}
   .dashboard-pro-revenue,.dashboard-pro-profit,.dashboard-pro-stock-card,.dashboard-pro-top-card,.dashboard-pro-staff-card,.dashboard-pro-warning{grid-column:auto!important}
   .chart-row .card{height:auto!important;min-height:320px!important;padding-bottom:28px!important}
   .chart-row canvas{height:240px!important;max-height:240px!important}
+}
+
+
+
+/* =========================================================
+   FIX BẢNG CA LÀM VIỆC: KHỚP CỘT + CUỘN NGANG MOBILE
+   ========================================================= */
+#shift .table-wrap,
+#shiftReport .table-wrap{
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+}
+#shift table{
+  min-width:1180px!important;
+  table-layout:auto!important;
+}
+#shift th,#shift td,
+#shiftReport th,#shiftReport td{
+  vertical-align:middle!important;
+}
+#shift th:nth-child(4),#shift td:nth-child(4),
+#shift th:nth-child(5),#shift td:nth-child(5){
+  min-width:170px!important;
+}
+#shift th:nth-child(12),#shift td:nth-child(12){
+  min-width:100px!important;
+  text-align:center!important;
+}
+@media(max-width:768px){
+  #shift .table-wrap,
+  #shiftReport .table-wrap{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #shift table{
+    width:max-content!important;
+    min-width:1080px!important;
+  }
+  #shiftReport table{
+    width:max-content!important;
+    min-width:980px!important;
+  }
 }
 
 </style>
@@ -5682,6 +5809,48 @@ function buildImportReceiptPrintHtml(data){
   .chart-row canvas{height:240px!important;max-height:240px!important}
 }
 
+
+
+/* =========================================================
+   FIX BẢNG CA LÀM VIỆC: KHỚP CỘT + CUỘN NGANG MOBILE
+   ========================================================= */
+#shift .table-wrap,
+#shiftReport .table-wrap{
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+}
+#shift table{
+  min-width:1180px!important;
+  table-layout:auto!important;
+}
+#shift th,#shift td,
+#shiftReport th,#shiftReport td{
+  vertical-align:middle!important;
+}
+#shift th:nth-child(4),#shift td:nth-child(4),
+#shift th:nth-child(5),#shift td:nth-child(5){
+  min-width:170px!important;
+}
+#shift th:nth-child(12),#shift td:nth-child(12){
+  min-width:100px!important;
+  text-align:center!important;
+}
+@media(max-width:768px){
+  #shift .table-wrap,
+  #shiftReport .table-wrap{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #shift table{
+    width:max-content!important;
+    min-width:1080px!important;
+  }
+  #shiftReport table{
+    width:max-content!important;
+    min-width:980px!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -6017,6 +6186,48 @@ tbody tr:hover td{background:#f8fffb!important}
   .chart-row canvas{height:240px!important;max-height:240px!important}
 }
 
+
+
+/* =========================================================
+   FIX BẢNG CA LÀM VIỆC: KHỚP CỘT + CUỘN NGANG MOBILE
+   ========================================================= */
+#shift .table-wrap,
+#shiftReport .table-wrap{
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+}
+#shift table{
+  min-width:1180px!important;
+  table-layout:auto!important;
+}
+#shift th,#shift td,
+#shiftReport th,#shiftReport td{
+  vertical-align:middle!important;
+}
+#shift th:nth-child(4),#shift td:nth-child(4),
+#shift th:nth-child(5),#shift td:nth-child(5){
+  min-width:170px!important;
+}
+#shift th:nth-child(12),#shift td:nth-child(12){
+  min-width:100px!important;
+  text-align:center!important;
+}
+@media(max-width:768px){
+  #shift .table-wrap,
+  #shiftReport .table-wrap{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #shift table{
+    width:max-content!important;
+    min-width:1080px!important;
+  }
+  #shiftReport table{
+    width:max-content!important;
+    min-width:980px!important;
+  }
+}
+
 </style>
 
 </body>
@@ -6322,6 +6533,48 @@ function buildDailyImportReportPrintHtml(selected, list){
   .dashboard-pro-revenue,.dashboard-pro-profit,.dashboard-pro-stock-card,.dashboard-pro-top-card,.dashboard-pro-staff-card,.dashboard-pro-warning{grid-column:auto!important}
   .chart-row .card{height:auto!important;min-height:320px!important;padding-bottom:28px!important}
   .chart-row canvas{height:240px!important;max-height:240px!important}
+}
+
+
+
+/* =========================================================
+   FIX BẢNG CA LÀM VIỆC: KHỚP CỘT + CUỘN NGANG MOBILE
+   ========================================================= */
+#shift .table-wrap,
+#shiftReport .table-wrap{
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+}
+#shift table{
+  min-width:1180px!important;
+  table-layout:auto!important;
+}
+#shift th,#shift td,
+#shiftReport th,#shiftReport td{
+  vertical-align:middle!important;
+}
+#shift th:nth-child(4),#shift td:nth-child(4),
+#shift th:nth-child(5),#shift td:nth-child(5){
+  min-width:170px!important;
+}
+#shift th:nth-child(12),#shift td:nth-child(12){
+  min-width:100px!important;
+  text-align:center!important;
+}
+@media(max-width:768px){
+  #shift .table-wrap,
+  #shiftReport .table-wrap{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #shift table{
+    width:max-content!important;
+    min-width:1080px!important;
+  }
+  #shiftReport table{
+    width:max-content!important;
+    min-width:980px!important;
+  }
 }
 
 </style>
@@ -6656,6 +6909,48 @@ tbody tr:hover td{background:#f8fffb!important}
   .dashboard-pro-revenue,.dashboard-pro-profit,.dashboard-pro-stock-card,.dashboard-pro-top-card,.dashboard-pro-staff-card,.dashboard-pro-warning{grid-column:auto!important}
   .chart-row .card{height:auto!important;min-height:320px!important;padding-bottom:28px!important}
   .chart-row canvas{height:240px!important;max-height:240px!important}
+}
+
+
+
+/* =========================================================
+   FIX BẢNG CA LÀM VIỆC: KHỚP CỘT + CUỘN NGANG MOBILE
+   ========================================================= */
+#shift .table-wrap,
+#shiftReport .table-wrap{
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+}
+#shift table{
+  min-width:1180px!important;
+  table-layout:auto!important;
+}
+#shift th,#shift td,
+#shiftReport th,#shiftReport td{
+  vertical-align:middle!important;
+}
+#shift th:nth-child(4),#shift td:nth-child(4),
+#shift th:nth-child(5),#shift td:nth-child(5){
+  min-width:170px!important;
+}
+#shift th:nth-child(12),#shift td:nth-child(12){
+  min-width:100px!important;
+  text-align:center!important;
+}
+@media(max-width:768px){
+  #shift .table-wrap,
+  #shiftReport .table-wrap{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #shift table{
+    width:max-content!important;
+    min-width:1080px!important;
+  }
+  #shiftReport table{
+    width:max-content!important;
+    min-width:980px!important;
+  }
 }
 
 </style>
@@ -8346,6 +8641,48 @@ tbody tr:hover td{background:#f8fffb!important}
   .dashboard-pro-revenue,.dashboard-pro-profit,.dashboard-pro-stock-card,.dashboard-pro-top-card,.dashboard-pro-staff-card,.dashboard-pro-warning{grid-column:auto!important}
   .chart-row .card{height:auto!important;min-height:320px!important;padding-bottom:28px!important}
   .chart-row canvas{height:240px!important;max-height:240px!important}
+}
+
+
+
+/* =========================================================
+   FIX BẢNG CA LÀM VIỆC: KHỚP CỘT + CUỘN NGANG MOBILE
+   ========================================================= */
+#shift .table-wrap,
+#shiftReport .table-wrap{
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+}
+#shift table{
+  min-width:1180px!important;
+  table-layout:auto!important;
+}
+#shift th,#shift td,
+#shiftReport th,#shiftReport td{
+  vertical-align:middle!important;
+}
+#shift th:nth-child(4),#shift td:nth-child(4),
+#shift th:nth-child(5),#shift td:nth-child(5){
+  min-width:170px!important;
+}
+#shift th:nth-child(12),#shift td:nth-child(12){
+  min-width:100px!important;
+  text-align:center!important;
+}
+@media(max-width:768px){
+  #shift .table-wrap,
+  #shiftReport .table-wrap{
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #shift table{
+    width:max-content!important;
+    min-width:1080px!important;
+  }
+  #shiftReport table{
+    width:max-content!important;
+    min-width:980px!important;
+  }
 }
 
 </style>
