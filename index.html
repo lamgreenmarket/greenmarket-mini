@@ -1249,7 +1249,9 @@ tr:hover td{background:#f0fdf4!important}
         </div>
         <div id="cashBox" class="pos-cash-box">
           <label>Khách đưa tiền</label>
-          <input id="customerCash" type="number" placeholder="Nhập số tiền khách đưa" oninput="updatePaymentBox()">
+         <input id="customerCash" type="number" placeholder="Nhập số tiền khách đưa"
+       oninput="updatePaymentBox()"
+       onkeydown="if(event.key==='Enter'){event.preventDefault(); checkout();}">
         </div>
         <div id="paymentStatus" class="pos-status">💵 Đang chọn thanh toán tiền mặt. Hệ thống sẽ tính tiền thối lại.</div>
         <div class="pos-pay-row"><span>Tổng hóa đơn</span><span id="posPayTotal">0 VNĐ</span></div>
