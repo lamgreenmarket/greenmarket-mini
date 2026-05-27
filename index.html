@@ -1347,7 +1347,7 @@ tr:hover td{background:#f0fdf4!important}
   <div class="login-card">
     <div class="logo">🛒 SIÊU THỊ MINI GREEN MARKET</div>
    
-    <label>Tên đăng nhập</label><input id="loginUser" autocomplete="username">
+    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" autocomplete="username" placeholder="admin hoặc admin@greenmarket.com">
     <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" type="password" autocomplete="current-password"><button class="eye" onclick="togglePass()">👁️</button></div>
     <button class="btn-blue full" onclick="login()">Đăng nhập</button><p id="loginMsg" class="msg"></p>
   </div>
@@ -8373,6 +8373,7 @@ import {
 import {
   getAuth,
   signInWithEmailAndPassword,
+  onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
@@ -8456,7 +8457,13 @@ function authUsernameToEmail(username){
   const raw = String(username || '').trim().toLowerCase();
   if(raw.includes('@')) return raw;
   const safe = raw.replace(/[^a-z0-9._-]/g, '');
-  return `${safe}@greenmarket-mini.app`;
+  return `${safe}@greenmarket.com`;
+}
+function authCandidateEmails(username){
+  const raw = String(username || '').trim().toLowerCase();
+  if(raw.includes('@')) return [raw];
+  const safe = raw.replace(/[^a-z0-9._-]/g, '');
+  return [`${safe}@greenmarket.com`, `${safe}@greenmarket-mini.app`];
 }
 function authEmailToUsername(email){
   return String(email || '').split('@')[0];
@@ -8498,35 +8505,42 @@ window.greenMarketLoadUserProfiles = async function(){
   });
   return arr.sort((a,b) => (a.name || '').localeCompare(b.name || '', 'vi'));
 };
-window.greenMarketAuthSignIn = async function(username, password){
-  try{
-    const email = authUsernameToEmail(username);
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    let profile = await getProfileByUid(cred.user.uid);
-    if(!profile){
-      const userKey = authEmailToUsername(email);
-      if(userKey === 'admin'){
-        profile = {name:'Admin', user:'admin', email, role:'admin', active:true};
-        await setProfile(cred.user.uid, profile);
-      }else{
-        await signOut(auth);
-        throw new Error('Tài khoản này có Auth nhưng chưa có hồ sơ quyền trong Firestore. Hãy dùng Admin thêm nhân viên lại.');
-      }
+async function buildGreenMarketSessionFromFirebaseUser(firebaseUser){
+  if(!firebaseUser) return null;
+  const email = String(firebaseUser.email || '').toLowerCase();
+  let profile = await getProfileByUid(firebaseUser.uid);
+  if(!profile){
+    const userKey = authEmailToUsername(email);
+    if(userKey === 'admin'){
+      profile = {name:'Admin', user:'admin', email, role:'admin', active:true};
+      await setProfile(firebaseUser.uid, profile);
+    }else{
+      throw new Error('Tài khoản này có Auth nhưng chưa có hồ sơ quyền trong Firestore. Hãy dùng Admin thêm nhân viên lại.');
     }
-    if(profile.active === false){
-      await signOut(auth);
-      throw new Error('Tài khoản này đã bị khóa trong Green Market.');
-    }
-    return {
-      uid: cred.user.uid,
-      name: profile.name || authEmailToUsername(email),
-      user: profile.user || authEmailToUsername(email),
-      email,
-      role: profile.role === 'admin' ? 'admin' : 'cashier'
-    };
-  }catch(err){
-    throw new Error(friendlyAuthError(err));
   }
+  if(profile.active === false){
+    throw new Error('Tài khoản này đã bị khóa trong Green Market.');
+  }
+  return {
+    uid: firebaseUser.uid,
+    name: profile.name || authEmailToUsername(email),
+    user: profile.user || authEmailToUsername(email),
+    email,
+    role: profile.role === 'admin' ? 'admin' : 'cashier'
+  };
+}
+
+window.greenMarketAuthSignIn = async function(username, password){
+  let lastErr = null;
+  for(const email of authCandidateEmails(username)){
+    try{
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      return await buildGreenMarketSessionFromFirebaseUser(cred.user);
+    }catch(err){
+      lastErr = err;
+    }
+  }
+  throw new Error(friendlyAuthError(lastErr));
 };
 window.greenMarketAuthSignOut = async function(){
   await signOut(auth);
@@ -8688,6 +8702,36 @@ window.greenMarketLoadFirebaseNow = async function(){
     alert("Lỗi tải Firebase. Mở F12 Console gửi ảnh cho mình.");
   }
 };
+
+
+let firebaseAuthBooted = false;
+onAuthStateChanged(auth, async (firebaseUser) => {
+  // Firebase Auth là nguồn đăng nhập duy nhất. Nếu còn phiên đăng nhập cũ, tự mở app lại.
+  try{
+    if(!firebaseAuthBooted){ firebaseAuthBooted = true; }
+    if(firebaseUser && !window.current){
+      const session = await buildGreenMarketSessionFromFirebaseUser(firebaseUser);
+      window.current = current = session;
+      users = await window.greenMarketLoadUserProfiles();
+      if(!users.some(x => x.user === current.user)) users.unshift({...current});
+      userName.textContent = current.name;
+      userRole.textContent = current.role === 'admin' ? 'Admin' : 'Thu ngân';
+      loginMsg.textContent = '';
+      loginPage.classList.add('hidden');
+      appPage.classList.remove('hidden');
+      applyPermission();
+      showPage('home');
+      renderAll();
+      renderTopProducts();
+      if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
+    }
+  }catch(err){
+    console.error('Firebase Auth resume error:', err);
+    try{ await signOut(auth); }catch(e){}
+    loginMsg.textContent = err?.message || 'Không khôi phục được phiên đăng nhập Firebase';
+    showLogin();
+  }
+});
 
 initFirebaseSync();
 </script>
