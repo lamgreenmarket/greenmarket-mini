@@ -1965,7 +1965,7 @@ const KMONEY = 'v2_money';
 const KLOGS = 'v2_logs';
 const KIMPORTS = 'v2_import_history';
 
-let users = JSON.parse(localStorage.getItem(KUSERS) || '[]');
+let users = []; // Tài khoản/mật khẩu chỉ tải từ Firebase, không đọc từ localStorage
 let products = JSON.parse(localStorage.getItem(KPRODUCTS) || '[]');
 let bills = JSON.parse(localStorage.getItem(KBILLS) || '[]');
 let moneyList = JSON.parse(localStorage.getItem(KMONEY) || '[]');
@@ -2030,12 +2030,44 @@ function save(){
   localStorage.setItem(KPRODUCTS, JSON.stringify(products));
   localStorage.setItem(KBILLS, JSON.stringify(bills));
   localStorage.setItem(KMONEY, JSON.stringify(moneyList));
-  localStorage.setItem(KUSERS, JSON.stringify(users));
+  // Không lưu tài khoản/mật khẩu vào localStorage. Tài khoản chỉ lưu trên Firebase.
   localStorage.setItem(KLOGS, JSON.stringify(logs));
   localStorage.setItem(KIMPORTS, JSON.stringify(importHistory));
 
   // Auto backup nhẹ: mỗi ngày 1 bản, trong ngày ghi đè.
   try{ autoBackupDaily(false); }catch(e){}
+}
+
+
+async function loadUsersFromFirebaseOnly(){
+  if(!window.greenMarketEnsureUsersLoaded){
+    loginMsg.textContent = 'Firebase chưa sẵn sàng, chờ vài giây rồi đăng nhập lại';
+    return false;
+  }
+  try{
+    const cloudUsers = await window.greenMarketEnsureUsersLoaded();
+    if(Array.isArray(cloudUsers)) users = cloudUsers;
+    return true;
+  }catch(e){
+    console.error(e);
+    loginMsg.textContent = 'Không tải được tài khoản từ Firebase';
+    return false;
+  }
+}
+
+async function saveUsersFirebaseOnly(){
+  if(!window.greenMarketSaveUsersOnly){
+    alert('Firebase chưa sẵn sàng, vui lòng thử lại sau vài giây.');
+    return false;
+  }
+  try{
+    await window.greenMarketSaveUsersOnly(users);
+    return true;
+  }catch(e){
+    console.error(e);
+    alert('Không lưu được tài khoản lên Firebase.');
+    return false;
+  }
 }
 
 function addLog(action, detail){
@@ -2248,9 +2280,14 @@ function showLogin(){
   appPage.classList.add('hidden');
 }
 
-function login(){
+async function login(){
   const u = cleanText(loginUser.value);
   const p = cleanText(loginPass.value);
+
+  loginMsg.textContent = 'Đang kiểm tra tài khoản Firebase...';
+  const okLoad = await loadUsersFromFirebaseOnly();
+  if(!okLoad) return;
+
   const f = users.find(x => x.user === u && x.pass === p);
 
   if(!f){
@@ -4339,6 +4376,7 @@ function addStaff(){
 
   addLog('Thêm nhân viên', name);
   save();
+  saveUsersFirebaseOnly();
 
   staffName.value = '';
   staffUser.value = '';
@@ -4357,6 +4395,7 @@ function delStaff(user){
     users = users.filter(u => u.user !== user);
     addLog('Xóa nhân viên', user);
     save();
+    saveUsersFirebaseOnly();
     renderAll();
   }
 }
@@ -4388,7 +4427,8 @@ function buildBackupData(){
   return {
     version: 'GREEN_MARKET_BACKUP_V1',
     backupAt: now(),
-    users,
+    // Không backup mật khẩu/tài khoản vào localStorage hoặc file JSON. Tài khoản nằm trên Firebase.
+    users: [],
     products,
     bills,
     moneyList,
@@ -4466,7 +4506,7 @@ function downloadBackupToday(){
 }
 
 function applyBackupData(data){
-  users = data.users || [];
+  // Không khôi phục tài khoản/mật khẩu từ file backup để tránh ghi đè Firebase.
   products = data.products || [];
   bills = data.bills || [];
   moneyList = data.moneyList || data.money || [];
@@ -8336,10 +8376,10 @@ tbody tr:hover td{background:#f8fffb!important}
 <script type="module">
 /* =========================================================
    FIREBASE SYNC - GREEN MARKET
-   Cách hoạt động an toàn:
-   - localStorage vẫn là chính để web không hư.
-   - Mỗi lần web lưu dữ liệu, hệ thống tự đẩy bản sao lên Firestore.
-   - Máy khác mở web sẽ tự tải dữ liệu cloud nếu cloud mới hơn/local trống.
+   Bản này dùng Firebase làm nguồn chính.
+   Lưu ý an toàn: tài khoản/mật khẩu KHÔNG lưu localStorage nữa.
+   Dữ liệu bán hàng/kho có thể còn cache tạm trên máy để app đang dùng không bị hỏng,
+   nhưng sẽ luôn đồng bộ lên Firebase.
    ========================================================= */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
 import {
@@ -8348,7 +8388,9 @@ import {
   setDoc,
   getDoc,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  updateDoc,
+  deleteField
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -8364,11 +8406,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const CLOUD_DOC = doc(db, "greenmarket", "main_data");
+const AUTH_DOC = doc(db, "greenmarket", "auth_users");
 const CLOUD_KEYS = [
   "v2_products",
   "v2_bills",
   "v2_money",
-  "v2_users",
   "v2_logs",
   "v2_import_history",
   "shifts",
@@ -8381,6 +8423,8 @@ let firebaseSyncBusy = false;
 let firebaseSaveTimer = null;
 let lastLocalSnapshot = "";
 let lastCloudApplyMs = Number(localStorage.getItem("green_market_firebase_last_apply_ms") || 0);
+let cloudUsersCache = [];
+originalRemoveItem("v2_users");
 
 function getLocalData(){
   const data = {};
@@ -8406,7 +8450,7 @@ function localCounts(data = getLocalData()){
     bills: countRowsFromRaw(data.v2_bills),
     imports: countRowsFromRaw(data.v2_import_history),
     money: countRowsFromRaw(data.v2_money),
-    users: countRowsFromRaw(data.v2_users),
+    users: Array.isArray(cloudUsersCache) ? cloudUsersCache.length : 0,
     logs: countRowsFromRaw(data.v2_logs),
     shifts: countRowsFromRaw(data.shifts)
   };
@@ -8441,6 +8485,8 @@ async function saveCloudNow(reason = "auto"){
       counts: localCounts(data),
       data
     }, { merge: true });
+    // Xóa dấu vết tài khoản/mật khẩu cũ nếu trước đây từng bị lưu trong main_data.
+    try{ await updateDoc(CLOUD_DOC, { "data.v2_users": deleteField() }); }catch(e){}
     originalSetItem("green_market_firebase_last_save_ms", String(Date.now()));
     if(reason === "manual") setSyncStatus("☁️ Đã lưu dữ liệu lên Firebase");
     console.log("✅ Firebase sync saved", reason, localCounts(data));
@@ -8458,7 +8504,9 @@ function scheduleCloudSave(reason = "auto"){
 function applyCloudData(data){
   firebaseSyncBusy = true;
   try{
+    originalRemoveItem("v2_users");
     Object.entries(data || {}).forEach(([key, value]) => {
+      if(key === "v2_users") return;
       if(CLOUD_KEYS.includes(key) && typeof value === "string"){
         originalSetItem(key, value);
       }
@@ -8484,8 +8532,63 @@ function shouldUseCloud(cloudData){
   return false;
 }
 
+
+function parseUsersRaw(raw){
+  try{
+    const arr = typeof raw === "string" ? JSON.parse(raw || "[]") : raw;
+    return Array.isArray(arr) ? arr.filter(u => u && u.user && u.pass) : [];
+  }catch(e){
+    return [];
+  }
+}
+
+async function loadUsersFromFirebase(){
+  const authSnap = await getDoc(AUTH_DOC);
+  if(authSnap.exists()){
+    cloudUsersCache = parseUsersRaw(authSnap.data()?.users || []);
+    originalRemoveItem("v2_users");
+    return cloudUsersCache;
+  }
+
+  // Di chuyển tài khoản cũ từ main_data.data.v2_users sang auth_users đúng 1 lần.
+  const mainSnap = await getDoc(CLOUD_DOC);
+  const oldUsers = parseUsersRaw(mainSnap.data()?.data?.v2_users || []);
+  if(oldUsers.length){
+    cloudUsersCache = oldUsers;
+    await setDoc(AUTH_DOC, {
+      updatedAt: serverTimestamp(),
+      users: oldUsers
+    }, { merge: true });
+    try{ await updateDoc(CLOUD_DOC, { "data.v2_users": deleteField() }); }catch(e){}
+    originalRemoveItem("v2_users");
+    return cloudUsersCache;
+  }
+
+  cloudUsersCache = [];
+  return cloudUsersCache;
+}
+
+window.greenMarketEnsureUsersLoaded = async function(){
+  const list = await loadUsersFromFirebase();
+  originalRemoveItem("v2_users");
+  return list;
+};
+
+window.greenMarketSaveUsersOnly = async function(list){
+  const cleanUsers = parseUsersRaw(list || []);
+  cloudUsersCache = cleanUsers;
+  await setDoc(AUTH_DOC, {
+    updatedAt: serverTimestamp(),
+    users: cleanUsers
+  }, { merge: true });
+  originalRemoveItem("v2_users");
+  try{ await updateDoc(CLOUD_DOC, { "data.v2_users": deleteField(), "counts.users": cleanUsers.length }); }catch(e){}
+  setSyncStatus("🔐 Đã lưu tài khoản lên Firebase");
+};
+
 async function initFirebaseSync(){
   try{
+    await loadUsersFromFirebase();
     const snap = await getDoc(CLOUD_DOC);
     if(!snap.exists()){
       await saveCloudNow("first_upload_from_this_browser");
@@ -8543,6 +8646,7 @@ window.greenMarketLoadFirebaseNow = async function(){
     const snap = await getDoc(CLOUD_DOC);
     if(!snap.exists()) return alert("Firebase chưa có dữ liệu để tải.");
     applyCloudData(snap.data()?.data || {});
+    await loadUsersFromFirebase();
     alert("Đã tải dữ liệu từ Firebase. Trang sẽ mở lại.");
     location.reload();
   }catch(err){
