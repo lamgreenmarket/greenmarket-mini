@@ -1379,6 +1379,14 @@ tr:hover td{background:#f0fdf4!important}
   }
 }
 
+
+/* =========================================================
+   PHÂN QUYỀN THU NGÂN - KHÔNG HIỆN DASHBOARD CHỦ SHOP
+   ========================================================= */
+body.cashier-mode #home{
+  display:none!important;
+}
+
 </style>
 </head>
 <body>
@@ -2311,7 +2319,7 @@ async function login(){
     appPage.classList.remove('hidden');
 
     applyPermission();
-    showPage('home');
+    showPage(current.role === 'admin' ? 'home' : 'sell');
     renderAll();
     renderTopProducts();
     if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
@@ -2346,8 +2354,11 @@ document.addEventListener('keydown', e => {
    20. MENU / PHÂN QUYỀN
    ========================================================= */
 function applyPermission(){
+  const isAdmin = current?.role === 'admin';
+  document.body.classList.toggle('cashier-mode', !isAdmin);
+
   document.querySelectorAll('.admin-only').forEach(el => {
-    if(current?.role === 'admin'){
+    if(isAdmin){
       el.classList.remove('hidden');
     }else{
       el.classList.add('hidden');
@@ -2358,9 +2369,15 @@ function applyPermission(){
 function showPage(id){
   if(!current) return;
 
+  // Thu ngân không xem trang tổng quan/doanh thu toàn cửa hàng.
+  // Bấm Trang chủ sẽ chuyển thẳng về POS bán hàng.
+  if(current.role !== 'admin' && id === 'home'){
+    id = 'sell';
+  }
+
   if(
     current.role !== 'admin' &&
-    ['stock', 'imports', 'barcodeA4', 'money', 'staff', 'logs'].includes(id)
+    ['home', 'stock', 'imports', 'barcodeA4', 'money', 'staff', 'logs', 'shiftReport'].includes(id)
   ){
     alert('Tài khoản thu ngân không có quyền vào mục này');
     return;
@@ -2370,7 +2387,9 @@ function showPage(id){
     p.classList.add('hidden');
   });
 
-  document.getElementById(id).classList.remove('hidden');
+  const pageEl = document.getElementById(id);
+  if(!pageEl) return;
+  pageEl.classList.remove('hidden');
   setActiveMainMenu(id);
   renderAll();
   if(id === 'shift'){
@@ -7549,10 +7568,20 @@ function renderBillHistory(visibleBills){
   `;
 }
 
+function canAccessBill(bill){
+  if(!current || !bill) return false;
+  if(current.role === 'admin') return true;
+  return String(bill.staff || '').trim().toLowerCase() === String(current.name || '').trim().toLowerCase();
+}
+
 function viewBillDetail(index){
   const b = bills[index];
   const box = document.getElementById('billDetailBox');
   if(!b || !box) return;
+  if(!canAccessBill(b)){
+    alert('Bạn chỉ được xem hóa đơn của chính mình.');
+    return;
+  }
 
   const rows = (b.items || []).map((it, i) => `
     <tr>
@@ -7603,6 +7632,10 @@ function printBillReceiptByIndex(index){
   const b = bills[index];
   if(!b){
     alert('Không tìm thấy hóa đơn để in lại');
+    return;
+  }
+  if(!canAccessBill(b)){
+    alert('Bạn chỉ được in lại hóa đơn của chính mình.');
     return;
   }
 
@@ -8985,15 +9018,32 @@ window.greenMarketAuthCreateStaff = async function({name, user, pass, role}){
     const data = await res.json();
     if(!res.ok) throw new Error(data?.error?.message || 'Không tạo được tài khoản Auth');
     const uid = data.localId;
-    await setProfile(uid, {
+    const normalizedRole = role === 'admin' ? 'admin' : 'cashier';
+    const profile = {
       name,
       user: String(user || '').trim(),
       email,
-      role: role === 'admin' ? 'admin' : 'cashier',
+      role: normalizedRole,
       active: true,
       createdAt: serverTimestamp()
-    });
-    return {uid, name, user, email, role};
+    };
+    await setProfile(uid, profile);
+
+    // Lưu thêm hồ sơ quyền theo email để sau này thêm nhân viên mới KHÔNG cần sửa code.
+    // Chỉ cần Firebase Auth có user + Firestore user_roles/<email>.
+    try{
+      await setDoc(doc(db, 'user_roles', email), {
+        name,
+        user: String(user || '').trim(),
+        email,
+        role: normalizedRole,
+        active: true,
+        uid,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    }catch(e){ console.warn('Không lưu được user_roles theo email', e); }
+
+    return {uid, name, user, email, role: normalizedRole};
   }catch(err){
     throw new Error(friendlyAuthError(err));
   }
@@ -9003,6 +9053,14 @@ window.greenMarketAuthDisableStaff = async function(user){
   const f = profiles.find(x => x.user === user || x.email === user);
   if(!f) return;
   await setProfile(f.uid, {active:false, disabledAt: serverTimestamp()});
+  if(f.email){
+    try{
+      await setDoc(doc(db, 'user_roles', String(f.email).toLowerCase()), {
+        active:false,
+        disabledAt: serverTimestamp()
+      }, { merge:true });
+    }catch(e){}
+  }
 };
 try{ originalRemoveItem("v2_users"); }catch(e){}
 
