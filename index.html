@@ -1381,10 +1381,17 @@ tr:hover td{background:#f0fdf4!important}
 
 
 /* =========================================================
-   PHÂN QUYỀN THU NGÂN - KHÔNG HIỆN DASHBOARD CHỦ SHOP
+   PHÂN QUYỀN THU NGÂN - TRANG CHỦ CHỈ HIỆN BIỂU ĐỒ CÁ NHÂN
+   - Không hiện doanh thu/lãi/kho toàn cửa hàng
+   - Vẫn hiện 3 biểu đồ, dữ liệu đã lọc theo nhân viên đang đăng nhập
    ========================================================= */
-body.cashier-mode #home{
+body.cashier-mode #home .dashboard-pro-panel,
+body.cashier-mode #home .dashboard-quick-actions,
+body.cashier-mode #home .dashboard-note{
   display:none!important;
+}
+body.cashier-mode #home .chart-row{
+  margin-top:16px!important;
 }
 
 </style>
@@ -2369,15 +2376,11 @@ function applyPermission(){
 function showPage(id){
   if(!current) return;
 
-  // Thu ngân không xem trang tổng quan/doanh thu toàn cửa hàng.
-  // Bấm Trang chủ sẽ chuyển thẳng về POS bán hàng.
-  if(current.role !== 'admin' && id === 'home'){
-    id = 'sell';
-  }
-
+  // Thu ngân được xem Trang chủ, nhưng chỉ hiện 3 biểu đồ cá nhân.
+  // Các trang quản trị vẫn bị khóa.
   if(
     current.role !== 'admin' &&
-    ['home', 'stock', 'imports', 'barcodeA4', 'money', 'staff', 'logs', 'shiftReport'].includes(id)
+    ['stock', 'imports', 'barcodeA4', 'money', 'staff', 'logs', 'shiftReport'].includes(id)
   ){
     alert('Tài khoản thu ngân không có quyền vào mục này');
     return;
@@ -7860,6 +7863,17 @@ function renderAll(){
     dashboardUpdated.textContent = 'Cập nhật lần cuối: ' + now();
   }
   renderDashboardPro();
+
+  const dashboardTitleH2 = document.querySelector('#home .dashboard-title h2');
+  const dashboardTitleP = document.querySelector('#home .dashboard-title p');
+  if(dashboardTitleH2){
+    dashboardTitleH2.textContent = current.role === 'admin' ? '📊 Tổng quan vận hành' : '📊 Thống kê bán hàng cá nhân';
+  }
+  if(dashboardTitleP){
+    dashboardTitleP.textContent = current.role === 'admin'
+      ? 'Theo dõi nhanh doanh thu, đơn bán, tồn kho và hiệu suất bán hàng.'
+      : 'Chỉ hiển thị doanh thu, số đơn và biểu đồ của tài khoản đang đăng nhập.';
+  }
 
   sellProduct.innerHTML = products.map(p => `
     <option value="${p.id}">
