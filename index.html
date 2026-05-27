@@ -2311,7 +2311,7 @@ async function login(){
     appPage.classList.remove('hidden');
 
     applyPermission();
-    showPage(current.role === 'admin' ? 'home' : 'sell');
+    showPage('home');
     renderAll();
     renderTopProducts();
     if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
@@ -8729,7 +8729,6 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const CLOUD_DOC = doc(db, "greenmarket", "main_data");
 const AUTH_USERS_COLLECTION = "greenmarket_auth_users";
-const ROLE_COLLECTIONS = ["user_roles", "role"]; // đọc được cả collection mới và collection role bạn đã tạo
 const CLOUD_KEYS = [
   "v2_products",
   "v2_bills",
@@ -8820,29 +8819,32 @@ async function getProfileByUid(uid){
   return snap.exists() ? {uid, ...snap.data()} : null;
 }
 
-async function getRoleProfileByEmail(email){
-  const cleanEmail = String(email || '').trim().toLowerCase();
-  if(!cleanEmail) return null;
+// Đọc quyền theo email từ Firestore. Hỗ trợ cả collection "role" và "user_roles".
+async function getProfileByEmail(email){
+  const mail = String(email || '').trim().toLowerCase();
+  if(!mail) return null;
 
-  for(const col of ROLE_COLLECTIONS){
+  for(const colName of ['role', 'user_roles']){
     try{
-      const snap = await getDoc(doc(db, col, cleanEmail));
+      const snap = await getDoc(doc(db, colName, mail));
       if(snap.exists()){
-        const data = snap.data() || {};
+        const x = snap.data() || {};
         return {
-          name: data.name || data.fullName || authEmailToUsername(cleanEmail),
-          user: data.user || authEmailToUsername(cleanEmail),
-          email: cleanEmail,
-          role: data.role === 'admin' ? 'admin' : 'cashier',
-          active: data.active !== false
+          email: mail,
+          name: x.name || x.displayName || authEmailToUsername(mail),
+          user: x.user || authEmailToUsername(mail),
+          role: x.role === 'admin' ? 'admin' : 'cashier',
+          active: x.active !== false,
+          source: colName
         };
       }
     }catch(e){
-      console.warn('Không đọc được role collection:', col, e);
+      console.warn('Không đọc được hồ sơ quyền', colName, mail, e);
     }
   }
   return null;
 }
+
 async function setProfile(uid, profile){
   await setDoc(doc(db, AUTH_USERS_COLLECTION, uid), {
     ...profile,
@@ -8854,12 +8856,13 @@ async function setProfile(uid, profile){
 window.greenMarketLoadUserProfiles = async function(){
   const map = new Map();
 
+  // Danh sách hồ sơ theo UID do app tạo trong mục Nhân viên.
   try{
     const qs = await getDocs(collection(db, AUTH_USERS_COLLECTION));
     qs.forEach(d => {
       const x = d.data() || {};
       if(x.active === false) return;
-      const email = String(x.email || '').toLowerCase();
+      const email = String(x.email || '').trim().toLowerCase();
       const key = email || d.id;
       map.set(key, {
         uid: d.id,
@@ -8869,42 +8872,45 @@ window.greenMarketLoadUserProfiles = async function(){
         role: x.role === 'admin' ? 'admin' : 'cashier'
       });
     });
-  }catch(e){ console.warn('Không đọc được greenmarket_auth_users:', e); }
+  }catch(e){
+    console.warn('Không đọc được greenmarket_auth_users', e);
+  }
 
-  for(const col of ROLE_COLLECTIONS){
+  // Danh sách role tạo tay theo email trong Firestore: role hoặc user_roles.
+  for(const colName of ['role', 'user_roles']){
     try{
-      const qs = await getDocs(collection(db, col));
+      const qs = await getDocs(collection(db, colName));
       qs.forEach(d => {
         const x = d.data() || {};
         if(x.active === false) return;
-        const email = String(x.email || d.id || '').toLowerCase();
-        if(!email.includes('@')) return;
-        if(!map.has(email)){
-          map.set(email, {
-            uid: x.uid || '',
-            name: x.name || x.fullName || authEmailToUsername(email),
-            user: x.user || authEmailToUsername(email),
-            email,
-            role: x.role === 'admin' ? 'admin' : 'cashier'
-          });
-        }
+        const email = String(x.email || d.id || '').trim().toLowerCase();
+        if(!email || !email.includes('@')) return;
+        if(map.has(email)) return;
+        map.set(email, {
+          uid: d.id,
+          name: x.name || x.displayName || authEmailToUsername(email),
+          user: x.user || authEmailToUsername(email),
+          email,
+          role: x.role === 'admin' ? 'admin' : 'cashier'
+        });
       });
-    }catch(e){ console.warn('Không đọc được role collection:', col, e); }
+    }catch(e){
+      console.warn('Không đọc được collection role', colName, e);
+    }
   }
 
   return Array.from(map.values()).sort((a,b) => (a.name || '').localeCompare(b.name || '', 'vi'));
 };
 async function buildGreenMarketSessionFromFirebaseUser(firebaseUser){
   if(!firebaseUser) return null;
-  const email = String(firebaseUser.email || '').toLowerCase();
+  const email = String(firebaseUser.email || '').trim().toLowerCase();
   let profile = await getProfileByUid(firebaseUser.uid);
 
-  // Nếu chưa có hồ sơ theo UID, đọc quyền theo email ở collection user_roles hoặc role.
-  // Cách này khớp với các document bạn vừa tạo: thungan@greenmarket.com, hieuthao@greenmarket.com.
+  // Nếu chưa có profile theo UID, đọc thêm quyền theo email trong collection role / user_roles.
   if(!profile){
-    profile = await getRoleProfileByEmail(email);
+    profile = await getProfileByEmail(email);
     if(profile){
-      await setProfile(firebaseUser.uid, profile); // tự ghi thêm hồ sơ UID để lần sau vào nhanh hơn
+      await setProfile(firebaseUser.uid, {...profile, uid: firebaseUser.uid});
     }
   }
 
