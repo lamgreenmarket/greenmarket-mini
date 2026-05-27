@@ -1196,6 +1196,54 @@ tr:hover td{background:#f0fdf4!important}
   font-weight:800;
 }
 .dashboard-pro-list li{margin:2px 0}
+
+.dashboard-mini-metrics{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-top:10px;
+}
+.dashboard-mini-metrics div{
+  background:rgba(255,255,255,.75);
+  border:1px solid rgba(14,165,233,.12);
+  border-radius:16px;
+  padding:10px;
+}
+.dashboard-mini-metrics span{
+  display:block;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+  margin-bottom:5px;
+}
+.dashboard-mini-metrics b{
+  color:#047857;
+  font-size:18px;
+  font-weight:900;
+}
+.dashboard-top-tabs{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:10px 0 8px;
+}
+.dashboard-top-tabs button{
+  width:auto;
+  min-height:36px;
+  padding:8px 12px;
+  border-radius:999px;
+  font-size:13px;
+  box-shadow:0 8px 18px rgba(5,150,105,.14);
+}
+.dashboard-top-tabs button.active{
+  background:linear-gradient(135deg,#0ea5e9,#059669)!important;
+  color:#fff!important;
+}
+@media(max-width:900px){
+  .dashboard-mini-metrics{grid-template-columns:1fr!important}
+  .dashboard-top-tabs button{width:100%!important}
+}
+
 .dashboard-pro-danger strong{color:#dc2626!important}
 .dashboard-pro-warning strong{color:#f59e0b!important}
 @media(max-width:900px){
@@ -1260,20 +1308,13 @@ tr:hover td{background:#f0fdf4!important}
       <p>Theo dõi nhanh doanh thu, đơn bán, tồn kho và hiệu suất bán hàng.</p>
     </div>
     <div class="dashboard-pro-panel">
-      <div class="dashboard-pro-card">
-        <h3>📅 Doanh thu hôm nay</h3>
-        <strong id="proTodayRevenue">0 VNĐ</strong>
-        <small>theo hóa đơn trong ngày</small>
-      </div>
-      <div class="dashboard-pro-card">
-        <h3>🧾 Số đơn hôm nay</h3>
-        <strong id="proTodayBillCount">0 đơn</strong>
-        <small id="proTodayBills">hôm nay</small>
-      </div>
-      <div class="dashboard-pro-card">
-        <h3>🗓️ Doanh thu tháng này</h3>
-        <strong id="proMonthRevenue">0 VNĐ</strong>
-        <small id="proMonthBills">0 đơn trong tháng</small>
+      <div class="dashboard-pro-card dashboard-pro-wide">
+        <h3>💰 Doanh thu</h3>
+        <div class="dashboard-mini-metrics">
+          <div><span>Hôm nay</span><b id="proTodayRevenue">0 VNĐ</b><small id="proTodayBills">0 đơn</small></div>
+          <div><span>Tuần này</span><b id="proWeekRevenue">0 VNĐ</b><small id="proWeekBills">0 đơn</small></div>
+          <div><span>Tháng này</span><b id="proMonthRevenue">0 VNĐ</b><small id="proMonthBills">0 đơn</small></div>
+        </div>
       </div>
       <div class="dashboard-pro-card">
         <h3>📈 Lãi tạm tính hôm nay</h3>
@@ -1291,8 +1332,13 @@ tr:hover td{background:#f0fdf4!important}
         <small>bấm để xem chi tiết</small>
       </div>
       <div class="dashboard-pro-card dashboard-pro-wide">
-        <h3>🔥 Top bán hôm nay</h3>
-        <ol id="proTopToday" class="dashboard-pro-list"><li>Chưa có dữ liệu</li></ol>
+        <h3>🔥 Sản phẩm bán chạy</h3>
+        <div class="dashboard-top-tabs">
+          <button type="button" class="active" onclick="setProTopRange(this,'today')">Hôm nay</button>
+          <button type="button" onclick="setProTopRange(this,'yesterday')">Hôm qua</button>
+          <button type="button" onclick="setProTopRange(this,'week')">7 ngày gần nhất</button>
+        </div>
+        <ol id="proTopProducts" class="dashboard-pro-list"><li>Chưa có dữ liệu</li></ol>
       </div>
       <div class="dashboard-pro-card dashboard-pro-wide">
         <h3>👨‍💼 Nhân viên bán tốt hôm nay</h3>
@@ -1309,11 +1355,10 @@ tr:hover td{background:#f0fdf4!important}
     </div>
 
     <div class="chart-row">
-      <div class="card admin-only"><h3>📈 Doanh thu bán hàng theo ngày</h3><canvas id="revenueChart"></canvas></div>
+      <div class="card"><h3>📈 Doanh thu bán hàng theo ngày</h3><canvas id="revenueChart"></canvas></div>
       <div class="card"><h3>📦 Số lượng đơn theo ngày</h3><canvas id="billChart"></canvas></div>
-      <div class="card admin-only"><h3>👨‍💼 Hiệu suất bán hàng theo nhân viên</h3><canvas id="staffChart"></canvas></div>
+      <div class="card"><h3>👨‍💼 Hiệu suất bán hàng theo nhân viên</h3><canvas id="staffChart"></canvas></div>
     </div>
-    <div class="card admin-only" style="margin:20px 0;width:100%"><h3>🔥 Sản phẩm bán chạy</h3><div style="margin-bottom:10px"><button onclick="setActive(this);renderTopProducts('today')" class="active">Hôm nay</button> <button onclick="setActive(this);renderTopProducts('yesterday')">Hôm qua</button> <button onclick="setActive(this);renderTopProducts('week')">7 ngày gần nhất</button></div><ul id="topProducts"></ul></div>
   </section>
 <section id="shiftReport" class="page hidden card">
   <h2>📊 Báo cáo ca theo ngày</h2>
@@ -4323,12 +4368,13 @@ function sameDay(d1, d2){
 
 function renderChart(){
   const map = {};
+  const visibleBills = current?.role === 'admin'
+    ? bills
+    : bills.filter(b => b.staff === current?.name);
 
-  moneyList.forEach(m => {
-    if(m.type === 'Thu bán hàng'){
-      const d = m.time.split(' ')[1] || m.time.split(' ')[0];
-      map[d] = (map[d] || 0) + Number(m.amount || 0);
-    }
+  visibleBills.forEach(b => {
+    const d = b.time.split(' ')[1] || b.time.split(' ')[0];
+    map[d] = (map[d] || 0) + Number(b.total || 0);
   });
 
   const labels = Object.keys(map).reverse();
@@ -4403,7 +4449,11 @@ function renderBillChart(){
 function renderStaffChart(){
   const map = {};
 
-  bills.forEach(b => {
+  const visibleBills = current?.role === 'admin'
+    ? bills
+    : bills.filter(b => b.staff === current?.name);
+
+  visibleBills.forEach(b => {
     if(b.staff){
       map[b.staff] = (map[b.staff] || 0) + Number(b.total || 0);
     }
@@ -4444,7 +4494,9 @@ function renderTopProducts(type = 'today'){
 
   const map = {};
 
-  bills.forEach(b => {
+  const visibleBills = current?.role === 'admin' ? bills : bills.filter(b => b.staff === current?.name);
+
+  visibleBills.forEach(b => {
     const bd = toDateVN(getBillDate(b));
     let ok = false;
 
@@ -6913,6 +6965,47 @@ function isSameMonthForDashboard(a, b){
   return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 }
 
+function getMondayForDashboard(d){
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = x.getDay() || 7;
+  x.setDate(x.getDate() - day + 1);
+  x.setHours(0,0,0,0);
+  return x;
+}
+
+function isSameWeekForDashboard(a, b){
+  if(!a || !b) return false;
+  return getMondayForDashboard(a).getTime() === getMondayForDashboard(b).getTime();
+}
+
+function getVisibleBillsForDashboard(){
+  return current?.role === 'admin'
+    ? bills
+    : bills.filter(b => b.staff === current?.name);
+}
+
+function filterBillsByDashboardRange(list, range){
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  return (list || []).filter(b => {
+    const d = parseVNDateTimeForDashboard(b.time);
+    if(range === 'today') return isSameDateForDashboard(d, today);
+    if(range === 'yesterday') return isSameDateForDashboard(d, yesterday);
+    if(range === 'week'){
+      if(!d) return false;
+      const baseToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const baseBill = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const diff = (baseToday - baseBill) / (1000 * 60 * 60 * 24);
+      return diff >= 0 && diff <= 6;
+    }
+    if(range === 'thisWeek') return isSameWeekForDashboard(d, today);
+    if(range === 'month') return isSameMonthForDashboard(d, today);
+    return true;
+  });
+}
+
 function estimateBillProfit(bill){
   return (bill.items || []).reduce((sum, item) => {
     const product = products.find(p => p.name === item.name || String(p.id) === String(item.id));
@@ -6922,16 +7015,44 @@ function estimateBillProfit(bill){
   }, 0);
 }
 
-function renderDashboardPro(){
-  const today = new Date();
-  const visibleBills = current?.role === 'admin'
-    ? bills
-    : bills.filter(b => b.staff === current?.name);
+let proTopRange = 'today';
 
-  const todayBills = visibleBills.filter(b => isSameDateForDashboard(parseVNDateTimeForDashboard(b.time), today));
-  const monthBills = visibleBills.filter(b => isSameMonthForDashboard(parseVNDateTimeForDashboard(b.time), today));
+function renderProTopProducts(range = proTopRange){
+  proTopRange = range;
+  const box = document.getElementById('proTopProducts');
+  if(!box) return;
+
+  const visibleBills = getVisibleBillsForDashboard();
+  const selectedBills = filterBillsByDashboardRange(visibleBills, range);
+  const map = {};
+
+  selectedBills.forEach(b => (b.items || []).forEach(i => {
+    map[i.name] = (map[i.name] || 0) + Number(i.qty || 0);
+  }));
+
+  const arr = Object.entries(map).sort((a,b) => b[1] - a[1]).slice(0,5);
+  box.innerHTML = arr.length
+    ? arr.map(([name, qty], idx) => `<li>${idx + 1}. ${escapeHTML(name)} — ${qty} đã bán</li>`).join('')
+    : '<li>Chưa có dữ liệu</li>';
+}
+
+function setProTopRange(btn, range){
+  const wrap = btn.closest('.dashboard-top-tabs');
+  if(wrap){
+    wrap.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  renderProTopProducts(range);
+}
+
+function renderDashboardPro(){
+  const visibleBills = getVisibleBillsForDashboard();
+  const todayBills = filterBillsByDashboardRange(visibleBills, 'today');
+  const weekBills = filterBillsByDashboardRange(visibleBills, 'thisWeek');
+  const monthBills = filterBillsByDashboardRange(visibleBills, 'month');
 
   const todayRevenue = todayBills.reduce((s,b) => s + Number(b.total || 0), 0);
+  const weekRevenue = weekBills.reduce((s,b) => s + Number(b.total || 0), 0);
   const monthRevenue = monthBills.reduce((s,b) => s + Number(b.total || 0), 0);
   const todayProfit = todayBills.reduce((s,b) => s + estimateBillProfit(b), 0);
 
@@ -6944,25 +7065,16 @@ function renderDashboardPro(){
   };
 
   setText('proTodayRevenue', money(todayRevenue));
-  setText('proTodayBillCount', `${todayBills.length} đơn`);
-  setText('proTodayBills', 'hôm nay');
+  setText('proTodayBills', `${todayBills.length} đơn`);
+  setText('proWeekRevenue', money(weekRevenue));
+  setText('proWeekBills', `${weekBills.length} đơn`);
   setText('proMonthRevenue', money(monthRevenue));
-  setText('proMonthBills', `${monthBills.length} đơn trong tháng`);
+  setText('proMonthBills', `${monthBills.length} đơn`);
   setText('proTodayProfit', money(todayProfit));
   setText('proStockWarning', `${lowCount + outCount} mặt hàng`);
   setText('proStockDetail', `${lowCount} sắp hết • ${outCount} hết hàng`);
 
-  const topProductMap = {};
-  todayBills.forEach(b => (b.items || []).forEach(i => {
-    topProductMap[i.name] = (topProductMap[i.name] || 0) + Number(i.qty || 0);
-  }));
-  const topProductsToday = Object.entries(topProductMap).sort((a,b) => b[1] - a[1]).slice(0,5);
-  const proTopToday = document.getElementById('proTopToday');
-  if(proTopToday){
-    proTopToday.innerHTML = topProductsToday.length
-      ? topProductsToday.map(([name, qty]) => `<li>${escapeHTML(name)} — ${qty} đã bán</li>`).join('')
-      : '<li>Chưa có dữ liệu</li>';
-  }
+  renderProTopProducts(proTopRange);
 
   const staffMap = {};
   todayBills.forEach(b => {
