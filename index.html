@@ -1253,6 +1253,37 @@ tr:hover td{background:#f0fdf4!important}
   .dashboard-pro-card strong{font-size:22px!important}
 }
 
+
+/* =========================================================
+   DASHBOARD GỌN V3 - SẮP XẾP LẠI THEO GÓP Ý
+   - Sản phẩm bán chạy và Nhân viên bán tốt nằm cùng một hàng
+   - Bỏ dòng mô tả trùng trong Mặt hàng trong kho
+   - Tăng chiều cao biểu đồ để không bị cắt đáy
+   ========================================================= */
+.dashboard-pro-top-card{
+  grid-column:span 2;
+}
+.dashboard-pro-stock-card small{
+  display:none!important;
+}
+.dashboard-pro-top-card{
+  min-height:150px;
+}
+.chart-row .card{
+  height:330px!important;
+  padding-bottom:28px!important;
+  overflow:visible!important;
+}
+.chart-row canvas{
+  max-height:245px!important;
+  height:245px!important;
+}
+@media(max-width:900px){
+  .dashboard-pro-top-card{grid-column:auto!important}
+  .chart-row .card{height:auto!important;min-height:300px!important;padding-bottom:24px!important}
+  .chart-row canvas{height:230px!important;max-height:230px!important}
+}
+
 </style>
 </head>
 <body>
@@ -1321,17 +1352,11 @@ tr:hover td{background:#f0fdf4!important}
         <strong id="proTodayProfit">0 VNĐ</strong>
         <small>Tính theo giá nhập hiện tại trong kho</small>
       </div>
-      <div class="dashboard-pro-card">
+      <div class="dashboard-pro-card dashboard-pro-stock-card">
         <h3>📦 Mặt hàng trong kho</h3>
         <strong id="statProducts">0 mặt hàng</strong>
-        <small>đang quản lý trong kho</small>
       </div>
-      <div class="dashboard-pro-card dashboard-pro-warning" onclick="showLowStock()" style="cursor:pointer">
-        <h3>⚠️ Tình trạng tồn kho</h3>
-        <strong id="statLow">0 sắp hết<br>0 hết hàng</strong>
-        <small>bấm để xem chi tiết</small>
-      </div>
-      <div class="dashboard-pro-card dashboard-pro-wide">
+      <div class="dashboard-pro-card dashboard-pro-top-card">
         <h3>🔥 Sản phẩm bán chạy</h3>
         <div class="dashboard-top-tabs">
           <button type="button" class="active" onclick="setProTopRange(this,'today')">Hôm nay</button>
@@ -1340,9 +1365,14 @@ tr:hover td{background:#f0fdf4!important}
         </div>
         <ol id="proTopProducts" class="dashboard-pro-list"><li>Chưa có dữ liệu</li></ol>
       </div>
-      <div class="dashboard-pro-card dashboard-pro-wide">
+      <div class="dashboard-pro-card dashboard-pro-top-card">
         <h3>👨‍💼 Nhân viên bán tốt hôm nay</h3>
         <ol id="proTopStaffToday" class="dashboard-pro-list"><li>Chưa có dữ liệu</li></ol>
+      </div>
+      <div class="dashboard-pro-card dashboard-pro-warning" onclick="showLowStock()" style="cursor:pointer">
+        <h3>⚠️ Tình trạng tồn kho</h3>
+        <strong id="statLow">0 sắp hết<br>0 hết hàng</strong>
+        <small>bấm để xem chi tiết</small>
       </div>
     </div>
     <div id="dashboardUpdated" class="dashboard-note"></div>
