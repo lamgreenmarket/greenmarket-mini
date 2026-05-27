@@ -2326,7 +2326,7 @@ async function login(){
     appPage.classList.remove('hidden');
 
     applyPermission();
-    showPage(current.role === 'admin' ? 'home' : 'sell');
+    showPage('home');
     renderAll();
     renderTopProducts();
     if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
@@ -8349,7 +8349,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const r = oldLogin.apply(this, arguments);
       if(isMobilePOS() && window.current){
         setTimeout(() => {
-          try{ window.showPage('sell'); }catch(e){}
+          // Nhân viên đăng nhập sẽ ở Trang chủ cá nhân; không tự nhảy sang Bán hàng.
           updateMobilePosBar();
         }, 160);
       }
