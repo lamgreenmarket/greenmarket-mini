@@ -4,7 +4,80 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Siêu thị mini Green Market - PRO Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js">
+/* =========================================================
+   OVERRIDE FIX: TỶ LỆ THANH TOÁN HÔM NAY - KHÔNG DÙNG CANVAS
+   ========================================================= */
+function gmPaymentMethodSafe(b){
+  const raw = String(
+    b?.paymentMethod || b?.payment || b?.payMethod || b?.method || b?.paymentType || b?.thanhToan || b?.pay || 'Tiền mặt'
+  ).toLowerCase();
+
+  if(raw.includes('qr') || raw.includes('chuyển khoản') || raw.includes('chuyen khoan')) return '📱 QR chuyển khoản';
+  if(raw.includes('thẻ') || raw.includes('the') || raw.includes('ví') || raw.includes('vi')) return '💳 Thẻ / Ví điện tử';
+  return '💵 Tiền mặt';
+}
+
+function gmBillNetTotalSafe(b){
+  if(b?.returned || b?.returnStatus === 'full' || b?.status === 'returned') return 0;
+  return Number(b?.total || b?.finalTotal || b?.grandTotal || b?.amount || 0);
+}
+
+function renderPaymentChart(){
+  const box = document.getElementById('paymentSummary');
+  if(!box) return;
+
+  const list = (current?.role === 'admin')
+    ? bills
+    : bills.filter(b => b.staff === current?.name);
+
+  const today = new Date();
+  const todayBills = list.filter(b => {
+    const d = billDateObj(b);
+    return !isNaN(d) && sameDay(d, today);
+  });
+
+  const map = {
+    '💵 Tiền mặt': 0,
+    '📱 QR chuyển khoản': 0,
+    '💳 Thẻ / Ví điện tử': 0
+  };
+
+  todayBills.forEach(b => {
+    const key = gmPaymentMethodSafe(b);
+    map[key] = (map[key] || 0) + gmBillNetTotalSafe(b);
+  });
+
+  const total = Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
+
+  if(total <= 0){
+    box.innerHTML = `
+      <div class="payment-empty">
+        Chưa có doanh thu thanh toán hôm nay.<br>
+        <small>Bán một hóa đơn hôm nay thì tỷ lệ sẽ tự hiện.</small>
+      </div>
+    `;
+    return;
+  }
+
+  box.innerHTML = Object.entries(map).map(([name, value]) => {
+    value = Number(value || 0);
+    const percent = total ? Math.round(value * 100 / total) : 0;
+    return `
+      <div class="payment-row-pro">
+        <div class="payment-row-head">
+          <span>${escapeHTML(name)}</span>
+          <span>${money(value)} • ${percent}%</span>
+        </div>
+        <div class="payment-bar-wrap">
+          <div class="payment-bar-fill" style="width:${percent}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+</script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style/dist/xlsx.bundle.js"></script>
 <style>
@@ -1447,7 +1520,6 @@ body.cashier-mode #home .chart-row{
 .payment-chart-card{
   min-height:370px!important;
 }
-.payment-chart-card canvas{max-height:230px!important;}
 .payment-summary{
   display:grid;
   grid-template-columns:1fr;
@@ -1481,6 +1553,72 @@ body.cashier-mode #home .chart-row{
   }
 }
 
+@media(max-width:1100px){
+  #home .chart-row{
+    grid-template-columns:1fr!important;
+  }
+}
+
+
+/* =========================================================
+   FIX CHẮC CHẮN - TỶ LỆ THANH TOÁN HÔM NAY
+   ========================================================= */
+.payment-chart-card{
+  min-height:330px!important;
+  overflow:hidden!important;
+}
+.payment-summary-pro{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:12px!important;
+  margin-top:14px!important;
+}
+.payment-row-pro{
+  border:1px solid rgba(14,165,233,.16);
+  background:#ffffffd9;
+  border-radius:16px;
+  padding:12px;
+  box-shadow:0 8px 18px rgba(15,76,129,.06);
+}
+.payment-row-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  font-weight:900;
+  color:#0f4c81;
+  margin-bottom:8px;
+}
+.payment-bar-wrap{
+  height:14px;
+  border-radius:999px;
+  background:#e2e8f0;
+  overflow:hidden;
+}
+.payment-bar-fill{
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(135deg,#0ea5e9,#16a34a);
+  min-width:4px;
+}
+.payment-empty{
+  padding:20px;
+  border:1px dashed #93c5fd;
+  border-radius:18px;
+  color:#64748b;
+  background:#f8fcff;
+  font-weight:800;
+  text-align:center;
+}
+@media(min-width:1101px){
+  #home .chart-row{
+    grid-template-columns:repeat(2,minmax(320px,1fr))!important;
+    gap:18px!important;
+  }
+  #home .card{
+    min-width:0!important;
+    overflow:hidden!important;
+  }
+}
 @media(max-width:1100px){
   #home .chart-row{
     grid-template-columns:1fr!important;
@@ -1593,7 +1731,7 @@ body.cashier-mode #home .chart-row{
       <div class="card"><h3>👨‍💼 Hiệu suất bán hàng theo nhân viên</h3><canvas id="staffChart"></canvas></div>
       <div class="card payment-chart-card" style="overflow:hidden;">
         <h3>💳 Tỷ lệ thanh toán hôm nay</h3>
-        <div style="height:230px;max-height:230px"><canvas id="paymentChart"></canvas></div>
+        <canvas id="paymentChart"></canvas>
         <div id="paymentSummary" class="payment-summary"></div>
       </div>
     </div>
@@ -5128,15 +5266,6 @@ function normalizePaymentMethodName(method){
   return 'Tiền mặt';
 }
 
-function getBillPaymentMethod(b){
-  return b.paymentMethod || b.payment || b.payMethod || b.method || b.paymentType || b.thanhToan || b.pay || 'Tiền mặt';
-}
-
-function getBillNetTotal(b){
-  if(b.returned || b.returnStatus === 'full' || b.status === 'returned') return 0;
-  return Number(b.total || b.finalTotal || b.grandTotal || b.amount || 0);
-}
-
 function renderPaymentChart(){
   const ctx = document.getElementById('paymentChart');
   const summaryBox = document.getElementById('paymentSummary');
@@ -5159,8 +5288,8 @@ function renderPaymentChart(){
   };
 
   todayBills.forEach(b => {
-    const name = normalizePaymentMethodName(getBillPaymentMethod(b));
-    map[name] = (map[name] || 0) + getBillNetTotal(b);
+    const name = normalizePaymentMethodName(b.paymentMethod || 'Tiền mặt');
+    map[name] = (map[name] || 0) + Number(b.total || 0);
   });
 
   const total = Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
@@ -5168,18 +5297,6 @@ function renderPaymentChart(){
   const data = labels.map(k => map[k]);
 
   if(paymentChart) paymentChart.destroy();
-
-  if(total <= 0){
-    if(summaryBox){
-      summaryBox.innerHTML = `
-        <div style="display:block;text-align:center;padding:14px">
-          <b>Chưa có doanh thu thanh toán hôm nay</b><br>
-          <span style="color:#64748b">Bán thử một hóa đơn hôm nay, biểu đồ sẽ tự hiện.</span>
-        </div>
-      `;
-    }
-    return;
-  }
 
   paymentChart = new Chart(ctx, {
     type: 'doughnut',
@@ -5195,7 +5312,6 @@ function renderPaymentChart(){
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '58%',
       plugins: {
         tooltip: {
           callbacks: {
