@@ -1126,73 +1126,6 @@ tr:hover td{background:#f0fdf4!important}
 .bill-detail-meta{color:#334155;font-weight:700;line-height:1.55}
 .bill-action-group{display:flex;gap:8px;flex-wrap:wrap}
 .bill-action-group button{padding:8px 12px;border-radius:12px;font-size:13px}
-
-.bill-return-badge{
-  display:inline-block;
-  margin-top:6px;
-  padding:5px 10px;
-  border-radius:999px;
-  background:#fee2e2;
-  color:#b91c1c;
-  font-weight:900;
-  border:1px solid #fecaca;
-}
-
-.bill-return-list-badge{
-  display:inline-block;
-  padding:4px 9px;
-  border-radius:999px;
-  background:#fee2e2;
-  color:#b91c1c;
-  border:1px solid #fecaca;
-  font-weight:900;
-  letter-spacing:.2px;
-}
-.bill-return-money{
-  color:#b91c1c;
-  font-weight:900;
-}
-.bill-return-summary{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:10px;
-  margin-top:12px;
-}
-.bill-return-summary div{
-  background:#fff;
-  border:1px solid #fed7aa;
-  border-radius:14px;
-  padding:10px;
-  color:#7c2d12;
-  font-weight:900;
-}
-.bill-return-summary span{
-  display:block;
-  color:#64748b;
-  font-size:12px;
-  margin-bottom:5px;
-}
-.receipt-return-stamp{
-  border:2px solid #000;
-  padding:5px 3px;
-  margin:5px 0 7px;
-  text-align:center;
-  font-size:18px;
-  font-weight:900;
-  letter-spacing:.5px;
-}
-
-.bill-return-note{
-  margin-top:12px;
-  padding:12px;
-  border-radius:16px;
-  background:#fff7ed;
-  border:1px solid #fed7aa;
-  color:#9a3412;
-  font-weight:800;
-  line-height:1.5;
-}
-
 .bill-total-line{
   display:flex;
   justify-content:flex-end;
@@ -1480,6 +1413,33 @@ body.cashier-mode #home .chart-row{
   margin-top:16px!important;
 }
 
+
+/* =========================================================
+   KẾT CA NÂNG CAO + TỰ ĐĂNG XUẤT
+   ========================================================= */
+.shift-note-cell{
+  max-width:260px;
+  white-space:normal!important;
+  line-height:1.35;
+  color:#334155;
+  font-weight:700;
+}
+.auto-logout-warning{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  z-index:50000;
+  background:#fff7ed;
+  border:1px solid #fdba74;
+  color:#9a3412;
+  border-radius:18px;
+  padding:14px 16px;
+  box-shadow:0 18px 45px rgba(154,52,18,.18);
+  font-weight:900;
+  max-width:360px;
+  line-height:1.45;
+}
+
 </style>
 </head>
 <body>
@@ -1760,6 +1720,7 @@ body.cashier-mode #home .chart-row{
 <th>Tiền cuối ca</th>
 <th>Thực tế đếm</th>
 <th>Chênh lệch</th>
+<th>Lý do lệch</th>
 <th>Đã chỉnh sửa</th>
 <th>Thao tác</th>
         </tr>
@@ -2336,6 +2297,10 @@ const list =
           }
         </td>
 
+        <td class="shift-note-cell">
+          ${escapeHTML(s.diffReason || '-')}
+        </td>
+
         <td>
           ${
             s.edited
@@ -2463,6 +2428,7 @@ function scanEnter(e){
    19. ĐĂNG NHẬP / ĐĂNG XUẤT
    ========================================================= */
 function showLogin(){
+  stopAutoLogoutTimer();
   loginPage.classList.remove('hidden');
   appPage.classList.add('hidden');
 }
@@ -2512,6 +2478,7 @@ async function login(){
     appPage.classList.remove('hidden');
 
     applyPermission();
+    resetAutoLogoutTimer();
     showPage('home');
     renderAll();
     renderTopProducts();
@@ -2524,8 +2491,9 @@ async function login(){
   }
 }
 
-async function logout(){
-  addLog('Đăng xuất', 'Thoát khỏi hệ thống an toàn');
+async function logout(isAuto = false){
+  if(!isAuto) addLog('Đăng xuất', 'Thoát khỏi hệ thống an toàn');
+  stopAutoLogoutTimer();
   try{
     if(typeof window.greenMarketAuthSignOut === 'function') await window.greenMarketAuthSignOut();
   }catch(e){}
@@ -2749,6 +2717,7 @@ function editShift(index){
   s.diff = expected - newRealCash;
 
   s.edited = true;
+  if(!s.diffReason && Number(s.diff || 0) !== 0) s.diffReason = 'Admin chỉnh sửa dữ liệu ca';
   s.editedBy = current?.name || 'Admin';
   s.editedAt = now();
 
@@ -7826,12 +7795,7 @@ function renderBillHistory(visibleBills){
         <td>${escapeHTML(b.staff || '')}</td>
         <td>${escapeHTML(b.paymentMethod || 'Tiền mặt')}</td>
         <td>${itemCount || (b.items || []).length}</td>
-        <td>
-          ${isBillReturned(b)
-            ? `<span class="bill-return-list-badge">↩ ĐÃ TRẢ HÀNG</span><br><small class="muted">Tổng gốc: ${money(b.returnOriginalTotal || b.returnAmount || 0)}</small><br><small class="bill-return-money">Hoàn tiền: ${money(b.returnAmount || b.returnOriginalTotal || 0)}</small><br><small class="muted">Doanh thu sau trả: ${money(0)}</small>`
-            : `<b>${money(b.total)}</b><br><small class="muted">In lại: ${getBillReprintCount(b)} lần</small>`
-          }
-        </td>
+        <td><b>${money(b.total)}</b><br><small class="muted">In lại: ${getBillReprintCount(b)} lần</small></td>
         <td>
           <button class="btn-blue" onclick="viewBillDetail(${x.globalIndex})">Xem chi tiết</button>
         </td>
@@ -7847,132 +7811,6 @@ function renderBillHistory(visibleBills){
 function getBillReprintCount(bill){
   const logs = Array.isArray(bill?.reprintLogs) ? bill.reprintLogs.length : 0;
   return Math.max(Number(bill?.reprintCount || 0), logs);
-}
-
-function getBillOriginalTotal(bill){
-  return Number(bill?.returnOriginalTotal ?? bill?.originalTotal ?? bill?.total ?? 0);
-}
-
-function isBillReturned(bill){
-  return !!(bill && bill.returned);
-}
-
-function getReturnCode(bill, index = 0){
-  if(bill?.returnCode) return bill.returnCode;
-  const raw = String(bill?.time || '').replace(/\D/g, '').slice(-10) || String(index + 1).padStart(4, '0');
-  return 'TH-CU-' + raw;
-}
-
-function returnFullBill(index){
-  if(!requireAdmin('trả hàng hóa đơn')) return;
-
-  const b = bills[index];
-  if(!b){
-    alert('Không tìm thấy hóa đơn để trả hàng');
-    return;
-  }
-
-  if(isBillReturned(b)){
-    alert('Hóa đơn này đã được trả hàng trước đó. Không thể trả lần 2.');
-    return;
-  }
-
-  const billCode = getBillCode(b, index);
-  const returnAmount = Number(b.total || b.returnOriginalTotal || 0);
-
-  if(returnAmount <= 0){
-    alert('Hóa đơn này không còn số tiền để trả.');
-    return;
-  }
-
-  const reason = prompt(
-    `Nhập lý do trả toàn bộ hóa đơn ${billCode}:\nVí dụ: Khách trả hàng / nhập sai hóa đơn / hàng lỗi`,
-    'Khách trả hàng'
-  );
-
-  if(reason === null) return;
-  const cleanReason = cleanText(reason);
-  if(!cleanReason){
-    alert('Bắt buộc nhập lý do trả hàng.');
-    return;
-  }
-
-  const ok = confirm(
-    `XÁC NHẬN TRẢ TOÀN BỘ HÓA ĐƠN ${billCode}?\n\n` +
-    `- Kho sẽ được cộng lại toàn bộ hàng trong hóa đơn\n` +
-    `- Doanh thu hóa đơn sẽ bị trừ về 0\n` +
-    `- Sẽ tạo phiếu trả hàng riêng\n` +
-    `- Thao tác này không thể hoàn tác\n\n` +
-    `Số tiền hoàn: ${money(returnAmount)}`
-  );
-
-  if(!ok) return;
-
-  (b.items || []).forEach(it => {
-    const p = products.find(x => String(x.id) === String(it.id)) ||
-              products.find(x => sameName(x.name, it.name));
-
-    if(p){
-      p.qty = Number(p.qty || 0) + Number(it.qty || 0);
-    }
-  });
-
-  const returnCode = 'TH' + new Date().getFullYear() +
-    String(new Date().getMonth() + 1).padStart(2, '0') +
-    String(new Date().getDate()).padStart(2, '0') + '-' +
-    String(new Date().getHours()).padStart(2, '0') +
-    String(new Date().getMinutes()).padStart(2, '0') +
-    String(new Date().getSeconds()).padStart(2, '0');
-
-  b.returned = true;
-  b.returnCode = returnCode;
-  b.returnTime = now();
-  b.returnBy = current?.name || 'Admin';
-  b.returnReason = cleanReason;
-  b.returnOriginalTotal = returnAmount;
-  b.returnAmount = returnAmount;
-  b.returnItems = (b.items || []).map(it => ({
-    id: it.id,
-    name: it.name,
-    qty: Number(it.qty || 0),
-    price: Number(it.price || 0),
-    total: Number(it.total || (Number(it.qty || 0) * Number(it.price || 0)))
-  }));
-
-  // Đưa tổng hóa đơn về 0 để các báo cáo/doanh thu dựa trên bills tự giảm.
-  b.total = 0;
-
-  moneyList.push({
-    time: now(),
-    type: 'Trả hàng',
-    amount: -returnAmount,
-    staff: current?.name || 'Admin',
-    paymentMethod: b.paymentMethod || 'Hoàn tiền',
-    billCode,
-    returnCode,
-    reason: cleanReason
-  });
-
-  try{
-    const active = typeof getActiveShift === 'function' ? getActiveShift() : null;
-    if(active){
-      active.returns = Number(active.returns || 0) + returnAmount;
-      active.returnOrders = Number(active.returnOrders || 0) + 1;
-      active.revenue = Math.max(0, Number(active.revenue || 0) - returnAmount);
-      active.expectedCash = Number(active.startCash || 0) + Number(active.revenue || 0);
-      if(typeof saveShift === 'function') saveShift();
-    }
-  }catch(e){}
-
-  addLog(
-    'Trả hàng',
-    `${returnCode} - Trả toàn bộ hóa đơn ${billCode} - Hoàn ${money(returnAmount)} - Lý do: ${cleanReason}`
-  );
-
-  save();
-  renderAll();
-  viewBillDetail(index);
-  alert(`Đã trả toàn bộ hóa đơn ${billCode}.\nPhiếu trả hàng: ${returnCode}\nKho đã được cộng lại và doanh thu đã được trừ.`);
 }
 
 function ensureBillReprintFields(bill){
@@ -8019,17 +7857,11 @@ function viewBillDetail(index){
           Ngày: ${escapeHTML(b.time || '')}<br>
           Nhân viên: ${escapeHTML(b.staff || '')}<br>
           Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}<br>
-          Số lần in lại: ${getBillReprintCount(b)} lần<br>
-          Trạng thái: ${isBillReturned(b) ? '<span class="bill-return-badge">ĐÃ TRẢ HÀNG</span>' : '<b style="color:#16a34a">Đã bán</b>'}
-          ${isBillReturned(b) ? `<br>Mã phiếu trả: <b>${escapeHTML(b.returnCode || getReturnCode(b, index))}</b><br>Ngày trả: ${escapeHTML(b.returnTime || '')}<br>Người xử lý: ${escapeHTML(b.returnBy || '')}<br>Lý do: ${escapeHTML(b.returnReason || '')}` : ''}
+          Số lần in lại: ${getBillReprintCount(b)} lần
         </div>
       </div>
       <div class="bill-action-group">
-        ${isBillReturned(b)
-          ? `<button class="btn-orange" onclick="printReturnReceiptByIndex(${index})">🖨️ In phiếu trả hàng</button>`
-          : `<button class="btn-green" onclick="printBillReceiptByIndex(${index})">🖨️ In lại hóa đơn</button>`
-        }
-        ${isAdminUser() && !isBillReturned(b) ? `<button class="btn-red" onclick="returnFullBill(${index})">🔄 Trả toàn bộ hóa đơn</button>` : ''}
+        <button class="btn-green" onclick="printBillReceiptByIndex(${index})">🖨️ In lại hóa đơn</button>
         <button class="btn-gray" onclick="closeBillDetail()">Đóng</button>
       </div>
     </div>
@@ -8039,16 +7871,7 @@ function viewBillDetail(index){
         <tbody>${rows || '<tr><td colspan="5" style="text-align:center">Hóa đơn cũ chưa có dữ liệu chi tiết món</td></tr>'}</tbody>
       </table>
     </div>
-    ${isBillReturned(b)
-      ? `<div class="bill-return-note">Hóa đơn này đã được trả hàng toàn bộ. Kho đã được cộng lại và doanh thu đã được trừ. Hóa đơn gốc được giữ để đối chiếu, không xóa.</div>
-         <div class="bill-return-summary">
-           <div><span>Tổng gốc</span>${money(b.returnOriginalTotal || b.returnAmount || 0)}</div>
-           <div><span>Hoàn tiền</span>${money(b.returnAmount || b.returnOriginalTotal || 0)}</div>
-           <div><span>Doanh thu sau trả</span>${money(0)}</div>
-         </div>`
-      : ''
-    }
-    ${!isBillReturned(b) ? `<div class="bill-total-line"><span>Tổng cộng:</span><span>${money(b.total)}</span></div>` : ''}
+    <div class="bill-total-line"><span>Tổng cộng:</span><span>${money(b.total)}</span></div>
   `;
   box.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
@@ -8061,86 +7884,6 @@ function closeBillDetail(){
   }
 }
 
-
-function printReturnReceiptByIndex(index){
-  const b = bills[index];
-  if(!b){
-    alert('Không tìm thấy hóa đơn để in phiếu trả hàng');
-    return;
-  }
-  if(!isAdminUser()){
-    alert('Chỉ Admin/Quản lý được in phiếu trả hàng.');
-    return;
-  }
-  if(!isBillReturned(b)){
-    alert('Hóa đơn này chưa được trả hàng.');
-    return;
-  }
-
-  const billCode = getBillCode(b, index);
-  const returnCode = b.returnCode || getReturnCode(b, index);
-  const returnAmount = Number(b.returnAmount || b.returnOriginalTotal || 0);
-  const itemHtml = (b.returnItems || b.items || []).map(c => `
-    <div class="receipt-item">• ${escapeHTML(c.name)}</div>
-    <div class="receipt-money">
-      Trả ${Number(c.qty || 0)} x ${money(c.price)} = ${money(Number(c.total || c.qty * c.price))}
-    </div>
-  `).join('') || '<div class="receipt-item">Không có dữ liệu món trả</div>';
-
-  addLog(
-    'In phiếu trả hàng',
-    `${returnCode} - In phiếu trả hàng cho hóa đơn ${billCode} - Số tiền hoàn ${money(returnAmount)}`
-  );
-  save();
-  renderAll();
-
-  receiptPrint.classList.remove('hidden');
-  receiptPrint.innerHTML = `
-    <div class="receipt-title">SIÊU THỊ MINI GREEN MARKET</div>
-    <div class="receipt-return-stamp">PHIẾU TRẢ HÀNG</div>
-    <div class="receipt-line"></div>
-
-    <div>Mã phiếu trả: ${escapeHTML(returnCode)}</div>
-    <div>Hóa đơn gốc: ${escapeHTML(billCode)}</div>
-    <div>Ngày bán: ${escapeHTML(b.time || '')}</div>
-    <div>Ngày trả: ${escapeHTML(b.returnTime || '')}</div>
-    <div>Người xử lý: ${escapeHTML(b.returnBy || current?.name || '')}</div>
-    <div>Nhân viên bán: ${escapeHTML(b.staff || '')}</div>
-    <div>Lý do: ${escapeHTML(b.returnReason || '')}</div>
-    <div class="receipt-line"></div>
-
-    ${itemHtml}
-
-    <div class="receipt-line"></div>
-    <div class="receipt-total">
-      <span>TỔNG GỐC:</span>
-      <span>${money(b.returnOriginalTotal || returnAmount)}</span>
-    </div>
-    <div class="receipt-total">
-      <span>HOÀN TIỀN:</span>
-      <span>${money(returnAmount)}</span>
-    </div>
-    <div class="receipt-total">
-      <span>DOANH THU SAU TRẢ:</span>
-      <span>${money(0)}</span>
-    </div>
-
-    <div style="text-align:center; margin-top:8px; font-size:14px; font-style:italic; font-weight:700;">
-      Phiếu này dùng để đối chiếu trả hàng.<br>
-      Hóa đơn gốc không bị xóa khỏi hệ thống.
-    </div>
-
-    <div class="receipt-spacer"></div>
-  `;
-
-  window.print();
-
-  setTimeout(() => {
-    receiptPrint.classList.add('hidden');
-    receiptPrint.innerHTML = '';
-  }, 700);
-}
-
 function printBillReceiptByIndex(index){
   const b = bills[index];
   if(!b){
@@ -8149,11 +7892,6 @@ function printBillReceiptByIndex(index){
   }
   if(!canAccessBill(b)){
     alert('Bạn chỉ được in lại hóa đơn của chính mình.');
-    return;
-  }
-
-  if(isBillReturned(b)){
-    printReturnReceiptByIndex(index);
     return;
   }
 
@@ -8220,7 +7958,6 @@ function printBillReceiptByIndex(index){
     <div>Người in lại: ${escapeHTML(current?.name || '')}</div>
     <div>Nhân viên bán: ${escapeHTML(b.staff || '')}</div>
     <div>Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}</div>
-    ${isBillReturned(b) ? `<div style="text-align:center;font-size:16px;font-weight:900;border:1px solid #000;margin:5px 0;padding:3px">HÓA ĐƠN ĐÃ TRẢ HÀNG</div><div>Mã phiếu trả: ${escapeHTML(b.returnCode || '')}</div>` : ''}
     ${reason ? `<div>Lý do: ${escapeHTML(reason)}</div>` : ''}
     <div class="receipt-line"></div>
 
@@ -8501,6 +8238,74 @@ function renderAll(){
 /* =========================================================
    29. CHẠY APP
    ========================================================= */
+
+/* =========================================================
+   TỰ ĐĂNG XUẤT KHI QUÊN MÁY
+   ========================================================= */
+const AUTO_LOGOUT_MINUTES = 15;
+const AUTO_LOGOUT_WARNING_MINUTES = 1;
+let autoLogoutTimer = null;
+let autoLogoutWarningTimer = null;
+
+function parseMoneyInput(value){
+  const n = Number(String(value || '').replace(/[^\d-]/g, ''));
+  return isNaN(n) ? NaN : n;
+}
+
+function showAutoLogoutWarning(){
+  if(!current) return;
+
+  let box = document.getElementById('autoLogoutWarningBox');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'autoLogoutWarningBox';
+    box.className = 'auto-logout-warning';
+    document.body.appendChild(box);
+  }
+
+  box.innerHTML = '⚠️ Hệ thống sẽ tự đăng xuất sau khoảng 1 phút nếu không có thao tác.';
+}
+
+function hideAutoLogoutWarning(){
+  const box = document.getElementById('autoLogoutWarningBox');
+  if(box) box.remove();
+}
+
+async function autoLogoutNow(){
+  if(!current) return;
+
+  addLog('Tự đăng xuất', `Không thao tác trong ${AUTO_LOGOUT_MINUTES} phút, hệ thống tự đăng xuất để bảo mật.`);
+  hideAutoLogoutWarning();
+  alert(`Hệ thống tự đăng xuất vì không thao tác trong ${AUTO_LOGOUT_MINUTES} phút.`);
+  await logout(true);
+}
+
+function resetAutoLogoutTimer(){
+  if(!current) return;
+
+  clearTimeout(autoLogoutTimer);
+  clearTimeout(autoLogoutWarningTimer);
+  hideAutoLogoutWarning();
+
+  const totalMs = AUTO_LOGOUT_MINUTES * 60 * 1000;
+  const warningMs = Math.max(0, totalMs - AUTO_LOGOUT_WARNING_MINUTES * 60 * 1000);
+
+  autoLogoutWarningTimer = setTimeout(showAutoLogoutWarning, warningMs);
+  autoLogoutTimer = setTimeout(autoLogoutNow, totalMs);
+}
+
+function stopAutoLogoutTimer(){
+  clearTimeout(autoLogoutTimer);
+  clearTimeout(autoLogoutWarningTimer);
+  hideAutoLogoutWarning();
+}
+
+['click','keydown','mousemove','touchstart','scroll'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    if(current) resetAutoLogoutTimer();
+  }, {passive:true});
+});
+
 /* =========================================================
    30. CA LÀM VIỆC (SHIFT)
    ========================================================= */
@@ -8620,41 +8425,86 @@ function closeShift(){
     alert("Chưa mở ca!");
     return;
   }
+
   currentShift = active;
 
-  const expected =
-    currentShift.startCash + currentShift.revenue;
+  const startCash = Number(currentShift.startCash || 0);
+  const revenue = Number(currentShift.revenue || 0);
+  const expected = startCash + revenue;
 
   const input = prompt(
-  "Tiền cuối ca hệ thống: " + money(expected) +
-  "\nNhập tiền thực tế đếm được:",
-  ""
-);
+    "KẾT CA NÂNG CAO\\n\\n" +
+    "Tiền đầu ca: " + money(startCash) + "\\n" +
+    "Doanh thu hệ thống: " + money(revenue) + "\\n" +
+    "Tiền cuối ca hệ thống: " + money(expected) + "\\n\\n" +
+    "Nhập tiền thực tế đếm được:",
+    ""
+  );
 
-if(input === null) return;
+  if(input === null) return;
 
-const realCash = Number(
-  String(input).replace(/\./g, '').replace(/,/g, '')
-);
+  const realCash = parseMoneyInput(input);
+  if(isNaN(realCash) || realCash < 0){
+    alert("❌ Tiền thực tế không hợp lệ.");
+    return;
+  }
+
+  const diff = expected - realCash;
+  let reason = '';
+
+  if(diff !== 0){
+    const diffText = diff > 0
+      ? "THIẾU " + money(diff)
+      : "DƯ " + money(Math.abs(diff));
+
+    reason = prompt(
+      "Có chênh lệch: " + diffText + "\\n\\n" +
+      "Vui lòng nhập lý do lệch tiền để lưu nhật ký:",
+      ""
+    );
+
+    if(reason === null) return;
+    reason = cleanText(reason);
+
+    if(!reason){
+      alert("❌ Có chênh lệch tiền thì bắt buộc nhập lý do.");
+      return;
+    }
+  }else{
+    reason = "Khớp tiền";
+  }
 
   currentShift.endTime = new Date().toLocaleString();
-
-  currentShift.expectedCash = expected; // tiền hệ thống
-  currentShift.realCash = realCash;     // tiền đếm
-
-  currentShift.diff =
-    expected - realCash; // thiếu/dư
+  currentShift.expectedCash = expected;
+  currentShift.realCash = realCash;
+  currentShift.diff = diff;
+  currentShift.diffReason = reason;
+  currentShift.closedBy = current?.name || 'Hệ thống';
+  currentShift.closedAt = now();
 
   saveShift();
 
-  alert(
-    "KẾT CA\n" +
-    "Tiền đầu ca: " + money(currentShift.startCash) + "\n" +
-    "Doanh thu: " + money(currentShift.revenue) + "\n" +
-    "Tiền cuối ca (hệ thống): " + money(expected) + "\n" +
-    "Tiền thực tế: " + money(realCash) + "\n" +
-    "Chênh lệch: " + money(currentShift.diff)
+  const summary =
+    "KẾT CA THÀNH CÔNG\\n\\n" +
+    "Nhân viên: " + (currentShift.staff || '-') + "\\n" +
+    "Ca: " + (currentShift.shiftName || '-') + "\\n" +
+    "Tiền đầu ca: " + money(startCash) + "\\n" +
+    "Doanh thu hệ thống: " + money(revenue) + "\\n" +
+    "Tiền cuối ca hệ thống: " + money(expected) + "\\n" +
+    "Tiền thực tế đếm được: " + money(realCash) + "\\n" +
+    "Chênh lệch: " + (
+      diff === 0 ? "Đúng tiền" :
+      diff > 0 ? "Thiếu " + money(diff) :
+      "Dư " + money(Math.abs(diff))
+    ) + "\\n" +
+    "Lý do: " + reason;
+
+  addLog(
+    'Kết ca',
+    `${currentShift.shiftName || '-'} | Doanh thu: ${money(revenue)} | Hệ thống: ${money(expected)} | Thực tế: ${money(realCash)} | Chênh lệch: ${diff === 0 ? 'Đúng tiền' : (diff > 0 ? 'Thiếu ' + money(diff) : 'Dư ' + money(Math.abs(diff)))} | Lý do: ${reason}`
   );
+
+  alert(summary);
 
   currentShift = null;
   sessionStorage.removeItem(KACTIVE_SHIFT);
