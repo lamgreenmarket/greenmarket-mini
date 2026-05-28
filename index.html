@@ -2041,6 +2041,7 @@ const KBILLS = 'v2_bills';
 const KMONEY = 'v2_money';
 const KLOGS = 'v2_logs';
 const KIMPORTS = 'v2_import_history';
+const KLOGIN_SECURITY = 'v2_login_security'; // Bảo mật: lưu số lần đăng nhập sai + thời gian khóa tạm
 
 let users = [];
 try{ localStorage.removeItem(KUSERS); }catch(e){}
@@ -2048,6 +2049,7 @@ let products = JSON.parse(localStorage.getItem(KPRODUCTS) || '[]');
 let bills = JSON.parse(localStorage.getItem(KBILLS) || '[]');
 let moneyList = JSON.parse(localStorage.getItem(KMONEY) || '[]');
 let logs = JSON.parse(localStorage.getItem(KLOGS) || '[]');
+let loginSecurity = JSON.parse(localStorage.getItem(KLOGIN_SECURITY) || '{}');
 let importHistory = JSON.parse(localStorage.getItem(KIMPORTS) || '[]');
 let importDraft = [];
 let importEditingIndex = -1;
@@ -2102,6 +2104,91 @@ function cleanText(s){
 
 function sameName(a, b){
   return cleanText(a).toLowerCase() === cleanText(b).toLowerCase();
+}
+
+/* =========================================================
+   BẢO MẬT ĐĂNG NHẬP - NHẬT KÝ + KHÓA TẠM KHI SAI NHIỀU LẦN
+   ========================================================= */
+const LOGIN_MAX_FAIL = 5;                 // Sai 5 lần thì khóa tạm
+const LOGIN_LOCK_MINUTES = 5;             // Khóa 5 phút
+const LOGIN_LOCK_MS = LOGIN_LOCK_MINUTES * 60 * 1000;
+
+function loginKey(user){
+  return cleanText(user).toLowerCase() || 'unknown';
+}
+
+function saveLoginSecurity(){
+  localStorage.setItem(KLOGIN_SECURITY, JSON.stringify(loginSecurity));
+}
+
+function getLoginLockInfo(user){
+  const key = loginKey(user);
+  const info = loginSecurity[key];
+  if(!info || !info.lockUntil) return null;
+
+  const remainMs = Number(info.lockUntil) - Date.now();
+  if(remainMs <= 0){
+    delete loginSecurity[key];
+    saveLoginSecurity();
+    return null;
+  }
+
+  return {
+    remainMs,
+    remainMinutes: Math.ceil(remainMs / 60000),
+    failCount: Number(info.failCount || 0)
+  };
+}
+
+function addSecurityLog(action, detail, userText){
+  logs.unshift({
+    time: now(),
+    user: current?.name || cleanText(userText) || 'Chưa đăng nhập',
+    role: current?.role === 'admin' ? 'Admin' : (current ? 'Thu ngân' : 'Ngoài hệ thống'),
+    action,
+    detail
+  });
+
+  localStorage.setItem(KLOGS, JSON.stringify(logs));
+}
+
+function clearLoginFail(user){
+  const key = loginKey(user);
+  if(loginSecurity[key]){
+    delete loginSecurity[key];
+    saveLoginSecurity();
+  }
+}
+
+function recordLoginFail(user, reason){
+  const key = loginKey(user);
+  const info = loginSecurity[key] || { failCount: 0, lastFailAt: 0, lockUntil: 0 };
+
+  info.failCount = Number(info.failCount || 0) + 1;
+  info.lastFailAt = Date.now();
+
+  let message = `Sai tài khoản hoặc mật khẩu. Còn ${Math.max(0, LOGIN_MAX_FAIL - info.failCount)} lần thử.`;
+
+  if(info.failCount >= LOGIN_MAX_FAIL){
+    info.lockUntil = Date.now() + LOGIN_LOCK_MS;
+    message = `Tài khoản này bị khóa tạm ${LOGIN_LOCK_MINUTES} phút vì đăng nhập sai quá nhiều lần.`;
+
+    addSecurityLog(
+      'Khóa tạm đăng nhập',
+      `Tài khoản "${cleanText(user)}" bị khóa tạm ${LOGIN_LOCK_MINUTES} phút sau ${info.failCount} lần sai. Lý do: ${reason || 'Không rõ'}`,
+      user
+    );
+  }else{
+    addSecurityLog(
+      'Đăng nhập sai',
+      `Tài khoản "${cleanText(user)}" đăng nhập sai lần ${info.failCount}/${LOGIN_MAX_FAIL}. Lý do: ${reason || 'Không rõ'}`,
+      user
+    );
+  }
+
+  loginSecurity[key] = info;
+  saveLoginSecurity();
+  return message;
 }
 
 function save(){
@@ -2322,8 +2409,20 @@ async function login(){
     return;
   }
 
+  const lockInfo = getLoginLockInfo(u);
+  if(lockInfo){
+    loginMsg.textContent = `Tài khoản này đang bị khóa tạm. Thử lại sau khoảng ${lockInfo.remainMinutes} phút.`;
+    addSecurityLog(
+      'Chặn đăng nhập',
+      `Tài khoản "${u}" đang bị khóa tạm, còn khoảng ${lockInfo.remainMinutes} phút.`,
+      u
+    );
+    return;
+  }
+
   if(typeof window.greenMarketAuthSignIn !== 'function'){
     loginMsg.textContent = 'Firebase Auth chưa sẵn sàng. Bấm Ctrl+F5 rồi thử lại.';
+    addSecurityLog('Lỗi đăng nhập', 'Firebase Auth chưa sẵn sàng khi đăng nhập', u);
     return;
   }
 
@@ -2335,7 +2434,8 @@ async function login(){
     users = await window.greenMarketLoadUserProfiles();
     if(!users.some(x => x.user === current.user)) users.unshift({...current});
 
-    addLog('Đăng nhập', 'Đăng nhập hệ thống bằng Firebase Auth');
+    clearLoginFail(u);
+    addLog('Đăng nhập', 'Đăng nhập hệ thống bằng Firebase Auth thành công');
 
     userName.textContent = current.name;
     userRole.textContent = current.role === 'admin' ? 'Admin' : 'Thu ngân';
@@ -2351,12 +2451,14 @@ async function login(){
     if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
   }catch(err){
     console.error(err);
-    loginMsg.textContent = err?.message || 'Sai tài khoản hoặc mật khẩu Firebase';
+    const reason = err?.message || 'Sai tài khoản hoặc mật khẩu Firebase';
+    loginMsg.textContent = recordLoginFail(u, reason);
+    renderLogs();
   }
 }
 
 async function logout(){
-  addLog('Đăng xuất', 'Thoát khỏi hệ thống');
+  addLog('Đăng xuất', 'Thoát khỏi hệ thống an toàn');
   try{
     if(typeof window.greenMarketAuthSignOut === 'function') await window.greenMarketAuthSignOut();
   }catch(e){}
@@ -4550,14 +4652,15 @@ async function delStaff(user){
 }
 
 function renderLogs(){
+  if(!document.getElementById('logBody')) return;
   logBody.innerHTML = logs.map((l, i) => `
     <tr>
       <td>${i + 1}</td>
-      <td>${l.time}</td>
-      <td>${l.user}</td>
-      <td>${l.role}</td>
-      <td>${l.action}</td>
-      <td>${l.detail}</td>
+      <td>${escapeHTML(l.time)}</td>
+      <td>${escapeHTML(l.user)}</td>
+      <td>${escapeHTML(l.role)}</td>
+      <td>${escapeHTML(l.action)}</td>
+      <td>${escapeHTML(l.detail)}</td>
     </tr>
   `).join('');
 }
@@ -4620,6 +4723,7 @@ function downloadJsonFile(data, filename){
 }
 
 function exportData(){
+  addLog('Xuất dữ liệu', 'Xuất dữ liệu thủ công ra file JSON');
   const today = getBackupDateKey();
   const data = buildBackupData();
 
@@ -4635,6 +4739,7 @@ function exportData(){
 }
 
 function downloadBackupToday(){
+  addLog('Tải backup', 'Tải file backup dữ liệu trong ngày');
   const today = getBackupDateKey();
   autoBackupDaily(false);
 
