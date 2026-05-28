@@ -264,25 +264,6 @@ tr:nth-child(even) td{
   height:14mm;
 }
 
-/* =========================================================
-   DẤU BẢN IN LẠI HÓA ĐƠN
-   ========================================================= */
-.receipt-reprint-stamp{
-  border:2px solid #000;
-  padding:4px 3px;
-  margin:5px 0 7px;
-  text-align:center;
-  font-size:18px;
-  font-weight:900;
-  letter-spacing:.5px;
-}
-.receipt-reprint-note{
-  text-align:center;
-  font-size:13px;
-  font-weight:800;
-  margin-top:2px;
-}
-
 @media print{
   @page{
     size:58mm auto;
@@ -4252,9 +4233,7 @@ function checkout(){
     staff: current.name,
     total,
     paymentMethod: getPaymentText(),
-    items: [...cart],
-    reprintCount: 0,
-    reprintLogs: []
+    items: [...cart]
   });
 
   moneyList.push({
@@ -7578,7 +7557,7 @@ function renderBillHistory(visibleBills){
         <td>${escapeHTML(b.staff || '')}</td>
         <td>${escapeHTML(b.paymentMethod || 'Tiền mặt')}</td>
         <td>${itemCount || (b.items || []).length}</td>
-        <td><b>${money(b.total)}</b><br><small class="muted">In lại: ${getBillReprintCount(b)} lần</small></td>
+        <td><b>${money(b.total)}</b></td>
         <td>
           <button class="btn-blue" onclick="viewBillDetail(${x.globalIndex})">Xem chi tiết</button>
           <button class="btn-green" onclick="printBillReceiptByIndex(${x.globalIndex})">In lại</button>
@@ -7590,21 +7569,6 @@ function renderBillHistory(visibleBills){
       <td colspan="8" style="text-align:center;color:#64748b;font-weight:700">Chưa có hóa đơn phù hợp</td>
     </tr>
   `;
-}
-
-function getBillReprintCount(bill){
-  const logs = Array.isArray(bill?.reprintLogs) ? bill.reprintLogs.length : 0;
-  return Math.max(Number(bill?.reprintCount || 0), logs);
-}
-
-function ensureBillReprintFields(bill){
-  if(!bill) return;
-  if(!Array.isArray(bill.reprintLogs)) bill.reprintLogs = [];
-  bill.reprintCount = getBillReprintCount(bill);
-}
-
-function isAdminUser(){
-  return current?.role === 'admin';
 }
 
 function canAccessBill(bill){
@@ -7640,8 +7604,7 @@ function viewBillDetail(index){
         <div class="bill-detail-meta">
           Ngày: ${escapeHTML(b.time || '')}<br>
           Nhân viên: ${escapeHTML(b.staff || '')}<br>
-          Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}<br>
-          Số lần in lại: ${getBillReprintCount(b)} lần
+          Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}
         </div>
       </div>
       <div class="bill-action-group">
@@ -7679,33 +7642,6 @@ function printBillReceiptByIndex(index){
     return;
   }
 
-  ensureBillReprintFields(b);
-  const oldCount = getBillReprintCount(b);
-  const nextCount = oldCount + 1;
-  const billCode = getBillCode(b, index);
-  const admin = isAdminUser();
-
-  if(!admin && oldCount >= 1){
-    alert('Hóa đơn này đã được in lại 1 lần. Thu ngân không được in thêm. Vui lòng liên hệ Admin/Quản lý.');
-    return;
-  }
-
-  let reason = '';
-  if(admin && oldCount >= 1){
-    reason = prompt(`Hóa đơn ${billCode} đã in lại ${oldCount} lần.\nNhập lý do để Admin/Quản lý in lại lần ${nextCount}:`, 'Khách yêu cầu / đối chiếu hóa đơn');
-    if(reason === null) return;
-    reason = cleanText(reason);
-    if(!reason){
-      alert('Admin/Quản lý phải nhập lý do khi in lại từ lần 2 trở đi.');
-      return;
-    }
-  }
-
-  const confirmText = admin
-    ? `Xác nhận IN LẠI hóa đơn ${billCode} lần ${nextCount}?\nHóa đơn sẽ có dấu BẢN IN LẠI và được lưu nhật ký.`
-    : `Xác nhận IN LẠI hóa đơn ${billCode}?\nThu ngân chỉ được in lại 1 lần. Hóa đơn sẽ có dấu BẢN IN LẠI.`;
-  if(!confirm(confirmText)) return;
-
   const itemHtml = (b.items || []).map(c => `
     <div class="receipt-item">• ${escapeHTML(c.name)}</div>
     <div class="receipt-money">
@@ -7713,36 +7649,15 @@ function printBillReceiptByIndex(index){
     </div>
   `).join('') || '<div class="receipt-item">Hóa đơn cũ chưa có chi tiết món</div>';
 
-  b.reprintCount = nextCount;
-  b.reprintLogs.push({
-    time: now(),
-    user: current?.name || 'Hệ thống',
-    role: admin ? 'Admin/Quản lý' : 'Thu ngân',
-    count: nextCount,
-    reason: reason || (nextCount === 1 ? 'In lại lần 1' : 'Không ghi lý do')
-  });
-
-  addLog(
-    'In lại hóa đơn',
-    `${billCode} - lần ${nextCount} - ${admin ? 'Admin/Quản lý' : 'Thu ngân'}${reason ? ' - Lý do: ' + reason : ''}`
-  );
-  save();
-  renderAll();
-
   receiptPrint.classList.remove('hidden');
   receiptPrint.innerHTML = `
     <div class="receipt-title">SIÊU THỊ MINI GREEN MARKET</div>
-    <div class="receipt-reprint-stamp">BẢN IN LẠI</div>
-    <div class="receipt-reprint-note">Lần in lại: ${nextCount}</div>
     <div class="receipt-line"></div>
 
-    <div>Mã HĐ: ${escapeHTML(billCode)}</div>
-    <div>Ngày bán: ${escapeHTML(b.time || '')}</div>
-    <div>Ngày in lại: ${now()}</div>
-    <div>Người in lại: ${escapeHTML(current?.name || '')}</div>
-    <div>Nhân viên bán: ${escapeHTML(b.staff || '')}</div>
+    <div>Mã HĐ: ${escapeHTML(getBillCode(b, index))}</div>
+    <div>Ngày: ${escapeHTML(b.time || '')}</div>
+    <div>Nhân viên: ${escapeHTML(b.staff || '')}</div>
     <div>Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}</div>
-    ${reason ? `<div>Lý do: ${escapeHTML(reason)}</div>` : ''}
     <div class="receipt-line"></div>
 
     ${itemHtml}
@@ -7773,7 +7688,6 @@ function printBillReceiptByIndex(index){
     receiptPrint.innerHTML = '';
   }, 700);
 }
-
 
 
 
