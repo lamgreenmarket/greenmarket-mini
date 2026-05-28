@@ -1440,6 +1440,71 @@ body.cashier-mode #home .chart-row{
   line-height:1.45;
 }
 
+
+/* =========================================================
+   DASHBOARD - BIỂU ĐỒ TRÒN TỶ LỆ THANH TOÁN
+   ========================================================= */
+.payment-chart-card{
+  min-height:370px!important;
+  overflow:hidden!important;
+}
+.payment-chart-box{
+  width:100%;
+  height:230px;
+  max-height:230px;
+  position:relative;
+}
+.payment-chart-box canvas{
+  width:100%!important;
+  height:230px!important;
+  max-height:230px!important;
+}
+.payment-summary{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+  margin-top:12px;
+}
+.payment-summary-row{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 10px;
+  border-radius:14px;
+  background:#ffffffd9;
+  border:1px solid rgba(14,165,233,.15);
+  font-weight:800;
+  color:#334155;
+}
+.payment-summary-row b{
+  color:#047857;
+}
+.payment-empty{
+  padding:18px;
+  border-radius:18px;
+  background:#f8fcff;
+  border:1px dashed #93c5fd;
+  color:#64748b;
+  font-weight:800;
+  text-align:center;
+  line-height:1.5;
+}
+@media(min-width:1101px){
+  #home .chart-row{
+    grid-template-columns:repeat(2,minmax(320px,1fr))!important;
+    gap:18px!important;
+  }
+  #home .chart-row .card{
+    min-width:0!important;
+    overflow:hidden!important;
+  }
+}
+@media(max-width:1100px){
+  #home .chart-row{
+    grid-template-columns:1fr!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1544,6 +1609,13 @@ body.cashier-mode #home .chart-row{
       <div class="card"><h3>📈 Doanh thu bán hàng theo ngày</h3><canvas id="revenueChart"></canvas></div>
       <div class="card"><h3>📦 Số lượng đơn theo ngày</h3><canvas id="billChart"></canvas></div>
       <div class="card"><h3>👨‍💼 Hiệu suất bán hàng theo nhân viên</h3><canvas id="staffChart"></canvas></div>
+      <div class="card payment-chart-card">
+        <h3>💳 Tỷ lệ thanh toán hôm nay</h3>
+        <div class="payment-chart-box">
+          <canvas id="paymentChart"></canvas>
+        </div>
+        <div id="paymentSummary" class="payment-summary"></div>
+      </div>
     </div>
   </section>
 <section id="shiftReport" class="page hidden card">
@@ -2092,6 +2164,7 @@ let stockFilter = 'all';
 let chart;
 let billChart;
 let staffChart;
+let paymentChart;
 
 /* =========================================================
    17. HÀM TIỆN ÍCH CHUNG
@@ -5060,6 +5133,129 @@ function renderStaffChart(){
     }
   });
 }
+
+function getPaymentGroupName(b){
+  const raw = String(
+    b?.paymentMethod ||
+    b?.payment ||
+    b?.payMethod ||
+    b?.method ||
+    b?.paymentType ||
+    b?.thanhToan ||
+    'Tiền mặt'
+  ).toLowerCase();
+
+  if(raw.includes('qr') || raw.includes('chuyển khoản') || raw.includes('chuyen khoan')){
+    return 'QR chuyển khoản';
+  }
+
+  if(raw.includes('thẻ') || raw.includes('the') || raw.includes('ví') || raw.includes('vi')){
+    return 'Thẻ / Ví điện tử';
+  }
+
+  return 'Tiền mặt';
+}
+
+function getBillNetAmountForPayment(b){
+  if(b?.returned || b?.returnStatus === 'full' || b?.status === 'returned'){
+    return 0;
+  }
+
+  return Number(
+    b?.total ||
+    b?.finalTotal ||
+    b?.grandTotal ||
+    b?.amount ||
+    0
+  );
+}
+
+function renderPaymentChart(){
+  const ctx = document.getElementById('paymentChart');
+  const summaryBox = document.getElementById('paymentSummary');
+  if(!ctx || !summaryBox) return;
+
+  const visibleBills = current?.role === 'admin'
+    ? bills
+    : bills.filter(b => b.staff === current?.name);
+
+  const today = new Date();
+
+  const map = {
+    'Tiền mặt': 0,
+    'QR chuyển khoản': 0,
+    'Thẻ / Ví điện tử': 0
+  };
+
+  visibleBills.forEach(b => {
+    const d = toDateVN(getBillDate(b));
+    if(isNaN(d) || !sameDay(d, today)) return;
+
+    const group = getPaymentGroupName(b);
+    map[group] = (map[group] || 0) + getBillNetAmountForPayment(b);
+  });
+
+  const labels = Object.keys(map);
+  const data = labels.map(k => Number(map[k] || 0));
+  const total = data.reduce((s, v) => s + v, 0);
+
+  if(paymentChart){
+    paymentChart.destroy();
+    paymentChart = null;
+  }
+
+  if(total <= 0){
+    summaryBox.innerHTML = `
+      <div class="payment-empty">
+        Chưa có doanh thu thanh toán hôm nay.<br>
+        <small>Bán một hóa đơn hôm nay, biểu đồ sẽ tự hiện.</small>
+      </div>
+    `;
+    return;
+  }
+
+  paymentChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Tỷ lệ thanh toán',
+        data
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '58%',
+      plugins: {
+        legend: {
+          position: 'bottom'
+        },
+        tooltip: {
+          callbacks: {
+            label: c => {
+              const value = Number(c.raw || 0);
+              const percent = total ? Math.round(value * 100 / total) : 0;
+              return ' ' + c.label + ': ' + money(value) + ' (' + percent + '%)';
+            }
+          }
+        }
+      }
+    }
+  });
+
+  summaryBox.innerHTML = labels.map(label => {
+    const value = Number(map[label] || 0);
+    const percent = total ? Math.round(value * 100 / total) : 0;
+    return `
+      <div class="payment-summary-row">
+        <span>${escapeHTML(label)}</span>
+        <b>${money(value)} • ${percent}%</b>
+      </div>
+    `;
+  }).join('');
+}
+
 
 function renderTopProducts(type = 'today'){
   const box = document.getElementById('topProducts');
@@ -8230,6 +8426,7 @@ function renderAll(){
   renderChart();
   renderBillChart();
   renderStaffChart();
+  renderPaymentChart();
   renderTopProducts();
   if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
 
