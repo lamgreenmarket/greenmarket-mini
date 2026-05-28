@@ -1470,7 +1470,19 @@ body.cashier-mode #home .chart-row{
 }
 @media(min-width:1101px){
   #home .chart-row{
-    grid-template-columns:repeat(4,1fr)!important;
+    grid-template-columns:repeat(2,minmax(320px,1fr))!important;
+    gap:18px!important;
+  }
+
+  #home .card{
+    min-width:0!important;
+    overflow:hidden!important;
+  }
+}
+
+@media(max-width:1100px){
+  #home .chart-row{
+    grid-template-columns:1fr!important;
   }
 }
 
@@ -1578,7 +1590,7 @@ body.cashier-mode #home .chart-row{
       <div class="card"><h3>📈 Doanh thu bán hàng theo ngày</h3><canvas id="revenueChart"></canvas></div>
       <div class="card"><h3>📦 Số lượng đơn theo ngày</h3><canvas id="billChart"></canvas></div>
       <div class="card"><h3>👨‍💼 Hiệu suất bán hàng theo nhân viên</h3><canvas id="staffChart"></canvas></div>
-      <div class="card payment-chart-card">
+      <div class="card payment-chart-card" style="overflow:hidden;">
         <h3>💳 Tỷ lệ thanh toán hôm nay</h3>
         <canvas id="paymentChart"></canvas>
         <div id="paymentSummary" class="payment-summary"></div>
