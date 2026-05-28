@@ -1126,6 +1126,28 @@ tr:hover td{background:#f0fdf4!important}
 .bill-detail-meta{color:#334155;font-weight:700;line-height:1.55}
 .bill-action-group{display:flex;gap:8px;flex-wrap:wrap}
 .bill-action-group button{padding:8px 12px;border-radius:12px;font-size:13px}
+
+.bill-return-badge{
+  display:inline-block;
+  margin-top:6px;
+  padding:5px 10px;
+  border-radius:999px;
+  background:#fee2e2;
+  color:#b91c1c;
+  font-weight:900;
+  border:1px solid #fecaca;
+}
+.bill-return-note{
+  margin-top:12px;
+  padding:12px;
+  border-radius:16px;
+  background:#fff7ed;
+  border:1px solid #fed7aa;
+  color:#9a3412;
+  font-weight:800;
+  line-height:1.5;
+}
+
 .bill-total-line{
   display:flex;
   justify-content:flex-end;
@@ -7759,7 +7781,12 @@ function renderBillHistory(visibleBills){
         <td>${escapeHTML(b.staff || '')}</td>
         <td>${escapeHTML(b.paymentMethod || 'Tiền mặt')}</td>
         <td>${itemCount || (b.items || []).length}</td>
-        <td><b>${money(b.total)}</b><br><small class="muted">In lại: ${getBillReprintCount(b)} lần</small></td>
+        <td>
+          ${isBillReturned(b)
+            ? `<b class="red">ĐÃ TRẢ HÀNG</b><br><small class="muted">Gốc: ${money(b.returnOriginalTotal || b.returnAmount || 0)}</small><br><small class="muted">In lại: ${getBillReprintCount(b)} lần</small>`
+            : `<b>${money(b.total)}</b><br><small class="muted">In lại: ${getBillReprintCount(b)} lần</small>`
+          }
+        </td>
         <td>
           <button class="btn-blue" onclick="viewBillDetail(${x.globalIndex})">Xem chi tiết</button>
         </td>
@@ -7775,6 +7802,132 @@ function renderBillHistory(visibleBills){
 function getBillReprintCount(bill){
   const logs = Array.isArray(bill?.reprintLogs) ? bill.reprintLogs.length : 0;
   return Math.max(Number(bill?.reprintCount || 0), logs);
+}
+
+function getBillOriginalTotal(bill){
+  return Number(bill?.returnOriginalTotal ?? bill?.originalTotal ?? bill?.total ?? 0);
+}
+
+function isBillReturned(bill){
+  return !!(bill && bill.returned);
+}
+
+function getReturnCode(bill, index = 0){
+  if(bill?.returnCode) return bill.returnCode;
+  const raw = String(bill?.time || '').replace(/\D/g, '').slice(-10) || String(index + 1).padStart(4, '0');
+  return 'TH-CU-' + raw;
+}
+
+function returnFullBill(index){
+  if(!requireAdmin('trả hàng hóa đơn')) return;
+
+  const b = bills[index];
+  if(!b){
+    alert('Không tìm thấy hóa đơn để trả hàng');
+    return;
+  }
+
+  if(isBillReturned(b)){
+    alert('Hóa đơn này đã được trả hàng trước đó. Không thể trả lần 2.');
+    return;
+  }
+
+  const billCode = getBillCode(b, index);
+  const returnAmount = Number(b.total || b.returnOriginalTotal || 0);
+
+  if(returnAmount <= 0){
+    alert('Hóa đơn này không còn số tiền để trả.');
+    return;
+  }
+
+  const reason = prompt(
+    `Nhập lý do trả toàn bộ hóa đơn ${billCode}:\nVí dụ: Khách trả hàng / nhập sai hóa đơn / hàng lỗi`,
+    'Khách trả hàng'
+  );
+
+  if(reason === null) return;
+  const cleanReason = cleanText(reason);
+  if(!cleanReason){
+    alert('Bắt buộc nhập lý do trả hàng.');
+    return;
+  }
+
+  const ok = confirm(
+    `XÁC NHẬN TRẢ TOÀN BỘ HÓA ĐƠN ${billCode}?\n\n` +
+    `- Kho sẽ được cộng lại toàn bộ hàng trong hóa đơn\n` +
+    `- Doanh thu hóa đơn sẽ bị trừ về 0\n` +
+    `- Sẽ tạo phiếu trả hàng riêng\n` +
+    `- Thao tác này không thể hoàn tác\n\n` +
+    `Số tiền hoàn: ${money(returnAmount)}`
+  );
+
+  if(!ok) return;
+
+  (b.items || []).forEach(it => {
+    const p = products.find(x => String(x.id) === String(it.id)) ||
+              products.find(x => sameName(x.name, it.name));
+
+    if(p){
+      p.qty = Number(p.qty || 0) + Number(it.qty || 0);
+    }
+  });
+
+  const returnCode = 'TH' + new Date().getFullYear() +
+    String(new Date().getMonth() + 1).padStart(2, '0') +
+    String(new Date().getDate()).padStart(2, '0') + '-' +
+    String(new Date().getHours()).padStart(2, '0') +
+    String(new Date().getMinutes()).padStart(2, '0') +
+    String(new Date().getSeconds()).padStart(2, '0');
+
+  b.returned = true;
+  b.returnCode = returnCode;
+  b.returnTime = now();
+  b.returnBy = current?.name || 'Admin';
+  b.returnReason = cleanReason;
+  b.returnOriginalTotal = returnAmount;
+  b.returnAmount = returnAmount;
+  b.returnItems = (b.items || []).map(it => ({
+    id: it.id,
+    name: it.name,
+    qty: Number(it.qty || 0),
+    price: Number(it.price || 0),
+    total: Number(it.total || (Number(it.qty || 0) * Number(it.price || 0)))
+  }));
+
+  // Đưa tổng hóa đơn về 0 để các báo cáo/doanh thu dựa trên bills tự giảm.
+  b.total = 0;
+
+  moneyList.push({
+    time: now(),
+    type: 'Trả hàng',
+    amount: -returnAmount,
+    staff: current?.name || 'Admin',
+    paymentMethod: b.paymentMethod || 'Hoàn tiền',
+    billCode,
+    returnCode,
+    reason: cleanReason
+  });
+
+  try{
+    const active = typeof getActiveShift === 'function' ? getActiveShift() : null;
+    if(active){
+      active.returns = Number(active.returns || 0) + returnAmount;
+      active.returnOrders = Number(active.returnOrders || 0) + 1;
+      active.revenue = Math.max(0, Number(active.revenue || 0) - returnAmount);
+      active.expectedCash = Number(active.startCash || 0) + Number(active.revenue || 0);
+      if(typeof saveShift === 'function') saveShift();
+    }
+  }catch(e){}
+
+  addLog(
+    'Trả hàng',
+    `${returnCode} - Trả toàn bộ hóa đơn ${billCode} - Hoàn ${money(returnAmount)} - Lý do: ${cleanReason}`
+  );
+
+  save();
+  renderAll();
+  viewBillDetail(index);
+  alert(`Đã trả toàn bộ hóa đơn ${billCode}.\nPhiếu trả hàng: ${returnCode}\nKho đã được cộng lại và doanh thu đã được trừ.`);
 }
 
 function ensureBillReprintFields(bill){
@@ -7821,11 +7974,14 @@ function viewBillDetail(index){
           Ngày: ${escapeHTML(b.time || '')}<br>
           Nhân viên: ${escapeHTML(b.staff || '')}<br>
           Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}<br>
-          Số lần in lại: ${getBillReprintCount(b)} lần
+          Số lần in lại: ${getBillReprintCount(b)} lần<br>
+          Trạng thái: ${isBillReturned(b) ? '<span class="bill-return-badge">ĐÃ TRẢ HÀNG</span>' : '<b style="color:#16a34a">Đã bán</b>'}
+          ${isBillReturned(b) ? `<br>Mã phiếu trả: <b>${escapeHTML(b.returnCode || getReturnCode(b, index))}</b><br>Ngày trả: ${escapeHTML(b.returnTime || '')}<br>Người xử lý: ${escapeHTML(b.returnBy || '')}<br>Lý do: ${escapeHTML(b.returnReason || '')}` : ''}
         </div>
       </div>
       <div class="bill-action-group">
         <button class="btn-green" onclick="printBillReceiptByIndex(${index})">🖨️ In lại hóa đơn</button>
+        ${isAdminUser() && !isBillReturned(b) ? `<button class="btn-red" onclick="returnFullBill(${index})">🔄 Trả toàn bộ hóa đơn</button>` : ''}
         <button class="btn-gray" onclick="closeBillDetail()">Đóng</button>
       </div>
     </div>
@@ -7835,7 +7991,15 @@ function viewBillDetail(index){
         <tbody>${rows || '<tr><td colspan="5" style="text-align:center">Hóa đơn cũ chưa có dữ liệu chi tiết món</td></tr>'}</tbody>
       </table>
     </div>
-    <div class="bill-total-line"><span>Tổng cộng:</span><span>${money(b.total)}</span></div>
+    ${isBillReturned(b)
+      ? `<div class="bill-return-note">Hóa đơn này đã được trả hàng toàn bộ. Kho đã được cộng lại và doanh thu đã được trừ.<br>Số tiền hoàn: ${money(b.returnAmount || b.returnOriginalTotal || 0)}</div>`
+      : ''
+    }
+    <div class="bill-total-line">
+      <span>${isBillReturned(b) ? 'Tổng gốc:' : 'Tổng cộng:'}</span>
+      <span>${isBillReturned(b) ? money(b.returnOriginalTotal || b.returnAmount || 0) : money(b.total)}</span>
+    </div>
+    ${isBillReturned(b) ? `<div class="bill-total-line"><span>Doanh thu sau trả:</span><span>${money(0)}</span></div>` : ''}
   `;
   box.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
@@ -7922,6 +8086,7 @@ function printBillReceiptByIndex(index){
     <div>Người in lại: ${escapeHTML(current?.name || '')}</div>
     <div>Nhân viên bán: ${escapeHTML(b.staff || '')}</div>
     <div>Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}</div>
+    ${isBillReturned(b) ? `<div style="text-align:center;font-size:16px;font-weight:900;border:1px solid #000;margin:5px 0;padding:3px">HÓA ĐƠN ĐÃ TRẢ HÀNG</div><div>Mã phiếu trả: ${escapeHTML(b.returnCode || '')}</div>` : ''}
     ${reason ? `<div>Lý do: ${escapeHTML(reason)}</div>` : ''}
     <div class="receipt-line"></div>
 
