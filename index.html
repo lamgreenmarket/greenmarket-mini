@@ -4,144 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Siêu thị mini Green Market - PRO Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js">
-/* =========================================================
-   FINAL: HIỂN THỊ TỶ LỆ THANH TOÁN HÔM NAY
-   ========================================================= */
-function gmSafeMoney(v){
-  try{ return money(Number(v || 0)); }
-  catch(e){ return Number(v || 0).toLocaleString('vi-VN') + ' VNĐ'; }
-}
-
-function gmDateOnlyFromBill(b){
-  const rawList = [
-    b?.time,
-    b?.date,
-    b?.createdAt,
-    b?.created,
-    b?.ngay,
-    b?.billDate
-  ].filter(Boolean);
-
-  for(const raw of rawList){
-    if(raw instanceof Date) return new Date(raw.getFullYear(), raw.getMonth(), raw.getDate());
-    if(typeof raw === 'number'){
-      const d = new Date(raw);
-      if(!isNaN(d)) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    }
-
-    const s = String(raw);
-
-    // 08:23:14 27/5/2026 hoặc 27/05/2026
-    const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if(m){
-      return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-    }
-
-    const d = new Date(s);
-    if(!isNaN(d)) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  }
-
-  return new Date(NaN);
-}
-
-function gmSameDateOnly(a, b){
-  return a && b &&
-    !isNaN(a) &&
-    !isNaN(b) &&
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-}
-
-function gmPaymentLabelFromBill(b){
-  const raw = String(
-    b?.paymentMethod ||
-    b?.payment ||
-    b?.payMethod ||
-    b?.method ||
-    b?.paymentType ||
-    b?.thanhToan ||
-    b?.pay ||
-    ''
-  ).toLowerCase();
-
-  if(raw.includes('qr') || raw.includes('chuyển khoản') || raw.includes('chuyen khoan')){
-    return '📱 QR chuyển khoản';
-  }
-
-  if(raw.includes('thẻ') || raw.includes('the') || raw.includes('ví') || raw.includes('vi dien') || raw.includes('ví điện tử')){
-    return '💳 Thẻ / Ví điện tử';
-  }
-
-  return '💵 Tiền mặt';
-}
-
-function gmNetBillAmount(b){
-  if(b?.returned || b?.returnStatus === 'full' || b?.status === 'returned') return 0;
-  return Number(b?.total || b?.finalTotal || b?.grandTotal || b?.amount || 0);
-}
-
-function renderPaymentChart(){
-  const box = document.getElementById('paymentSummary');
-  const debug = document.getElementById('paymentDebug');
-  if(!box) return;
-
-  const allBills = Array.isArray(bills) ? bills : [];
-  const list = current?.role === 'admin'
-    ? allBills
-    : allBills.filter(b => b.staff === current?.name);
-
-  const today = new Date();
-  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-  const todayBills = list.filter(b => gmSameDateOnly(gmDateOnlyFromBill(b), todayOnly));
-
-  const map = {
-    '💵 Tiền mặt': 0,
-    '📱 QR chuyển khoản': 0,
-    '💳 Thẻ / Ví điện tử': 0
-  };
-
-  todayBills.forEach(b => {
-    const key = gmPaymentLabelFromBill(b);
-    map[key] = (map[key] || 0) + gmNetBillAmount(b);
-  });
-
-  const total = Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
-
-  if(debug){
-    debug.textContent = `Hôm nay đọc được ${todayBills.length} hóa đơn • Tổng thanh toán: ${gmSafeMoney(total)}`;
-  }
-
-  if(total <= 0){
-    box.innerHTML = `
-      <div class="payment-empty">
-        Chưa có doanh thu thanh toán hôm nay.<br>
-        <small>Nếu hôm nay đã bán hàng, bấm Ctrl + F5 rồi xem lại.</small>
-      </div>
-    `;
-    return;
-  }
-
-  box.innerHTML = Object.entries(map).map(([label, value]) => {
-    value = Number(value || 0);
-    const percent = Math.round(value * 100 / total);
-    return `
-      <div class="payment-bar-row">
-        <div class="payment-bar-head">
-          <span>${label}</span>
-          <span class="payment-bar-money">${gmSafeMoney(value)} • ${percent}%</span>
-        </div>
-        <div class="payment-bar-track">
-          <div class="payment-bar-fill" style="width:${percent}%"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style/dist/xlsx.bundle.js"></script>
 <style>
@@ -1577,79 +1440,6 @@ body.cashier-mode #home .chart-row{
   line-height:1.45;
 }
 
-
-/* =========================================================
-   TỶ LỆ THANH TOÁN HÔM NAY - DẠNG CỘT NGANG FINAL
-   ========================================================= */
-.payment-chart-card{
-  min-height:330px!important;
-  overflow:hidden!important;
-}
-.payment-note{
-  margin:4px 0 12px!important;
-  color:#64748b;
-  font-size:13px;
-}
-.payment-summary{
-  display:flex!important;
-  flex-direction:column!important;
-  gap:13px!important;
-  margin-top:12px!important;
-}
-.payment-bar-row{
-  border:1px solid rgba(14,165,233,.16);
-  background:#ffffffd9;
-  border-radius:18px;
-  padding:13px;
-  box-shadow:0 8px 18px rgba(15,76,129,.06);
-}
-.payment-bar-head{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  align-items:center;
-  font-weight:900;
-  color:#0f4c81;
-  margin-bottom:9px;
-}
-.payment-bar-money{
-  color:#047857;
-  white-space:nowrap;
-}
-.payment-bar-track{
-  height:18px;
-  border-radius:999px;
-  background:#e2e8f0;
-  overflow:hidden;
-}
-.payment-bar-fill{
-  height:100%;
-  border-radius:999px;
-  background:linear-gradient(135deg,#0ea5e9,#16a34a);
-  min-width:4px;
-}
-.payment-empty{
-  padding:18px;
-  border-radius:18px;
-  background:#f8fcff;
-  border:1px dashed #93c5fd;
-  color:#64748b;
-  font-weight:800;
-  text-align:center;
-  line-height:1.5;
-}
-@media(min-width:1101px){
-  #home .chart-row{
-    grid-template-columns:repeat(2,minmax(320px,1fr))!important;
-    gap:18px!important;
-  }
-}
-@media(max-width:1100px){
-  #home .chart-row{
-    grid-template-columns:1fr!important;
-  }
-}
-
 </style>
 </head>
 <body>
@@ -1754,11 +1544,6 @@ body.cashier-mode #home .chart-row{
       <div class="card"><h3>📈 Doanh thu bán hàng theo ngày</h3><canvas id="revenueChart"></canvas></div>
       <div class="card"><h3>📦 Số lượng đơn theo ngày</h3><canvas id="billChart"></canvas></div>
       <div class="card"><h3>👨‍💼 Hiệu suất bán hàng theo nhân viên</h3><canvas id="staffChart"></canvas></div>
-      <div class="card payment-chart-card">
-        <h3>💳 Tỷ lệ thanh toán hôm nay</h3>
-        <p id="paymentDebug" class="payment-note">Đang đọc dữ liệu thanh toán...</p>
-        <div id="paymentSummary" class="payment-summary"></div>
-      </div>
     </div>
   </section>
 <section id="shiftReport" class="page hidden card">
@@ -3803,17 +3588,6 @@ tbody tr:hover td{background:#f8fffb!important}
 }
 
 </style>
-
-
-<script>
-setInterval(function(){
-  try{
-    if(window.current && document.getElementById('paymentSummary')){
-      renderPaymentChart();
-    }
-  }catch(e){}
-}, 2500);
-</script>
 
 </body>
 </html>`;
@@ -8456,7 +8230,6 @@ function renderAll(){
   renderChart();
   renderBillChart();
   renderStaffChart();
-  renderPaymentChart();
   renderTopProducts();
   if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
 
