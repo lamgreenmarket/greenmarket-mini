@@ -1500,7 +1500,7 @@ body.cashier-mode #home .chart-row{
 <!-- =========================================================
      10. HTML HEADER + MENU
      ========================================================= -->
-  <div class="header"><h1>🛒 SIÊU THỊ MINI GREEN MARKET</h1><div>Xin chào: <b id="userName"></b> - Quyền: <b id="userRole"></b> <button class="btn-gray" onclick="logout()">Đăng xuất</button></div></div>
+  <div class="header"><h1>🛒 SIÊU THỊ MINI GREEN MARKET</h1><div>Xin chào: <b id="userName"></b> - Quyền: <b id="userRole"></b> <span id="firebaseSyncStatus" style="display:inline-block;margin-left:8px;padding:4px 10px;border-radius:999px;background:#eef7ff;color:#075985;font-weight:800;font-size:12px">☁️ Firebase</span> <button class="btn-gray" onclick="logout()">Đăng xuất</button></div></div>
   <div class="menu">
     <button onclick="showPage('home')">🏠 Trang chủ</button>
     <button onclick="showPage('shift')">⏱ Ca làm việc</button>
@@ -2268,7 +2268,30 @@ function save(){
 
   // Auto backup nhẹ: mỗi ngày 1 bản, trong ngày ghi đè.
   try{ autoBackupDaily(false); }catch(e){}
+
+  // Firebase là dữ liệu chính: sau khi lưu local cache, đẩy cloud nếu đã đăng nhập.
+  try{
+    if(typeof window.greenMarketScheduleFirebaseSave === 'function'){
+      window.greenMarketScheduleFirebaseSave('app_save');
+    }
+  }catch(e){}
 }
+
+function reloadDataFromLocalStorage(){
+  try{
+    products = JSON.parse(localStorage.getItem(KPRODUCTS) || '[]');
+    bills = JSON.parse(localStorage.getItem(KBILLS) || '[]');
+    moneyList = JSON.parse(localStorage.getItem(KMONEY) || '[]');
+    logs = JSON.parse(localStorage.getItem(KLOGS) || '[]');
+    importHistory = JSON.parse(localStorage.getItem(KIMPORTS) || '[]');
+    if(typeof KSHIFTS !== 'undefined'){
+      shifts = JSON.parse(localStorage.getItem(KSHIFTS) || '[]');
+    }
+  }catch(e){
+    console.error('reloadDataFromLocalStorage error', e);
+  }
+}
+window.reloadDataFromLocalStorage = reloadDataFromLocalStorage;
 
 function addLog(action, detail){
   logs.unshift({
@@ -2500,6 +2523,13 @@ async function login(){
     current = {...f};
     users = await window.greenMarketLoadUserProfiles();
     if(!users.some(x => x.user === current.user)) users.unshift({...current});
+
+    // Firebase là chính: đăng nhập xong kéo cloud về trước khi render.
+    if(typeof window.greenMarketEnsureFirebaseSync === 'function'){
+      loginMsg.textContent = 'Đang đồng bộ Firebase...';
+      await window.greenMarketEnsureFirebaseSync(true);
+      if(typeof reloadDataFromLocalStorage === 'function') reloadDataFromLocalStorage();
+    }
 
     clearLoginFail(u);
     addLog('Đăng nhập', 'Đăng nhập hệ thống bằng Firebase Auth thành công');
@@ -9362,6 +9392,8 @@ const originalSetItem = localStorage.setItem.bind(localStorage);
 const originalRemoveItem = localStorage.removeItem.bind(localStorage);
 let firebaseSyncBusy = false;
 let firebaseSaveTimer = null;
+let firebaseSnapshotAttached = false;
+let firebaseSyncReady = false;
 let lastLocalSnapshot = "";
 let lastCloudApplyMs = Number(localStorage.getItem("green_market_firebase_last_apply_ms") || 0);
 
@@ -9397,10 +9429,17 @@ function localCounts(data = getLocalData()){
 
 function setSyncStatus(text, ok = true){
   try{
-    const old = document.getElementById("firebaseSyncStatus");
+    const badge = document.getElementById("firebaseSyncStatus");
+    if(badge){
+      badge.textContent = text;
+      badge.style.background = ok ? "#dcfce7" : "#fee2e2";
+      badge.style.color = ok ? "#166534" : "#991b1b";
+    }
+
+    let old = document.getElementById("firebaseSyncToast");
     if(old) old.remove();
     const el = document.createElement("div");
-    el.id = "firebaseSyncStatus";
+    el.id = "firebaseSyncToast";
     el.textContent = text;
     el.style.cssText = `position:fixed;right:14px;bottom:14px;z-index:99999;padding:10px 14px;border-radius:999px;font-weight:800;font-size:13px;box-shadow:0 8px 22px #0002;color:white;background:${ok ? "#059669" : "#dc2626"};opacity:.96`;
     document.body.appendChild(el);
@@ -9651,7 +9690,11 @@ window.greenMarketAuthDisableStaff = async function(user){
 try{ originalRemoveItem("v2_users"); }catch(e){}
 
 async function saveCloudNow(reason = "auto"){
-  if(firebaseSyncBusy) return;
+  if(firebaseSyncBusy) return false;
+  if(!auth.currentUser){
+    setSyncStatus("ℹ️ Chưa đăng nhập Firebase", true);
+    return false;
+  }
   const data = getLocalData();
   const snapshot = JSON.stringify(data);
   if(snapshot === lastLocalSnapshot && reason !== "manual") return;
@@ -9667,17 +9710,19 @@ async function saveCloudNow(reason = "auto"){
       data
     }, { merge: true });
     originalSetItem("green_market_firebase_last_save_ms", String(Date.now()));
-    if(reason === "manual") setSyncStatus("☁️ Đã lưu dữ liệu lên Firebase");
+    setSyncStatus("☁️ Đã lưu Firebase");
     console.log("✅ Firebase sync saved", reason, localCounts(data));
+    return true;
   }catch(err){
     console.error("❌ Firebase sync save error", err);
-    setSyncStatus("⚠️ Chưa lưu được Firebase", false);
+    setSyncStatus("⚠️ Chưa lưu Firebase: " + (err?.code || err?.message || "lỗi"), false);
+    return false;
   }
 }
 
 function scheduleCloudSave(reason = "auto"){
   clearTimeout(firebaseSaveTimer);
-  firebaseSaveTimer = setTimeout(() => saveCloudNow(reason), 900);
+  firebaseSaveTimer = setTimeout(() => saveCloudNow(reason), 700);
 }
 
 function applyCloudData(data){
@@ -9693,9 +9738,15 @@ function applyCloudData(data){
   }finally{
     firebaseSyncBusy = false;
   }
+
+  try{
+    if(typeof window.reloadDataFromLocalStorage === "function"){
+      window.reloadDataFromLocalStorage();
+    }
+  }catch(e){}
 }
 
-function shouldUseCloud(cloudData){
+function shouldUseCloud(cloudData, force = false){
   const local = getLocalData();
   const lc = localCounts(local);
   const cc = localCounts(cloudData);
@@ -9703,52 +9754,70 @@ function shouldUseCloud(cloudData){
   const cloudTotal = Object.values(cc).reduce((a,b)=>a+b,0);
 
   if(cloudTotal <= 0) return false;
+  if(force) return true;
   if(localTotal <= 0) return true;
   if(cc.bills > lc.bills) return true;
   if(cc.products > lc.products && lc.products === 0) return true;
+  if(cc.imports > lc.imports) return true;
+  if(cc.shifts > lc.shifts) return true;
+  if(cc.logs > lc.logs) return true;
   return false;
 }
 
-async function initFirebaseSync(){
+async function initFirebaseSync(forceLoadCloud = false){
   try{
+    if(!auth.currentUser){
+      setSyncStatus("ℹ️ Đăng nhập để đồng bộ Firebase", true);
+      return false;
+    }
+
     const snap = await getDoc(CLOUD_DOC);
+
     if(!snap.exists()){
-      await saveCloudNow("first_upload_from_this_browser");
-      setSyncStatus("☁️ Đã tạo dữ liệu cloud lần đầu");
+      await saveCloudNow("first_upload_after_login");
+      setSyncStatus("☁️ Đã tạo dữ liệu Firebase lần đầu");
     }else{
       const cloudData = snap.data()?.data || {};
-      if(shouldUseCloud(cloudData) && !sessionStorage.getItem("green_market_firebase_loaded_once")){
+      if(shouldUseCloud(cloudData, forceLoadCloud)){
         applyCloudData(cloudData);
-        sessionStorage.setItem("green_market_firebase_loaded_once", "1");
         setSyncStatus("☁️ Đã tải dữ liệu Firebase");
-        setTimeout(() => location.reload(), 900);
-        return;
+      }else{
+        setSyncStatus("☁️ Firebase đã sẵn sàng");
       }
     }
 
-    onSnapshot(CLOUD_DOC, snapshot => {
-      if(!snapshot.exists()) return;
-      const meta = snapshot.metadata || {};
-      if(meta.hasPendingWrites) return;
-      const cloudData = snapshot.data()?.data || {};
-      const cloudText = JSON.stringify(cloudData);
-      const localText = JSON.stringify(getLocalData());
-      if(cloudText && cloudText !== localText && Date.now() - lastCloudApplyMs > 2500){
-        const cc = localCounts(cloudData);
-        const lc = localCounts();
-        // Chỉ tự kéo khi cloud có nhiều hóa đơn hơn, tránh ghi đè nhầm dữ liệu đang nhập.
-        if(cc.bills > lc.bills){
-          applyCloudData(cloudData);
-          setSyncStatus("☁️ Có dữ liệu mới, đang cập nhật...");
-          setTimeout(() => location.reload(), 1000);
-        }
-      }
-    });
+    if(!firebaseSnapshotAttached){
+      firebaseSnapshotAttached = true;
+      onSnapshot(CLOUD_DOC, snapshot => {
+        if(!snapshot.exists()) return;
+        const meta = snapshot.metadata || {};
+        if(meta.hasPendingWrites) return;
 
-    console.log("✅ Firebase sync ready");
+        const cloudData = snapshot.data()?.data || {};
+        const cloudText = JSON.stringify(cloudData);
+        const localText = JSON.stringify(getLocalData());
+
+        if(cloudText && cloudText !== localText && Date.now() - lastCloudApplyMs > 2500){
+          const cc = localCounts(cloudData);
+          const lc = localCounts();
+
+          // Có dữ liệu mới từ máy khác thì cập nhật local cache.
+          if(cc.bills > lc.bills || cc.imports > lc.imports || cc.shifts > lc.shifts || cc.logs > lc.logs){
+            applyCloudData(cloudData);
+            setSyncStatus("☁️ Đã cập nhật dữ liệu mới từ Firebase");
+            try{ renderAll(); }catch(e){}
+          }
+        }
+      });
+    }
+
+    firebaseSyncReady = true;
+    console.log("✅ Firebase sync ready after auth");
+    return true;
   }catch(err){
     console.error("❌ Firebase init sync error", err);
-    setSyncStatus("⚠️ Firebase chưa sẵn sàng", false);
+    setSyncStatus("⚠️ Firebase chưa sẵn sàng: " + (err?.code || err?.message || "lỗi"), false);
+    return false;
   }
 }
 
@@ -9763,16 +9832,29 @@ localStorage.removeItem = function(key){
 };
 
 window.greenMarketSaveFirebaseNow = () => saveCloudNow("manual");
-window.greenMarketLoadFirebaseNow = async function(){
+window.greenMarketScheduleFirebaseSave = (reason = "app_save") => scheduleCloudSave(reason);
+window.greenMarketEnsureFirebaseSync = (force = false) => initFirebaseSync(force);
+window.greenMarketLoadFirebaseNow = async function(showAlert = true){
   try{
+    if(!auth.currentUser){
+      setSyncStatus("ℹ️ Đăng nhập để tải Firebase", true);
+      return false;
+    }
     const snap = await getDoc(CLOUD_DOC);
-    if(!snap.exists()) return alert("Firebase chưa có dữ liệu để tải.");
+    if(!snap.exists()){
+      if(showAlert) alert("Firebase chưa có dữ liệu để tải.");
+      return false;
+    }
     applyCloudData(snap.data()?.data || {});
-    alert("Đã tải dữ liệu từ Firebase. Trang sẽ mở lại.");
-    location.reload();
+    setSyncStatus("☁️ Đã tải dữ liệu Firebase");
+    try{ renderAll(); }catch(e){}
+    if(showAlert) alert("Đã tải dữ liệu từ Firebase.");
+    return true;
   }catch(err){
     console.error(err);
-    alert("Lỗi tải Firebase. Mở F12 Console gửi ảnh cho mình.");
+    setSyncStatus("⚠️ Lỗi tải Firebase", false);
+    if(showAlert) alert("Lỗi tải Firebase. Mở F12 Console gửi ảnh cho mình.");
+    return false;
   }
 };
 
@@ -9787,6 +9869,9 @@ onAuthStateChanged(auth, async (firebaseUser) => {
       window.current = current = session;
       users = await window.greenMarketLoadUserProfiles();
       if(!users.some(x => x.user === current.user)) users.unshift({...current});
+
+      await initFirebaseSync(true);
+
       userName.textContent = current.name;
       userRole.textContent = current.role === 'admin' ? 'Admin' : 'Thu ngân';
       loginMsg.textContent = '';
@@ -9806,7 +9891,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
   }
 });
 
-initFirebaseSync();
+setSyncStatus("ℹ️ Đăng nhập để đồng bộ Firebase", true);
 </script>
 
 </body>
