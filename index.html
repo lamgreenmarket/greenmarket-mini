@@ -4,7 +4,81 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Siêu thị mini Green Market - PRO Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js">
+/* =========================================================
+   OVERRIDE: TỶ LỆ THANH TOÁN DẠNG CỘT NGANG
+   ========================================================= */
+function renderPaymentChart(){
+  const summaryBox = document.getElementById('paymentSummary');
+  if(!summaryBox) return;
+
+  const visibleBills = current?.role === 'admin'
+    ? bills
+    : bills.filter(b => b.staff === current?.name);
+
+  const today = new Date();
+
+  const map = {
+    '💵 Tiền mặt': 0,
+    '📱 QR chuyển khoản': 0,
+    '💳 Thẻ / Ví điện tử': 0
+  };
+
+  visibleBills.forEach(b => {
+    const d = toDateVN(getBillDate(b));
+    if(isNaN(d) || !sameDay(d, today)) return;
+
+    const raw = String(
+      b?.paymentMethod ||
+      b?.payment ||
+      b?.payMethod ||
+      b?.method ||
+      b?.paymentType ||
+      b?.thanhToan ||
+      'Tiền mặt'
+    ).toLowerCase();
+
+    let key = '💵 Tiền mặt';
+    if(raw.includes('qr') || raw.includes('chuyển khoản') || raw.includes('chuyen khoan')) key = '📱 QR chuyển khoản';
+    if(raw.includes('thẻ') || raw.includes('the') || raw.includes('ví') || raw.includes('vi')) key = '💳 Thẻ / Ví điện tử';
+
+    const amount = (b?.returned || b?.returnStatus === 'full' || b?.status === 'returned')
+      ? 0
+      : Number(b?.total || b?.finalTotal || b?.grandTotal || b?.amount || 0);
+
+    map[key] = (map[key] || 0) + amount;
+  });
+
+  const total = Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
+
+  if(total <= 0){
+    summaryBox.innerHTML = `
+      <div class="payment-empty">
+        Chưa có doanh thu thanh toán hôm nay.<br>
+        <small>Bán một hóa đơn hôm nay, tỷ lệ sẽ tự hiện.</small>
+      </div>
+    `;
+    return;
+  }
+
+  summaryBox.innerHTML = Object.entries(map).map(([label, value]) => {
+    value = Number(value || 0);
+    const percent = total ? Math.round(value * 100 / total) : 0;
+    return `
+      <div class="payment-bar-row">
+        <div class="payment-bar-head">
+          <span>${escapeHTML(label)}</span>
+          <span class="payment-bar-money">${money(value)} • ${percent}%</span>
+        </div>
+        <div class="payment-bar-track">
+          <div class="payment-bar-fill" style="width:${percent}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+</script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style/dist/xlsx.bundle.js"></script>
 <style>
@@ -1506,6 +1580,77 @@ body.cashier-mode #home .chart-row{
   }
 }
 
+
+/* =========================================================
+   TỶ LỆ THANH TOÁN DẠNG CỘT NGANG - FIX ĐẸP, KHÔNG MÉO
+   ========================================================= */
+.payment-chart-card{
+  min-height:330px!important;
+  overflow:hidden!important;
+}
+.payment-chart-box{
+  display:none!important;
+}
+.payment-bar-summary{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:14px!important;
+  margin-top:18px!important;
+}
+.payment-bar-row{
+  border:1px solid rgba(14,165,233,.16);
+  background:#ffffffd9;
+  border-radius:18px;
+  padding:13px;
+  box-shadow:0 8px 18px rgba(15,76,129,.06);
+}
+.payment-bar-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+  font-weight:900;
+  color:#0f4c81;
+  margin-bottom:9px;
+}
+.payment-bar-money{
+  color:#047857;
+  white-space:nowrap;
+}
+.payment-bar-track{
+  height:18px;
+  border-radius:999px;
+  background:#e2e8f0;
+  overflow:hidden;
+}
+.payment-bar-fill{
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(135deg,#0ea5e9,#16a34a);
+  min-width:4px;
+}
+.payment-empty{
+  padding:20px;
+  border-radius:18px;
+  background:#f8fcff;
+  border:1px dashed #93c5fd;
+  color:#64748b;
+  font-weight:800;
+  text-align:center;
+  line-height:1.5;
+}
+@media(min-width:1101px){
+  #home .chart-row{
+    grid-template-columns:repeat(2,minmax(320px,1fr))!important;
+    gap:18px!important;
+  }
+}
+@media(max-width:1100px){
+  #home .chart-row{
+    grid-template-columns:1fr!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1612,10 +1757,8 @@ body.cashier-mode #home .chart-row{
       <div class="card"><h3>👨‍💼 Hiệu suất bán hàng theo nhân viên</h3><canvas id="staffChart"></canvas></div>
       <div class="card payment-chart-card">
         <h3>💳 Tỷ lệ thanh toán hôm nay</h3>
-        <div class="payment-chart-box">
-          <canvas id="paymentChart"></canvas>
-        </div>
-        <div id="paymentSummary" class="payment-summary"></div>
+        <p class="muted">Theo doanh thu thanh toán trong ngày hiện tại.</p>
+        <div id="paymentSummary" class="payment-summary payment-bar-summary"></div>
       </div>
     </div>
   </section>
