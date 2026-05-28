@@ -4,80 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Siêu thị mini Green Market - PRO Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js">
-/* =========================================================
-   OVERRIDE FIX: TỶ LỆ THANH TOÁN HÔM NAY - KHÔNG DÙNG CANVAS
-   ========================================================= */
-function gmPaymentMethodSafe(b){
-  const raw = String(
-    b?.paymentMethod || b?.payment || b?.payMethod || b?.method || b?.paymentType || b?.thanhToan || b?.pay || 'Tiền mặt'
-  ).toLowerCase();
-
-  if(raw.includes('qr') || raw.includes('chuyển khoản') || raw.includes('chuyen khoan')) return '📱 QR chuyển khoản';
-  if(raw.includes('thẻ') || raw.includes('the') || raw.includes('ví') || raw.includes('vi')) return '💳 Thẻ / Ví điện tử';
-  return '💵 Tiền mặt';
-}
-
-function gmBillNetTotalSafe(b){
-  if(b?.returned || b?.returnStatus === 'full' || b?.status === 'returned') return 0;
-  return Number(b?.total || b?.finalTotal || b?.grandTotal || b?.amount || 0);
-}
-
-function renderPaymentChart(){
-  const box = document.getElementById('paymentSummary');
-  if(!box) return;
-
-  const list = (current?.role === 'admin')
-    ? bills
-    : bills.filter(b => b.staff === current?.name);
-
-  const today = new Date();
-  const todayBills = list.filter(b => {
-    const d = billDateObj(b);
-    return !isNaN(d) && sameDay(d, today);
-  });
-
-  const map = {
-    '💵 Tiền mặt': 0,
-    '📱 QR chuyển khoản': 0,
-    '💳 Thẻ / Ví điện tử': 0
-  };
-
-  todayBills.forEach(b => {
-    const key = gmPaymentMethodSafe(b);
-    map[key] = (map[key] || 0) + gmBillNetTotalSafe(b);
-  });
-
-  const total = Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
-
-  if(total <= 0){
-    box.innerHTML = `
-      <div class="payment-empty">
-        Chưa có doanh thu thanh toán hôm nay.<br>
-        <small>Bán một hóa đơn hôm nay thì tỷ lệ sẽ tự hiện.</small>
-      </div>
-    `;
-    return;
-  }
-
-  box.innerHTML = Object.entries(map).map(([name, value]) => {
-    value = Number(value || 0);
-    const percent = total ? Math.round(value * 100 / total) : 0;
-    return `
-      <div class="payment-row-pro">
-        <div class="payment-row-head">
-          <span>${escapeHTML(name)}</span>
-          <span>${money(value)} • ${percent}%</span>
-        </div>
-        <div class="payment-bar-wrap">
-          <div class="payment-bar-fill" style="width:${percent}%"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style/dist/xlsx.bundle.js"></script>
 <style>
@@ -1513,118 +1440,6 @@ body.cashier-mode #home .chart-row{
   line-height:1.45;
 }
 
-
-/* =========================================================
-   DASHBOARD - TỶ LỆ THANH TOÁN TIỀN MẶT / QR / THẺ-VÍ
-   ========================================================= */
-.payment-chart-card{
-  min-height:370px!important;
-}
-.payment-summary{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:7px;
-  margin-top:8px;
-  font-size:13px;
-  font-weight:800;
-  color:#334155;
-}
-.payment-summary div{
-  display:flex;
-  justify-content:space-between;
-  gap:8px;
-  border:1px solid rgba(14,165,233,.13);
-  background:#ffffffcc;
-  border-radius:12px;
-  padding:7px 9px;
-}
-.payment-summary b{
-  color:#047857;
-}
-@media(min-width:1101px){
-  #home .chart-row{
-    grid-template-columns:repeat(2,minmax(320px,1fr))!important;
-    gap:18px!important;
-  }
-
-  #home .card{
-    min-width:0!important;
-    overflow:hidden!important;
-  }
-}
-
-@media(max-width:1100px){
-  #home .chart-row{
-    grid-template-columns:1fr!important;
-  }
-}
-
-
-/* =========================================================
-   FIX CHẮC CHẮN - TỶ LỆ THANH TOÁN HÔM NAY
-   ========================================================= */
-.payment-chart-card{
-  min-height:330px!important;
-  overflow:hidden!important;
-}
-.payment-summary-pro{
-  display:flex!important;
-  flex-direction:column!important;
-  gap:12px!important;
-  margin-top:14px!important;
-}
-.payment-row-pro{
-  border:1px solid rgba(14,165,233,.16);
-  background:#ffffffd9;
-  border-radius:16px;
-  padding:12px;
-  box-shadow:0 8px 18px rgba(15,76,129,.06);
-}
-.payment-row-head{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  font-weight:900;
-  color:#0f4c81;
-  margin-bottom:8px;
-}
-.payment-bar-wrap{
-  height:14px;
-  border-radius:999px;
-  background:#e2e8f0;
-  overflow:hidden;
-}
-.payment-bar-fill{
-  height:100%;
-  border-radius:999px;
-  background:linear-gradient(135deg,#0ea5e9,#16a34a);
-  min-width:4px;
-}
-.payment-empty{
-  padding:20px;
-  border:1px dashed #93c5fd;
-  border-radius:18px;
-  color:#64748b;
-  background:#f8fcff;
-  font-weight:800;
-  text-align:center;
-}
-@media(min-width:1101px){
-  #home .chart-row{
-    grid-template-columns:repeat(2,minmax(320px,1fr))!important;
-    gap:18px!important;
-  }
-  #home .card{
-    min-width:0!important;
-    overflow:hidden!important;
-  }
-}
-@media(max-width:1100px){
-  #home .chart-row{
-    grid-template-columns:1fr!important;
-  }
-}
-
 </style>
 </head>
 <body>
@@ -1729,11 +1544,6 @@ body.cashier-mode #home .chart-row{
       <div class="card"><h3>📈 Doanh thu bán hàng theo ngày</h3><canvas id="revenueChart"></canvas></div>
       <div class="card"><h3>📦 Số lượng đơn theo ngày</h3><canvas id="billChart"></canvas></div>
       <div class="card"><h3>👨‍💼 Hiệu suất bán hàng theo nhân viên</h3><canvas id="staffChart"></canvas></div>
-      <div class="card payment-chart-card" style="overflow:hidden;">
-        <h3>💳 Tỷ lệ thanh toán hôm nay</h3>
-        <canvas id="paymentChart"></canvas>
-        <div id="paymentSummary" class="payment-summary"></div>
-      </div>
     </div>
   </section>
 <section id="shiftReport" class="page hidden card">
@@ -2282,7 +2092,6 @@ let stockFilter = 'all';
 let chart;
 let billChart;
 let staffChart;
-let paymentChart;
 
 /* =========================================================
    17. HÀM TIỆN ÍCH CHUNG
@@ -5251,93 +5060,6 @@ function renderStaffChart(){
     }
   });
 }
-
-function normalizePaymentMethodName(method){
-  const m = cleanText(method).toLowerCase();
-
-  if(m.includes('qr') || m.includes('chuyển khoản') || m.includes('chuyen khoan')){
-    return 'QR chuyển khoản';
-  }
-
-  if(m.includes('thẻ') || m.includes('the') || m.includes('ví') || m.includes('vi dien') || m.includes('ví điện tử')){
-    return 'Thẻ / Ví điện tử';
-  }
-
-  return 'Tiền mặt';
-}
-
-function renderPaymentChart(){
-  const ctx = document.getElementById('paymentChart');
-  const summaryBox = document.getElementById('paymentSummary');
-  if(!ctx) return;
-
-  const visibleBills = current?.role === 'admin'
-    ? bills
-    : bills.filter(b => b.staff === current?.name);
-
-  const today = new Date();
-  const todayBills = visibleBills.filter(b => {
-    const d = billDateObj(b);
-    return !isNaN(d) && sameDay(d, today);
-  });
-
-  const map = {
-    'Tiền mặt': 0,
-    'QR chuyển khoản': 0,
-    'Thẻ / Ví điện tử': 0
-  };
-
-  todayBills.forEach(b => {
-    const name = normalizePaymentMethodName(b.paymentMethod || 'Tiền mặt');
-    map[name] = (map[name] || 0) + Number(b.total || 0);
-  });
-
-  const total = Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
-  const labels = Object.keys(map);
-  const data = labels.map(k => map[k]);
-
-  if(paymentChart) paymentChart.destroy();
-
-  paymentChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Thanh toán',
-          data
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: c => {
-              const value = Number(c.raw || 0);
-              const percent = total ? Math.round(value * 100 / total) : 0;
-              return ' ' + c.label + ': ' + money(value) + ' (' + percent + '%)';
-            }
-          }
-        },
-        legend: {
-          position: 'bottom'
-        }
-      }
-    }
-  });
-
-  if(summaryBox){
-    summaryBox.innerHTML = labels.map(label => {
-      const value = Number(map[label] || 0);
-      const percent = total ? Math.round(value * 100 / total) : 0;
-      return `<div><span>${escapeHTML(label)}</span><b>${money(value)} • ${percent}%</b></div>`;
-    }).join('');
-  }
-}
-
 
 function renderTopProducts(type = 'today'){
   const box = document.getElementById('topProducts');
@@ -8508,7 +8230,6 @@ function renderAll(){
   renderChart();
   renderBillChart();
   renderStaffChart();
-  renderPaymentChart();
   renderTopProducts();
   if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
 
