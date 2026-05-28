@@ -2494,16 +2494,56 @@ function applyPermission(){
   });
 }
 
+
+function isAdminUser(){
+  return current?.role === 'admin';
+}
+
+function requireAdmin(action = 'chức năng quản trị'){
+  if(isAdminUser()) return true;
+
+  const msg = 'Tài khoản thu ngân không có quyền dùng ' + action;
+  try{
+    addLog('Chặn quyền', msg);
+  }catch(e){}
+
+  alert(msg);
+  return false;
+}
+
+function clearSensitiveAdminViews(){
+  const blockedText = '<tr><td colspan="20">Tài khoản thu ngân không có quyền xem dữ liệu này</td></tr>';
+
+  [
+    'stockBody',
+    'moneyBody',
+    'staffBody',
+    'logBody',
+    'shiftReportBody',
+    'importReportBody',
+    'dailyImportBody',
+    'importTraceBody',
+    'priceIncreaseBody'
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = blockedText;
+  });
+
+  ['lowStockList', 'outStockList', 'supplierList', 'barcodeProductSelect', 'barcodePrintArea'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = '';
+  });
+
+  const summary = document.getElementById('shiftReportSummary');
+  if(summary) summary.innerHTML = 'Tài khoản thu ngân không có quyền xem báo cáo ca toàn cửa hàng.';
+}
+
 function showPage(id){
   if(!current) return;
 
-  // Thu ngân được xem Trang chủ, nhưng chỉ hiện 3 biểu đồ cá nhân.
-  // Các trang quản trị vẫn bị khóa.
-  if(
-    current.role !== 'admin' &&
-    ['stock', 'imports', 'barcodeA4', 'money', 'staff', 'logs', 'shiftReport'].includes(id)
-  ){
-    alert('Tài khoản thu ngân không có quyền vào mục này');
+  const adminPages = ['stock', 'imports', 'barcodeA4', 'money', 'staff', 'logs', 'shiftReport'];
+  if(adminPages.includes(id) && !requireAdmin('mục ' + id)){
+    showPage('home');
     return;
   }
 
@@ -2770,6 +2810,7 @@ function syncImportHistoryWithProducts(showMessage = false){
 }
 
 function showBarcodePage(productId){
+  if(!requireAdmin('in tem mã vạch')) return;
   showPage('barcodeA4');
   renderBarcodeControls();
 
@@ -3521,6 +3562,7 @@ tbody tr:hover td{background:#f8fffb!important}
 }
 
 function autoGenerateMissingBarcodes(){
+  if(!requireAdmin('tự tạo mã vạch')) return;
   let count = 0;
 
   products.forEach(p => {
@@ -3545,6 +3587,7 @@ function autoGenerateMissingBarcodes(){
    không tạo thêm dòng rác nữa.
    ========================================================= */
 function addProduct(){
+  if(!requireAdmin('thêm / nhập kho sản phẩm')) return;
   let name = cleanText(pName.value);
   let barcode = normalizeBarcodeCode(pBarcode.value);
   const qty = Number(pQty.value || 0);
@@ -3653,6 +3696,7 @@ function addProduct(){
 }
 
 function delProduct(id){
+  if(!requireAdmin('xóa sản phẩm')) return;
   if(current.role !== 'admin'){
     alert('Chỉ admin được xóa sản phẩm');
     return;
@@ -3671,6 +3715,7 @@ function delProduct(id){
 }
 
 function editProductPrice(id){
+  if(!requireAdmin('sửa thông tin sản phẩm')) return;
   const p = products.find(x => x.id === id);
   if(!p){ alert('Không tìm thấy sản phẩm'); return; }
 
@@ -3774,18 +3819,21 @@ function setStockTab(id){
 }
 
 function showStockAll(){
+  if(!requireAdmin('xem kho hàng')) return;
   stockFilter = 'all';
   setStockTab('btnStockAll');
   showPage('stock');
 }
 
 function showLowStock(){
+  if(!requireAdmin('xem cảnh báo tồn kho')) return;
   stockFilter = 'low';
   setStockTab('btnStockLow');
   showPage('stock');
 }
 
 function showOutStock(){
+  if(!requireAdmin('xem hàng hết')) return;
   stockFilter = 'out';
   setStockTab('btnStockOut');
   showPage('stock');
@@ -3804,6 +3852,10 @@ function getVisibleStock(){
 }
 
 function renderStock(){
+  if(!isAdminUser()){
+    clearSensitiveAdminViews();
+    return;
+  }
   const low = products.filter(isLowStock);
   const out = products.filter(isOutStock);
   const list = getVisibleStock();
@@ -4588,6 +4640,7 @@ function playError(){
    25. NHÂN VIÊN / NHẬT KÝ
    ========================================================= */
 async function addStaff(){
+  if(!requireAdmin('thêm nhân viên')) return;
   if(current.role !== 'admin'){
     alert('Chỉ admin được thêm nhân viên');
     return;
@@ -4632,6 +4685,7 @@ async function addStaff(){
 }
 
 async function delStaff(user){
+  if(!requireAdmin('xóa nhân viên')) return;
   if(user === current.user){
     alert('Không thể xóa tài khoản đang đăng nhập');
     return;
@@ -4652,6 +4706,11 @@ async function delStaff(user){
 }
 
 function renderLogs(){
+  if(!isAdminUser()){
+    const el = document.getElementById('logBody');
+    if(el) el.innerHTML = '<tr><td colspan="6">Tài khoản thu ngân không có quyền xem nhật ký</td></tr>';
+    return;
+  }
   if(!document.getElementById('logBody')) return;
   logBody.innerHTML = logs.map((l, i) => `
     <tr>
@@ -4723,6 +4782,7 @@ function downloadJsonFile(data, filename){
 }
 
 function exportData(){
+  if(!requireAdmin('xuất dữ liệu backup')) return;
   addLog('Xuất dữ liệu', 'Xuất dữ liệu thủ công ra file JSON');
   const today = getBackupDateKey();
   const data = buildBackupData();
@@ -4739,6 +4799,7 @@ function exportData(){
 }
 
 function downloadBackupToday(){
+  if(!requireAdmin('tải backup hôm nay')) return;
   addLog('Tải backup', 'Tải file backup dữ liệu trong ngày');
   const today = getBackupDateKey();
   autoBackupDaily(false);
@@ -4759,6 +4820,7 @@ function downloadBackupToday(){
 }
 
 function applyBackupData(data){
+  if(!requireAdmin('áp dụng dữ liệu backup')) return;
   users = (data.users || []).map(({pass, ...u}) => u);
   products = data.products || [];
   bills = data.bills || [];
@@ -4778,6 +4840,7 @@ function applyBackupData(data){
 }
 
 function importData(event){
+  if(!requireAdmin('nhập dữ liệu')){ if(event) event.target.value = ''; return; }
   const file = event.target.files[0];
   if(!file) return;
 
@@ -4800,6 +4863,7 @@ function importData(event){
 }
 
 function restoreBackupFile(event){
+  if(!requireAdmin('khôi phục backup')){ if(event) event.target.value = ''; return; }
   const file = event.target.files[0];
   if(!file) return;
 
@@ -5373,6 +5437,7 @@ function renderImportDraft(){
 }
 
 function saveImportReceipt(){
+  if(!requireAdmin('lưu phiếu nhập kho')) return;
   ensureImportReceipt();
 
   if(!importDraft.length){
@@ -5446,6 +5511,7 @@ function cancelImportSaveBox(){
 }
 
 function commitImportReceipt(){
+  if(!requireAdmin('xác nhận cộng kho')) return null;
   ensureImportReceipt();
 
   if(!importDraft.length){
@@ -5562,6 +5628,7 @@ function closeImportSuccessBox(ok){
 }
 
 function renderImportHistory(){
+  if(!isAdminUser()) return;
   if(typeof importBody === 'undefined') return;
 
   importBody.innerHTML = importHistory.length
@@ -5625,6 +5692,7 @@ function initImportReportDate(){
 
 
 function renderSupplierList(){
+  if(!isAdminUser()) return;
   const list = document.getElementById('supplierList');
   if(!list) return;
   const names = [...new Set(importHistory.map(x => cleanText(x.supplier)).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'vi'));
@@ -6399,6 +6467,7 @@ function openImportReceiptPrintWindow(data){
 }
 
 function printCurrentImportDraftReceipt(){
+  if(!requireAdmin('in phiếu nhập kho')) return;
   const data = getCurrentDraftPrintData();
   const ok = openImportReceiptPrintWindow(data);
   if(ok){
@@ -6412,6 +6481,7 @@ function printCurrentImportDraftReceipt(){
 }
 
 function printImportReceipt(receiptCode){
+  if(!requireAdmin('in lại phiếu nhập kho')) return;
   const lines = groupImportReceiptLines(receiptCode);
   if(!lines.length){
     alert('Không tìm thấy phiếu để in');
@@ -6430,12 +6500,14 @@ function printImportReceipt(receiptCode){
 }
 
 function renderImportReports(){
+  if(!isAdminUser()) return;
   renderDailyImportReport();
   renderLotProfitReport();
   renderPriceIncreaseAlerts();
 }
 
 function renderDailyImportReport(){
+  if(!isAdminUser()) return;
   const dateEl = document.getElementById('importReportDate');
   const body = document.getElementById('importReportBody');
   if(!dateEl || !body) return;
@@ -7254,6 +7326,7 @@ function downloadWorkbook(wb, filename){
 }
 
 function exportDailyImportReportExcel(){
+  if(!requireAdmin('xuất báo cáo nhập kho Excel')) return;
   if(!checkXLSXReady()) return;
   const {selected, list} = getDailyImportReportList();
   if(!list.length){
@@ -7329,6 +7402,7 @@ function buildPriceIncreaseAlertsArray(){
 }
 
 function exportAccountingExcel(){
+  if(!requireAdmin('xuất Excel kế toán')) return;
   if(!checkXLSXReady()) return;
 
   const wb = XLSX.utils.book_new();
@@ -7433,6 +7507,7 @@ function exportAccountingExcel(){
 }
 
 function printDailyImportReport(){
+  if(!requireAdmin('in báo cáo nhập kho')) return;
   const {selected, list} = getDailyImportReportList();
   if(!list.length){
     alert('Ngày này chưa có dữ liệu nhập kho để in báo cáo');
@@ -7513,6 +7588,7 @@ function renderPriceIncreaseAlerts(){
 }
 
 function editImportHistory(index){
+  if(!requireAdmin('sửa lịch sử nhập kho')) return;
   const item = importHistory[index];
 
   if(!item){
@@ -8320,6 +8396,13 @@ function getShiftDateInput(s){
 }
 
 function renderShiftReport(){
+  if(!isAdminUser()){
+    const body = document.getElementById('shiftReportBody');
+    if(body) body.innerHTML = '<tr><td colspan="10">Tài khoản thu ngân không có quyền xem báo cáo ca toàn cửa hàng</td></tr>';
+    const summary = document.getElementById('shiftReportSummary');
+    if(summary) summary.innerHTML = 'Tài khoản thu ngân không có quyền xem báo cáo ca toàn cửa hàng.';
+    return;
+  }
   if(!document.getElementById('shiftReportBody')) return;
 
   if(!reportShiftDate.value){
