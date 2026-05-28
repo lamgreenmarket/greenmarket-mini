@@ -1440,6 +1440,40 @@ body.cashier-mode #home .chart-row{
   line-height:1.45;
 }
 
+
+/* =========================================================
+   DASHBOARD - TỶ LỆ THANH TOÁN TIỀN MẶT / QR / THẺ-VÍ
+   ========================================================= */
+.payment-chart-card{
+  min-height:370px!important;
+}
+.payment-summary{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:7px;
+  margin-top:8px;
+  font-size:13px;
+  font-weight:800;
+  color:#334155;
+}
+.payment-summary div{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  border:1px solid rgba(14,165,233,.13);
+  background:#ffffffcc;
+  border-radius:12px;
+  padding:7px 9px;
+}
+.payment-summary b{
+  color:#047857;
+}
+@media(min-width:1101px){
+  #home .chart-row{
+    grid-template-columns:repeat(4,1fr)!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1544,6 +1578,11 @@ body.cashier-mode #home .chart-row{
       <div class="card"><h3>📈 Doanh thu bán hàng theo ngày</h3><canvas id="revenueChart"></canvas></div>
       <div class="card"><h3>📦 Số lượng đơn theo ngày</h3><canvas id="billChart"></canvas></div>
       <div class="card"><h3>👨‍💼 Hiệu suất bán hàng theo nhân viên</h3><canvas id="staffChart"></canvas></div>
+      <div class="card payment-chart-card">
+        <h3>💳 Tỷ lệ thanh toán hôm nay</h3>
+        <canvas id="paymentChart"></canvas>
+        <div id="paymentSummary" class="payment-summary"></div>
+      </div>
     </div>
   </section>
 <section id="shiftReport" class="page hidden card">
@@ -2092,6 +2131,7 @@ let stockFilter = 'all';
 let chart;
 let billChart;
 let staffChart;
+let paymentChart;
 
 /* =========================================================
    17. HÀM TIỆN ÍCH CHUNG
@@ -5060,6 +5100,93 @@ function renderStaffChart(){
     }
   });
 }
+
+function normalizePaymentMethodName(method){
+  const m = cleanText(method).toLowerCase();
+
+  if(m.includes('qr') || m.includes('chuyển khoản') || m.includes('chuyen khoan')){
+    return 'QR chuyển khoản';
+  }
+
+  if(m.includes('thẻ') || m.includes('the') || m.includes('ví') || m.includes('vi dien') || m.includes('ví điện tử')){
+    return 'Thẻ / Ví điện tử';
+  }
+
+  return 'Tiền mặt';
+}
+
+function renderPaymentChart(){
+  const ctx = document.getElementById('paymentChart');
+  const summaryBox = document.getElementById('paymentSummary');
+  if(!ctx) return;
+
+  const visibleBills = current?.role === 'admin'
+    ? bills
+    : bills.filter(b => b.staff === current?.name);
+
+  const today = new Date();
+  const todayBills = visibleBills.filter(b => {
+    const d = billDateObj(b);
+    return !isNaN(d) && sameDay(d, today);
+  });
+
+  const map = {
+    'Tiền mặt': 0,
+    'QR chuyển khoản': 0,
+    'Thẻ / Ví điện tử': 0
+  };
+
+  todayBills.forEach(b => {
+    const name = normalizePaymentMethodName(b.paymentMethod || 'Tiền mặt');
+    map[name] = (map[name] || 0) + Number(b.total || 0);
+  });
+
+  const total = Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
+  const labels = Object.keys(map);
+  const data = labels.map(k => map[k]);
+
+  if(paymentChart) paymentChart.destroy();
+
+  paymentChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Thanh toán',
+          data
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: c => {
+              const value = Number(c.raw || 0);
+              const percent = total ? Math.round(value * 100 / total) : 0;
+              return ' ' + c.label + ': ' + money(value) + ' (' + percent + '%)';
+            }
+          }
+        },
+        legend: {
+          position: 'bottom'
+        }
+      }
+    }
+  });
+
+  if(summaryBox){
+    summaryBox.innerHTML = labels.map(label => {
+      const value = Number(map[label] || 0);
+      const percent = total ? Math.round(value * 100 / total) : 0;
+      return `<div><span>${escapeHTML(label)}</span><b>${money(value)} • ${percent}%</b></div>`;
+    }).join('');
+  }
+}
+
 
 function renderTopProducts(type = 'today'){
   const box = document.getElementById('topProducts');
@@ -8230,6 +8357,7 @@ function renderAll(){
   renderChart();
   renderBillChart();
   renderStaffChart();
+  renderPaymentChart();
   renderTopProducts();
   if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
 
