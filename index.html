@@ -78,6 +78,130 @@ function renderPaymentChart(){
   }).join('');
 }
 
+
+/* =========================================================
+   FIX FINAL: TỶ LỆ THANH TOÁN - LẤY NGÀY ĐÚNG NHƯ HÓA ĐƠN
+   ========================================================= */
+function gmBillDateForPayment(b){
+  if(!b) return new Date(NaN);
+
+  if(typeof billDateObj === 'function'){
+    const d = billDateObj(b);
+    if(d && !isNaN(d)) return d;
+  }
+
+  const raw = b.time || b.date || b.createdAt || b.created || b.ngay || '';
+
+  if(raw instanceof Date) return raw;
+
+  if(typeof raw === 'number') return new Date(raw);
+
+  const s = String(raw);
+
+  // Dạng: 14:31:28 28/5/2026 hoặc 28/05/2026
+  const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m){
+    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  }
+
+  const d = new Date(s);
+  return d;
+}
+
+function gmBillPaymentText(b){
+  return String(
+    b?.paymentMethod ||
+    b?.payment ||
+    b?.payMethod ||
+    b?.method ||
+    b?.paymentType ||
+    b?.thanhToan ||
+    b?.pay ||
+    'Tiền mặt'
+  );
+}
+
+function gmPaymentKey(b){
+  const raw = gmBillPaymentText(b).toLowerCase();
+
+  if(raw.includes('qr') || raw.includes('chuyển khoản') || raw.includes('chuyen khoan')){
+    return '📱 QR chuyển khoản';
+  }
+
+  if(raw.includes('thẻ') || raw.includes('the') || raw.includes('ví') || raw.includes('vi dien') || raw.includes('ví điện tử')){
+    return '💳 Thẻ / Ví điện tử';
+  }
+
+  return '💵 Tiền mặt';
+}
+
+function gmBillAmountForPayment(b){
+  if(b?.returned || b?.returnStatus === 'full' || b?.status === 'returned'){
+    return 0;
+  }
+
+  return Number(
+    b?.total ||
+    b?.finalTotal ||
+    b?.grandTotal ||
+    b?.amount ||
+    0
+  );
+}
+
+function renderPaymentChart(){
+  const summaryBox = document.getElementById('paymentSummary');
+  if(!summaryBox) return;
+
+  const visibleBills = current?.role === 'admin'
+    ? bills
+    : bills.filter(b => b.staff === current?.name);
+
+  const today = new Date();
+
+  const map = {
+    '💵 Tiền mặt': 0,
+    '📱 QR chuyển khoản': 0,
+    '💳 Thẻ / Ví điện tử': 0
+  };
+
+  visibleBills.forEach(b => {
+    const d = gmBillDateForPayment(b);
+    if(!d || isNaN(d) || !sameDay(d, today)) return;
+
+    const key = gmPaymentKey(b);
+    map[key] = (map[key] || 0) + gmBillAmountForPayment(b);
+  });
+
+  const total = Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
+
+  if(total <= 0){
+    summaryBox.innerHTML = `
+      <div class="payment-empty">
+        Chưa có doanh thu thanh toán hôm nay.<br>
+        <small>Nếu hôm nay đã bán hàng, bấm Ctrl + F5 hoặc kiểm tra ngày hệ thống.</small>
+      </div>
+    `;
+    return;
+  }
+
+  summaryBox.innerHTML = Object.entries(map).map(([label, value]) => {
+    value = Number(value || 0);
+    const percent = total ? Math.round(value * 100 / total) : 0;
+    return `
+      <div class="payment-bar-row">
+        <div class="payment-bar-head">
+          <span>${escapeHTML(label)}</span>
+          <span class="payment-bar-money">${money(value)} • ${percent}%</span>
+        </div>
+        <div class="payment-bar-track">
+          <div class="payment-bar-fill" style="width:${percent}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 </script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style/dist/xlsx.bundle.js"></script>
@@ -1649,6 +1773,63 @@ body.cashier-mode #home .chart-row{
   #home .chart-row{
     grid-template-columns:1fr!important;
   }
+}
+
+
+/* =========================================================
+   TỶ LỆ THANH TOÁN DẠNG THANH - FINAL
+   ========================================================= */
+.payment-chart-card{
+  min-height:330px!important;
+  overflow:hidden!important;
+}
+.payment-bar-summary,.payment-summary{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:14px!important;
+  margin-top:18px!important;
+}
+.payment-bar-row{
+  border:1px solid rgba(14,165,233,.16);
+  background:#ffffffd9;
+  border-radius:18px;
+  padding:13px;
+  box-shadow:0 8px 18px rgba(15,76,129,.06);
+}
+.payment-bar-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+  font-weight:900;
+  color:#0f4c81;
+  margin-bottom:9px;
+}
+.payment-bar-money{
+  color:#047857;
+  white-space:nowrap;
+}
+.payment-bar-track{
+  height:18px;
+  border-radius:999px;
+  background:#e2e8f0;
+  overflow:hidden;
+}
+.payment-bar-fill{
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(135deg,#0ea5e9,#16a34a);
+  min-width:4px;
+}
+.payment-empty{
+  padding:20px;
+  border-radius:18px;
+  background:#f8fcff;
+  border:1px dashed #93c5fd;
+  color:#64748b;
+  font-weight:800;
+  text-align:center;
+  line-height:1.5;
 }
 
 </style>
