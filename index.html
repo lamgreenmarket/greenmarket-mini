@@ -1447,6 +1447,7 @@ body.cashier-mode #home .chart-row{
 .payment-chart-card{
   min-height:370px!important;
 }
+.payment-chart-card canvas{max-height:230px!important;}
 .payment-summary{
   display:grid;
   grid-template-columns:1fr;
@@ -1592,7 +1593,7 @@ body.cashier-mode #home .chart-row{
       <div class="card"><h3>👨‍💼 Hiệu suất bán hàng theo nhân viên</h3><canvas id="staffChart"></canvas></div>
       <div class="card payment-chart-card" style="overflow:hidden;">
         <h3>💳 Tỷ lệ thanh toán hôm nay</h3>
-        <canvas id="paymentChart"></canvas>
+        <div style="height:230px;max-height:230px"><canvas id="paymentChart"></canvas></div>
         <div id="paymentSummary" class="payment-summary"></div>
       </div>
     </div>
@@ -5127,6 +5128,15 @@ function normalizePaymentMethodName(method){
   return 'Tiền mặt';
 }
 
+function getBillPaymentMethod(b){
+  return b.paymentMethod || b.payment || b.payMethod || b.method || b.paymentType || b.thanhToan || b.pay || 'Tiền mặt';
+}
+
+function getBillNetTotal(b){
+  if(b.returned || b.returnStatus === 'full' || b.status === 'returned') return 0;
+  return Number(b.total || b.finalTotal || b.grandTotal || b.amount || 0);
+}
+
 function renderPaymentChart(){
   const ctx = document.getElementById('paymentChart');
   const summaryBox = document.getElementById('paymentSummary');
@@ -5149,8 +5159,8 @@ function renderPaymentChart(){
   };
 
   todayBills.forEach(b => {
-    const name = normalizePaymentMethodName(b.paymentMethod || 'Tiền mặt');
-    map[name] = (map[name] || 0) + Number(b.total || 0);
+    const name = normalizePaymentMethodName(getBillPaymentMethod(b));
+    map[name] = (map[name] || 0) + getBillNetTotal(b);
   });
 
   const total = Object.values(map).reduce((s, v) => s + Number(v || 0), 0);
@@ -5158,6 +5168,18 @@ function renderPaymentChart(){
   const data = labels.map(k => map[k]);
 
   if(paymentChart) paymentChart.destroy();
+
+  if(total <= 0){
+    if(summaryBox){
+      summaryBox.innerHTML = `
+        <div style="display:block;text-align:center;padding:14px">
+          <b>Chưa có doanh thu thanh toán hôm nay</b><br>
+          <span style="color:#64748b">Bán thử một hóa đơn hôm nay, biểu đồ sẽ tự hiện.</span>
+        </div>
+      `;
+    }
+    return;
+  }
 
   paymentChart = new Chart(ctx, {
     type: 'doughnut',
@@ -5173,6 +5195,7 @@ function renderPaymentChart(){
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      cutout: '58%',
       plugins: {
         tooltip: {
           callbacks: {
