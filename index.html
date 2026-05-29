@@ -1772,6 +1772,8 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
 <th>Tiền cuối ca</th>
 <th>Thực tế đếm</th>
 <th>Chênh lệch</th>
+<th>Bàn giao cho</th>
+<th>Ghi chú bàn giao</th>
 <th>Đã chỉnh sửa</th>
 <th>Thao tác</th>
         </tr>
@@ -2375,6 +2377,9 @@ const list =
             '⚠️ Dư ' + money(Math.abs(diff))
           }
         </td>
+
+        <td>${escapeHTML(s.handoverTo || '-')}</td>
+        <td>${escapeHTML(s.handoverNote || '-')}</td>
 
         <td>
           ${
@@ -8746,6 +8751,36 @@ function addToShift(total){
 }
 
 /* ===== KẾT CA ===== */
+
+function getShiftHandoverSuggestions(){
+  try{
+    return (users || [])
+      .filter(u => u && u.user && normalizeRole(u.role) !== 'accountant')
+      .map(u => `${u.name || u.user} (${u.user})`)
+      .join('\n');
+  }catch(e){
+    return '';
+  }
+}
+
+function buildShiftHandoverLog(shift){
+  const diffText = Number(shift.diff || 0) === 0
+    ? 'Đúng tiền'
+    : (Number(shift.diff || 0) > 0
+      ? 'Thiếu ' + money(Math.abs(Number(shift.diff || 0)))
+      : 'Dư ' + money(Math.abs(Number(shift.diff || 0))));
+  return [
+    'Ca: ' + (shift.shiftName || '-'),
+    'Người giao: ' + (shift.staff || '-'),
+    'Người nhận: ' + (shift.handoverTo || '-'),
+    'Doanh thu: ' + money(shift.revenue || 0),
+    'Tiền hệ thống: ' + money(shift.expectedCash || 0),
+    'Tiền thực tế: ' + money(shift.realCash || 0),
+    'Chênh lệch: ' + diffText,
+    'Ghi chú: ' + (shift.handoverNote || '-')
+  ].join(' | ');
+}
+
 function closeShift(){
   const active = getActiveShift();
   if(!active){
@@ -8755,37 +8790,72 @@ function closeShift(){
   currentShift = active;
 
   const expected =
-    currentShift.startCash + currentShift.revenue;
+    Number(currentShift.startCash || 0) + Number(currentShift.revenue || 0);
 
   const input = prompt(
-  "Tiền cuối ca hệ thống: " + money(expected) +
-  "\nNhập tiền thực tế đếm được:",
-  ""
-);
+    "Tiền cuối ca hệ thống: " + money(expected) +
+    "\nNhập tiền thực tế đếm được:",
+    ""
+  );
 
-if(input === null) return;
+  if(input === null) return;
 
-const realCash = Number(
-  String(input).replace(/\./g, '').replace(/,/g, '')
-);
+  const realCash = Number(
+    String(input).replace(/\./g, '').replace(/,/g, '')
+  );
+
+  if(isNaN(realCash) || realCash < 0){
+    alert('❌ Tiền thực tế không hợp lệ');
+    return;
+  }
+
+  const suggestions = getShiftHandoverSuggestions();
+  let handoverTo = prompt(
+    "Nhập người nhận ca / người được bàn giao:\n" +
+    "Ví dụ: Thu ngân ca chiều, thungan2, Quản lý..." +
+    (suggestions ? "\n\nGợi ý nhân viên:\n" + suggestions : ""),
+    ""
+  );
+
+  if(handoverTo === null) return;
+  handoverTo = handoverTo.trim();
+
+  if(!handoverTo){
+    alert('❌ Bạn chưa nhập người nhận ca. Kết ca cần có người nhận để bàn giao rõ ràng.');
+    return;
+  }
+
+  let handoverNote = prompt(
+    "Ghi chú bàn giao ca:\nVí dụ: Đã bàn giao tiền mặt, hóa đơn, hàng hóa; thiếu 10.000 do khách trả thiếu...",
+    "Đã bàn giao tiền mặt và tình trạng ca."
+  );
+
+  if(handoverNote === null) return;
+  handoverNote = handoverNote.trim();
 
   currentShift.endTime = new Date().toLocaleString();
-
   currentShift.expectedCash = expected; // tiền hệ thống
   currentShift.realCash = realCash;     // tiền đếm
-
-  currentShift.diff =
-    expected - realCash; // thiếu/dư
+  currentShift.diff = expected - realCash; // dương = thiếu, âm = dư
+  currentShift.handoverTo = handoverTo;
+  currentShift.handoverNote = handoverNote || '-';
+  currentShift.handoverAt = new Date().toLocaleString();
+  currentShift.handoverBy = current?.name || currentShift.staff || 'Không rõ';
 
   saveShift();
+  addLog('Bàn giao ca', buildShiftHandoverLog(currentShift));
 
   alert(
-    "KẾT CA\n" +
+    "KẾT CA + BÀN GIAO CA\n" +
+    "Người giao: " + (currentShift.staff || '-') + "\n" +
+    "Người nhận: " + currentShift.handoverTo + "\n" +
+    "Ca: " + (currentShift.shiftName || '-') + "\n" +
     "Tiền đầu ca: " + money(currentShift.startCash) + "\n" +
     "Doanh thu: " + money(currentShift.revenue) + "\n" +
     "Tiền cuối ca (hệ thống): " + money(expected) + "\n" +
     "Tiền thực tế: " + money(realCash) + "\n" +
-    "Chênh lệch: " + money(currentShift.diff)
+    "Chênh lệch: " + money(currentShift.diff) + "\n" +
+    "Ghi chú: " + currentShift.handoverNote
   );
 
   currentShift = null;
@@ -8793,6 +8863,7 @@ const realCash = Number(
 
   saveShift();
   renderShift();
+  renderLogs();
 }
 function getTodayInputDate(){
   const d = new Date();
