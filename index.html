@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Siêu thị mini Green Market - PRO Dashboard</title>
+<!-- Bản phân quyền an toàn: Kế toán chỉ xem, Quản lý sửa có nhật ký, Admin toàn quyền -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style/dist/xlsx.bundle.js"></script>
@@ -1480,6 +1481,17 @@ body.cashier-mode #home .chart-row{
   margin-top:16px!important;
 }
 
+
+/* =========================================================
+   PHÂN QUYỀN KẾ TOÁN / QUẢN LÝ - BẢN AN TOÀN
+   - Kế toán chỉ xem, không hiện nút sửa/xóa kho.
+   - Quản lý được sửa kho/giá và mọi chỉnh sửa đều ghi Nhật ký.
+   ========================================================= */
+body.accountant-mode #home .dashboard-pro-staff-card,
+body.accountant-mode #home .chart-row .card:nth-child(3){
+  display:none!important;
+}
+
 </style>
 </head>
 <body>
@@ -2216,7 +2228,7 @@ function addSecurityLog(action, detail, userText){
   logs.unshift({
     time: now(),
     user: current?.name || cleanText(userText) || 'Chưa đăng nhập',
-    role: ['admin','manager','accountant'].includes(normalizeRole(current?.role)) ? 'Admin' : (current ? 'Thu ngân' : 'Ngoài hệ thống'),
+    role: current ? roleLabel(current?.role) : 'Ngoài hệ thống',
     action,
     detail
   });
@@ -2302,7 +2314,7 @@ function addLog(action, detail){
   logs.unshift({
     time: now(),
     user: current?.name || 'Hệ thống',
-    role: ['admin','manager','accountant'].includes(normalizeRole(current?.role)) ? 'Admin' : (current ? 'Thu ngân' : ''),
+    role: current ? roleLabel(current?.role) : '',
     action,
     detail
   });
@@ -2608,19 +2620,33 @@ function roleCan(page){
 function roleCanAction(action=''){
   const r = normalizeRole(current?.role);
   const a = String(action || '').toLowerCase();
+
+  // Admin: toàn quyền.
   if(r === 'admin') return true;
+
+  // Quản lý: được vận hành/sửa kho/giá/nhập hàng, nhưng không được backup/restore/xóa dữ liệu/xóa nhân viên.
   if(r === 'manager'){
-    if(a.includes('backup') || a.includes('dữ liệu') || a.includes('khôi phục')) return false;
+    if(a.includes('backup') || a.includes('dữ liệu') || a.includes('khôi phục') || a.includes('restore')) return false;
+    if(a.includes('xóa nhân viên') || a.includes('xóa sản phẩm') || a.includes('xóa dữ liệu')) return false;
     return true;
   }
+
+  // Kế toán: chỉ xem/xuất/in báo cáo; không sửa kho, không nhập hàng, không xóa.
   if(r === 'accountant'){
-    return ['xem kho','xem cảnh báo','xem hàng hết','mục stock','mục money','mục bills','mục shiftreport','xuất excel kế toán','in báo cáo','báo cáo ca'].some(k => a.includes(k));
+    const allowView = [
+      'xem kho','xem cảnh báo','xem hàng hết','mục stock','mục money','mục bills','mục shiftreport',
+      'xuất excel kế toán','in báo cáo','báo cáo ca','xem hóa đơn','xem thu chi'
+    ];
+    return allowView.some(k => a.includes(k));
   }
+
   return false;
 }
 function applyPermission(){
   const r = normalizeRole(current?.role);
   document.body.classList.toggle('cashier-mode', r === 'cashier');
+  document.body.classList.toggle('accountant-mode', r === 'accountant');
+  document.body.classList.toggle('manager-mode', r === 'manager');
 
   document.querySelectorAll('.admin-only').forEach(el => {
     if(r === 'admin') el.classList.remove('hidden');
@@ -2847,11 +2873,7 @@ function editShift(index){
   alert("Đã sửa tiền thực tế đếm");
 }
 function applyRoleUI(){
-  const isAdmin = ['admin','manager','accountant'].includes(normalizeRole(current?.role));
-
-  document.querySelectorAll('.admin-only').forEach(el => {
-    el.style.display = isAdmin ? 'inline-block' : 'none';
-  });
+  applyPermission();
 }
 
 /* =========================================================
@@ -3764,7 +3786,8 @@ function addProduct(){
       return;
     }
 
-    old.qty = Number(old.qty || 0) + qty;
+    const oldQtyBeforeImport = Number(old.qty || 0);
+    old.qty = oldQtyBeforeImport + qty;
     old.importPrice = importPrice;
     old.lowLimit = lowLimit;
 
@@ -3793,7 +3816,7 @@ function addProduct(){
       amount: qty * importPrice
     });
 
-    addLog('Nhập hàng cộng dồn', `${old.name}: +${qty}`);
+    addLog('Nhập hàng cộng dồn', `${old.name}: tồn ${oldQtyBeforeImport} → ${old.qty}; nhập thêm ${qty}; giá nhập ${money(importPrice)}; giá bán hiện tại ${money(old.sellPrice)}`);
   }else{
     if(!name || qty <= 0 || importPrice <= 0 || !sellInput || sellPrice <= 0 || isNaN(sellPrice)){
       alert('Hàng mới cần nhập đủ: tên, mã vạch, số lượng, giá nhập, giá bán');
@@ -3913,6 +3936,14 @@ function editProductPrice(id){
 
   const oldBarcode = normalizeBarcodeCode(p.barcode);
   const oldName = p.name;
+  const oldSnapshot = {
+    name: p.name,
+    barcode: p.barcode || '',
+    qty: Number(p.qty || 0),
+    importPrice: Number(p.importPrice || 0),
+    sellPrice: Number(p.sellPrice || 0),
+    lowLimit: Number(p.lowLimit ?? 5)
+  };
 
   p.name = name;
   p.barcode = barcode;
@@ -3929,7 +3960,10 @@ function editProductPrice(id){
     }
   });
 
-  addLog('Sửa sản phẩm', `${p.name}: mã ${p.barcode}, tồn ${p.qty}, nhập ${money(p.importPrice)}, bán ${money(p.sellPrice)}, cảnh báo ${p.lowLimit}`);
+  addLog(
+    'Sửa sản phẩm',
+    `${p.name} | Tên: ${oldSnapshot.name} → ${p.name}; Mã: ${oldSnapshot.barcode} → ${p.barcode}; Tồn: ${oldSnapshot.qty} → ${p.qty}; Giá nhập: ${money(oldSnapshot.importPrice)} → ${money(p.importPrice)}; Giá bán: ${money(oldSnapshot.sellPrice)} → ${money(p.sellPrice)}; Cảnh báo: ${oldSnapshot.lowLimit} → ${p.lowLimit}`
+  );
   save();
   renderAll();
   if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
@@ -4001,8 +4035,25 @@ function getVisibleStock(){
   return products;
 }
 
+function stockActionButtons(p){
+  const r = normalizeRole(current?.role);
+  const buttons = [];
+
+  if(r === 'admin' || r === 'manager'){
+    buttons.push(`<button class="btn-orange" onclick="editProductPrice(${p.id})">Sửa</button>`);
+    buttons.push(`<button class="btn-blue" onclick="showBarcodePage(${p.id})">In mã</button>`);
+  }
+  if(r === 'admin'){
+    buttons.push(`<button class="btn-red" onclick="delProduct(${p.id})">Xóa</button>`);
+  }
+  if(!buttons.length){
+    return '<span class="muted"><b>Chỉ xem</b></span>';
+  }
+  return buttons.join(' ');
+}
+
 function renderStock(){
-  if(!isAdminUser()){
+  if(!roleCan('stock')){
     clearSensitiveAdminViews();
     return;
   }
@@ -4037,26 +4088,7 @@ function renderStock(){
         <td>${money(p.sellPrice)}</td>
         <td>${getLowLimit(p)}</td>
         <td>${stockStatusHtml(p)}</td>
-        <td>
-          <button
-            class="btn-orange"
-            onclick="editProductPrice(${p.id})"
-          >
-            Sửa
-          </button>
-          <button
-            class="btn-blue"
-            onclick="showBarcodePage(${p.id})"
-          >
-            In mã
-          </button>
-          <button
-            class="btn-red"
-            onclick="delProduct(${p.id})"
-          >
-            Xóa
-          </button>
-        </td>
+        <td>${stockActionButtons(p)}</td>
       </tr>
     `).join('')
     : `
@@ -4790,9 +4822,9 @@ function playError(){
    25. NHÂN VIÊN / NHẬT KÝ
    ========================================================= */
 async function addStaff(){
-  if(!requireAdmin('thêm nhân viên')) return;
-  if(!isAdminOrManager()){
-    alert('Chỉ Admin hoặc Quản lý được thêm nhân viên');
+  if(normalizeRole(current?.role) !== 'admin'){
+    alert('Chỉ Admin được thêm nhân viên và phân quyền.');
+    addLog('Chặn quyền', 'Tài khoản ' + roleLabel(current?.role) + ' cố thêm nhân viên');
     return;
   }
 
@@ -4835,7 +4867,11 @@ async function addStaff(){
 }
 
 async function delStaff(user){
-  if(!requireAdmin('xóa nhân viên')) return;
+  if(normalizeRole(current?.role) !== 'admin'){
+    alert('Chỉ Admin được xóa/khóa nhân viên.');
+    addLog('Chặn quyền', 'Tài khoản ' + roleLabel(current?.role) + ' cố xóa nhân viên: ' + user);
+    return;
+  }
   if(user === current.user){
     alert('Không thể xóa tài khoản đang đăng nhập');
     return;
@@ -4856,9 +4892,9 @@ async function delStaff(user){
 }
 
 function renderLogs(){
-  if(!isAdminUser()){
+  if(!['admin','manager'].includes(normalizeRole(current?.role))){
     const el = document.getElementById('logBody');
-    if(el) el.innerHTML = '<tr><td colspan="6">Tài khoản thu ngân không có quyền xem nhật ký</td></tr>';
+    if(el) el.innerHTML = '<tr><td colspan="6">Tài khoản này không có quyền xem nhật ký</td></tr>';
     return;
   }
   if(!document.getElementById('logBody')) return;
@@ -8569,22 +8605,20 @@ function renderAll(){
     </tr>
   `).join('');
 
-  staffBody.innerHTML = users.map((u, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${u.name}</td>
-      <td>${u.user}</td>
-      <td>${roleLabel(u.role)}</td>
-      <td>
-        <button
-          class="btn-red"
-          onclick="delStaff('${u.user}')"
-        >
-          Xóa
-        </button>
-      </td>
-    </tr>
-  `).join('');
+  staffBody.innerHTML = users.map((u, i) => {
+    const staffAction = normalizeRole(current?.role) === 'admin'
+      ? `<button class="btn-red" onclick="delStaff('${u.user}')">Xóa</button>`
+      : '<span class="muted"><b>Chỉ xem</b></span>';
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${u.name}</td>
+        <td>${u.user}</td>
+        <td>${roleLabel(u.role)}</td>
+        <td>${staffAction}</td>
+      </tr>
+    `;
+  }).join('');
 
   renderCart();
   renderLogs();
