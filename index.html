@@ -8755,85 +8755,37 @@ function closeShift(){
   currentShift = active;
 
   const expected =
-    Number(currentShift.startCash || 0) + Number(currentShift.revenue || 0);
+    currentShift.startCash + currentShift.revenue;
 
   const input = prompt(
-    "Tiền cuối ca hệ thống: " + money(expected) +
-    "\nNhập tiền thực tế đếm được:",
-    ""
-  );
+  "Tiền cuối ca hệ thống: " + money(expected) +
+  "\nNhập tiền thực tế đếm được:",
+  ""
+);
 
-  if(input === null) return;
+if(input === null) return;
 
-  const realCash = Number(
-    String(input).replace(/\./g, '').replace(/,/g, '')
-  );
-
-  if(isNaN(realCash) || realCash < 0){
-    alert("Số tiền thực tế không hợp lệ!");
-    return;
-  }
-
-  // ===== BÀN GIAO CA - BẢN AN TOÀN =====
-  // Chỉ dùng prompt để không đụng giao diện cũ, không ảnh hưởng POS/Firebase/phân quyền.
-  const staffOptions = (Array.isArray(users) ? users : [])
-    .filter(u => u && u.name && String(u.name) !== String(currentShift.staff || ''))
-    .map(u => `${u.name} (${u.user || u.role || ''})`)
-    .join('\n');
-
-  let receiver = prompt(
-    "BÀN GIAO CA\n" +
-    "Nhập người nhận ca. Có thể gõ tên hoặc tài khoản.\n\n" +
-    (staffOptions ? "Danh sách gợi ý:\n" + staffOptions + "\n\n" : "") +
-    "Người nhận ca:",
-    ""
-  );
-
-  if(receiver === null) receiver = "Chưa ghi người nhận";
-  receiver = String(receiver || '').trim() || "Chưa ghi người nhận";
-
-  let handoverNote = prompt(
-    "Ghi chú bàn giao ca:\n" +
-    "Ví dụ: Đã bàn giao tiền mặt, hóa đơn, hàng hóa, không có vấn đề.",
-    "Đã bàn giao tiền mặt và hàng hóa."
-  );
-
-  if(handoverNote === null) handoverNote = "Không ghi chú";
-  handoverNote = String(handoverNote || '').trim() || "Không ghi chú";
+const realCash = Number(
+  String(input).replace(/\./g, '').replace(/,/g, '')
+);
 
   currentShift.endTime = new Date().toLocaleString();
+
   currentShift.expectedCash = expected; // tiền hệ thống
   currentShift.realCash = realCash;     // tiền đếm
-  currentShift.diff = expected - realCash; // thiếu/dư
-  currentShift.handoverTo = receiver;
-  currentShift.handoverNote = handoverNote;
-  currentShift.handoverAt = now();
-  currentShift.handoverBy = current?.name || currentShift.staff || 'Không rõ';
 
-  addLog(
-    "Bàn giao ca",
-    "Ca: " + (currentShift.shiftName || '-') +
-    " | Người giao: " + (currentShift.staff || '-') +
-    " | Người nhận: " + receiver +
-    " | Doanh thu: " + money(currentShift.revenue || 0) +
-    " | Tiền hệ thống: " + money(expected) +
-    " | Tiền thực tế: " + money(realCash) +
-    " | Chênh lệch: " + money(currentShift.diff) +
-    " | Ghi chú: " + handoverNote
-  );
+  currentShift.diff =
+    expected - realCash; // thiếu/dư
 
   saveShift();
 
   alert(
-    "KẾT CA & BÀN GIAO CA\n" +
-    "Người giao: " + (currentShift.staff || '-') + "\n" +
-    "Người nhận: " + receiver + "\n" +
+    "KẾT CA\n" +
     "Tiền đầu ca: " + money(currentShift.startCash) + "\n" +
     "Doanh thu: " + money(currentShift.revenue) + "\n" +
     "Tiền cuối ca (hệ thống): " + money(expected) + "\n" +
     "Tiền thực tế: " + money(realCash) + "\n" +
-    "Chênh lệch: " + money(currentShift.diff) + "\n" +
-    "Ghi chú: " + handoverNote
+    "Chênh lệch: " + money(currentShift.diff)
   );
 
   currentShift = null;
@@ -8841,7 +8793,6 @@ function closeShift(){
 
   saveShift();
   renderShift();
-  renderLogs();
 }
 function getTodayInputDate(){
   const d = new Date();
