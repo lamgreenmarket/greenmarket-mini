@@ -2486,6 +2486,7 @@ function scanEnter(e){
    19. ĐĂNG NHẬP / ĐĂNG XUẤT
    ========================================================= */
 function showLogin(){
+  try{ resetBillDetailForNewSession(); }catch(e){}
   loginPage.classList.remove('hidden');
   appPage.classList.add('hidden');
 }
@@ -2541,6 +2542,7 @@ async function login(){
     loginPage.classList.add('hidden');
     appPage.classList.remove('hidden');
 
+    try{ resetBillDetailForNewSession(); }catch(e){}
     applyPermission();
     showPage('home');
     renderAll();
@@ -2555,6 +2557,7 @@ async function login(){
 }
 
 async function logout(){
+  try{ resetBillDetailForNewSession(); }catch(e){}
   addLog('Đăng xuất', 'Thoát khỏi hệ thống an toàn');
   try{
     if(typeof window.greenMarketAuthSignOut === 'function') await window.greenMarketAuthSignOut();
@@ -2636,6 +2639,10 @@ function clearSensitiveAdminViews(){
 }
 
 function showPage(id){
+  if(id === 'bills' && !window.__keepBillDetailOnce){
+    try{ resetBillDetailForNewSession(); }catch(e){}
+  }
+  window.__keepBillDetailOnce = false;
   if(!current) return;
 
   const adminPages = ['stock', 'imports', 'barcodeA4', 'money', 'staff', 'logs', 'shiftReport'];
@@ -8030,6 +8037,7 @@ function canAccessBill(bill){
 }
 
 function viewBillDetail(index){
+  window.__keepBillDetailOnce = true;
   const b = bills[index];
   const box = document.getElementById('billDetailBox');
   if(!b || !box) return;
@@ -8097,6 +8105,12 @@ function closeBillDetail(){
     box.classList.add('hidden');
     box.innerHTML = '';
   }
+}
+
+function resetBillDetailForNewSession(){
+  try{
+    closeBillDetail();
+  }catch(e){}
 }
 
 
@@ -9885,6 +9899,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
       loginMsg.textContent = '';
       loginPage.classList.add('hidden');
       appPage.classList.remove('hidden');
+      try{ resetBillDetailForNewSession(); }catch(e){}
       applyPermission();
       showPage('home');
       renderAll();
