@@ -7816,56 +7816,6 @@ function getVisibleBillsWithIndex(visibleBills){
   })).filter(x => x.globalIndex >= 0);
 }
 
-
-function findBillIndexByCodeSafe(code){
-  const target = String(code || '').trim();
-  if(!target) return -1;
-
-  for(let i = 0; i < bills.length; i++){
-    if(String(getBillCode(bills[i], i)).trim() === target){
-      return i;
-    }
-  }
-
-  return -1;
-}
-
-function viewBillDetailByCode(code){
-  const index = findBillIndexByCodeSafe(code);
-  if(index < 0){
-    alert('Không tìm thấy hóa đơn: ' + code);
-    return;
-  }
-  viewBillDetail(index);
-}
-
-function printReturnReceiptByCode(code){
-  const index = findBillIndexByCodeSafe(code);
-  if(index < 0){
-    alert('Không tìm thấy hóa đơn hoàn trả: ' + code);
-    return;
-  }
-  printReturnReceiptByIndex(index);
-}
-
-function printBillReceiptByCode(code){
-  const index = findBillIndexByCodeSafe(code);
-  if(index < 0){
-    alert('Không tìm thấy hóa đơn: ' + code);
-    return;
-  }
-  printBillReceiptByIndex(index);
-}
-
-function returnFullBillByCode(code){
-  const index = findBillIndexByCodeSafe(code);
-  if(index < 0){
-    alert('Không tìm thấy hóa đơn để trả hàng: ' + code);
-    return;
-  }
-  returnFullBill(index);
-}
-
 function renderBillHistory(visibleBills){
   const body = document.getElementById('billBody');
   if(!body) return;
@@ -7913,7 +7863,7 @@ function renderBillHistory(visibleBills){
           }
         </td>
         <td>
-          <button class="btn-blue" onclick="viewBillDetailByCode(\`${escapeHTML(getBillCode(b, x.globalIndex))}\`)">Xem chi tiết</button>
+          <button class="btn-blue" onclick="viewBillDetail(${x.globalIndex})">Xem chi tiết</button>
         </td>
       </tr>
     `;
@@ -7944,11 +7894,14 @@ function getReturnCode(bill, index = 0){
 }
 
 function returnFullBill(index){
-  if(!requireAdmin('trả hàng hóa đơn')) return;
-
   const b = bills[index];
   if(!b){
     alert('Không tìm thấy hóa đơn để trả hàng');
+    return;
+  }
+
+  if(!canAccessBill(b)){
+    alert('Bạn chỉ được trả hàng hóa đơn của chính mình.');
     return;
   }
 
@@ -7978,10 +7931,10 @@ function returnFullBill(index){
   }
 
   const ok = confirm(
-    `XÁC NHẬN TRẢ TOÀN BỘ HÓA ĐƠN ${billCode}?\n\n` +
+    `XÁC NHẬN TRẢ HÀNG HÓA ĐƠN ${billCode}?\n\n` +
     `- Kho sẽ được cộng lại toàn bộ hàng trong hóa đơn\n` +
     `- Doanh thu hóa đơn sẽ bị trừ về 0\n` +
-    `- Sẽ tạo phiếu trả hàng riêng\n` +
+    `- Sẽ tạo hóa đơn/phiếu hoàn trả riêng\n` +
     `- Thao tác này không thể hoàn tác\n\n` +
     `Số tiền hoàn: ${money(returnAmount)}`
   );
@@ -8052,7 +8005,12 @@ function returnFullBill(index){
   save();
   renderAll();
   viewBillDetail(index);
-  alert(`Đã trả toàn bộ hóa đơn ${billCode}.\nPhiếu trả hàng: ${returnCode}\nKho đã được cộng lại và doanh thu đã được trừ.`);
+
+  alert(`Đã trả hàng hóa đơn ${billCode}.\nMã hoàn trả: ${returnCode}\nKho đã được cộng lại và doanh thu đã được trừ.`);
+
+  if(confirm('Bạn có muốn in hóa đơn hoàn trả ngay không?')){
+    printReturnReceiptByIndex(index);
+  }
 }
 
 function ensureBillReprintFields(bill){
@@ -8072,19 +8030,9 @@ function canAccessBill(bill){
 }
 
 function viewBillDetail(index){
-  let b = bills[index];
+  const b = bills[index];
   const box = document.getElementById('billDetailBox');
   if(!b || !box) return;
-
-  // Lấy lại hóa đơn mới nhất theo mã để tránh mở nhầm chi tiết sau khi lọc/sắp xếp/đồng bộ Firebase.
-  let billCodeForDetail = getBillCode(b, index);
-  const latestIndex = findBillIndexByCodeSafe(billCodeForDetail);
-  if(latestIndex >= 0){
-    index = latestIndex;
-    b = bills[index];
-    billCodeForDetail = getBillCode(b, index);
-  }
-
   if(!canAccessBill(b)){
     alert('Bạn chỉ được xem hóa đơn của chính mình.');
     return;
@@ -8104,7 +8052,7 @@ function viewBillDetail(index){
   box.innerHTML = `
     <div class="bill-detail-head">
       <div>
-        <h3>🧾 Chi tiết hóa đơn ${escapeHTML(billCodeForDetail)}</h3>
+        <h3>🧾 Chi tiết hóa đơn ${escapeHTML(getBillCode(b, index))}</h3>
         <div class="bill-detail-meta">
           Ngày: ${escapeHTML(b.time || '')}<br>
           Nhân viên: ${escapeHTML(b.staff || '')}<br>
@@ -8116,10 +8064,10 @@ function viewBillDetail(index){
       </div>
       <div class="bill-action-group">
         ${isBillReturned(b)
-          ? `<button class="btn-orange" onclick="printReturnReceiptByCode(\`${escapeHTML(billCodeForDetail)}\`)">🖨️ In hóa đơn hoàn trả</button>`
-          : `<button class="btn-green" onclick="printBillReceiptByCode(\`${escapeHTML(billCodeForDetail)}\`)">🖨️ In lại hóa đơn</button>`
+          ? `<button class="btn-orange" onclick="printReturnReceiptByIndex(${index})">🖨️ In hóa đơn hoàn trả</button>`
+          : `<button class="btn-green" onclick="printBillReceiptByIndex(${index})">🖨️ In lại hóa đơn</button>`
         }
-        ${isAdminUser() && !isBillReturned(b) ? `<button class="btn-red" onclick="returnFullBillByCode(\`${escapeHTML(billCodeForDetail)}\`)">🔄 Trả toàn bộ hóa đơn</button>` : ''}
+        ${canAccessBill(b) && !isBillReturned(b) ? `<button class="btn-red" onclick="returnFullBill(${index})">🔄 Trả hàng / Hoàn trả</button>` : ''}
         <button class="btn-gray" onclick="closeBillDetail()">Đóng</button>
       </div>
     </div>
@@ -8179,7 +8127,7 @@ function printReturnReceiptByIndex(index){
 
   addLog(
     'In hóa đơn hoàn trả',
-    `${returnCode} - ${current?.name || 'Hệ thống'} in hóa đơn hoàn trả cho hóa đơn ${billCode} - Số tiền hoàn ${money(returnAmount)}`
+    `${returnCode} - In hóa đơn hoàn trả cho hóa đơn ${billCode} - Số tiền hoàn ${money(returnAmount)}`
   );
   save();
   renderAll();
