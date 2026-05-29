@@ -3730,6 +3730,155 @@ tbody tr:hover td{background:#f8fffb!important}
 
 </style>
 
+
+
+<!-- =========================================================
+     FIX V35: BÀN GIAO CA CHẮC CHẮN SAU KHI ĐẾM TIỀN
+     Đặt cuối file để không bị hàm/phân quyền phía trước ghi đè.
+     ========================================================= -->
+<script>
+(function(){
+  function gmRoleOf(u){
+    return String((u && u.role) || '').toLowerCase().trim();
+  }
+  function gmMoney(v){
+    try{
+      if(typeof money === 'function') return money(v || 0);
+    }catch(e){}
+    return Number(v || 0).toLocaleString('vi-VN') + ' VNĐ';
+  }
+  function gmUserName(){
+    return (typeof current !== 'undefined' && current && (current.name || current.user)) ? (current.name || current.user) : 'Không rõ';
+  }
+  function gmGetActiveShiftSafe(){
+    try{
+      if(typeof getActiveShift === 'function') return getActiveShift();
+    }catch(e){}
+    try{
+      if(typeof currentShift !== 'undefined' && currentShift && !currentShift.endTime) return currentShift;
+    }catch(e){}
+    try{
+      if(typeof shifts !== 'undefined') return (shifts || []).find(s => s && !s.endTime) || null;
+    }catch(e){}
+    return null;
+  }
+  function gmShiftSuggestions(){
+    try{
+      return (users || [])
+        .filter(u => u && u.user && gmRoleOf(u) !== 'accountant')
+        .map(u => (u.name || u.user) + ' (' + u.user + ')')
+        .join('\n');
+    }catch(e){
+      return '';
+    }
+  }
+  function gmHandoverLog(shift){
+    const diff = Number(shift.diff || 0);
+    const diffText = diff === 0 ? 'Đúng tiền' : (diff > 0 ? 'Thiếu ' + gmMoney(Math.abs(diff)) : 'Dư ' + gmMoney(Math.abs(diff)));
+    return [
+      '🔄 BÀN GIAO CA',
+      'Ca: ' + (shift.shiftName || '-'),
+      'Người giao: ' + (shift.staff || shift.handoverBy || '-'),
+      'Người nhận: ' + (shift.handoverTo || '-'),
+      'Doanh thu ca: ' + gmMoney(shift.revenue || 0),
+      'Số hóa đơn: ' + Number(shift.orders || 0),
+      'Tiền hệ thống: ' + gmMoney(shift.expectedCash || 0),
+      'Tiền thực tế: ' + gmMoney(shift.realCash || 0),
+      'Chênh lệch: ' + diffText,
+      'Ghi chú: ' + (shift.handoverNote || '-')
+    ].join(' | ');
+  }
+
+  window.closeShift = function(){
+    const role = (typeof current !== 'undefined' && current) ? gmRoleOf(current) : '';
+    if(!['admin','manager','cashier'].includes(role)){
+      alert('Tài khoản này không có quyền kết ca.');
+      return;
+    }
+
+    const active = gmGetActiveShiftSafe();
+    if(!active){
+      alert('Chưa mở ca!');
+      return;
+    }
+
+    try{ currentShift = active; }catch(e){}
+
+    const expected = Number(active.startCash || 0) + Number(active.revenue || 0);
+    const input = prompt(
+      'Tiền cuối ca hệ thống: ' + gmMoney(expected) +
+      '\nNhập tiền thực tế đếm được:',
+      ''
+    );
+    if(input === null) return;
+
+    const realCash = Number(String(input).replace(/\./g,'').replace(/,/g,'').trim());
+    if(isNaN(realCash) || realCash < 0){
+      alert('❌ Tiền thực tế không hợp lệ');
+      return;
+    }
+
+    const suggestions = gmShiftSuggestions();
+    let handoverTo = prompt(
+      '🔄 BÀN GIAO CA\n\nNhập người nhận ca / người được bàn giao:' +
+      (suggestions ? '\n\nGợi ý nhân viên:\n' + suggestions : '') +
+      '\n\nVí dụ: Thu ngân ca chiều, thungan2, Quản lý',
+      ''
+    );
+    if(handoverTo === null) return;
+    handoverTo = String(handoverTo).trim();
+    if(!handoverTo){
+      alert('❌ Bạn chưa nhập người nhận ca. Kết ca cần có người nhận để bàn giao rõ ràng.');
+      return;
+    }
+
+    let handoverNote = prompt(
+      'Ghi chú bàn giao ca:\nVí dụ: Đã bàn giao tiền mặt, hóa đơn, hàng hóa; thiếu/dư tiền nếu có.',
+      'Đã bàn giao tiền mặt và tình trạng ca.'
+    );
+    if(handoverNote === null) return;
+    handoverNote = String(handoverNote).trim() || '-';
+
+    active.endTime = new Date().toLocaleString('vi-VN');
+    active.expectedCash = expected;
+    active.realCash = realCash;
+    active.diff = expected - realCash;
+    active.handoverTo = handoverTo;
+    active.handoverNote = handoverNote;
+    active.handoverAt = new Date().toLocaleString('vi-VN');
+    active.handoverBy = gmUserName();
+
+    try{ currentShift = active; }catch(e){}
+    try{ if(typeof saveShift === 'function') saveShift(); }catch(e){}
+    try{ if(typeof addLog === 'function') addLog('Bàn giao ca', gmHandoverLog(active)); }catch(e){}
+
+    try{ currentShift = null; }catch(e){}
+    try{ sessionStorage.removeItem('v2_active_shift_id'); }catch(e){}
+
+    try{ if(typeof saveShift === 'function') saveShift(); }catch(e){}
+    try{ if(typeof renderShift === 'function') renderShift(); }catch(e){}
+    try{ if(typeof renderShiftReport === 'function') renderShiftReport(); }catch(e){}
+    try{ if(typeof renderLogs === 'function') renderLogs(); }catch(e){}
+
+    const diff = Number(active.diff || 0);
+    const diffText = diff === 0 ? 'Đúng tiền' : (diff > 0 ? 'Thiếu ' + gmMoney(Math.abs(diff)) : 'Dư ' + gmMoney(Math.abs(diff)));
+    alert(
+      '✅ KẾT CA + BÀN GIAO CA THÀNH CÔNG\n\n' +
+      'Người giao: ' + (active.staff || active.handoverBy || '-') + '\n' +
+      'Người nhận: ' + active.handoverTo + '\n' +
+      'Ca: ' + (active.shiftName || '-') + '\n' +
+      'Doanh thu: ' + gmMoney(active.revenue || 0) + '\n' +
+      'Tiền hệ thống: ' + gmMoney(expected) + '\n' +
+      'Tiền thực tế: ' + gmMoney(realCash) + '\n' +
+      'Chênh lệch: ' + diffText + '\n' +
+      'Ghi chú: ' + active.handoverNote
+    );
+  };
+
+  try{ closeShift = window.closeShift; }catch(e){}
+})();
+</script>
+
 </body>
 </html>`;
 
@@ -6637,6 +6786,155 @@ tbody tr:hover td{background:#f8fffb!important}
 
 </style>
 
+
+
+<!-- =========================================================
+     FIX V35: BÀN GIAO CA CHẮC CHẮN SAU KHI ĐẾM TIỀN
+     Đặt cuối file để không bị hàm/phân quyền phía trước ghi đè.
+     ========================================================= -->
+<script>
+(function(){
+  function gmRoleOf(u){
+    return String((u && u.role) || '').toLowerCase().trim();
+  }
+  function gmMoney(v){
+    try{
+      if(typeof money === 'function') return money(v || 0);
+    }catch(e){}
+    return Number(v || 0).toLocaleString('vi-VN') + ' VNĐ';
+  }
+  function gmUserName(){
+    return (typeof current !== 'undefined' && current && (current.name || current.user)) ? (current.name || current.user) : 'Không rõ';
+  }
+  function gmGetActiveShiftSafe(){
+    try{
+      if(typeof getActiveShift === 'function') return getActiveShift();
+    }catch(e){}
+    try{
+      if(typeof currentShift !== 'undefined' && currentShift && !currentShift.endTime) return currentShift;
+    }catch(e){}
+    try{
+      if(typeof shifts !== 'undefined') return (shifts || []).find(s => s && !s.endTime) || null;
+    }catch(e){}
+    return null;
+  }
+  function gmShiftSuggestions(){
+    try{
+      return (users || [])
+        .filter(u => u && u.user && gmRoleOf(u) !== 'accountant')
+        .map(u => (u.name || u.user) + ' (' + u.user + ')')
+        .join('\n');
+    }catch(e){
+      return '';
+    }
+  }
+  function gmHandoverLog(shift){
+    const diff = Number(shift.diff || 0);
+    const diffText = diff === 0 ? 'Đúng tiền' : (diff > 0 ? 'Thiếu ' + gmMoney(Math.abs(diff)) : 'Dư ' + gmMoney(Math.abs(diff)));
+    return [
+      '🔄 BÀN GIAO CA',
+      'Ca: ' + (shift.shiftName || '-'),
+      'Người giao: ' + (shift.staff || shift.handoverBy || '-'),
+      'Người nhận: ' + (shift.handoverTo || '-'),
+      'Doanh thu ca: ' + gmMoney(shift.revenue || 0),
+      'Số hóa đơn: ' + Number(shift.orders || 0),
+      'Tiền hệ thống: ' + gmMoney(shift.expectedCash || 0),
+      'Tiền thực tế: ' + gmMoney(shift.realCash || 0),
+      'Chênh lệch: ' + diffText,
+      'Ghi chú: ' + (shift.handoverNote || '-')
+    ].join(' | ');
+  }
+
+  window.closeShift = function(){
+    const role = (typeof current !== 'undefined' && current) ? gmRoleOf(current) : '';
+    if(!['admin','manager','cashier'].includes(role)){
+      alert('Tài khoản này không có quyền kết ca.');
+      return;
+    }
+
+    const active = gmGetActiveShiftSafe();
+    if(!active){
+      alert('Chưa mở ca!');
+      return;
+    }
+
+    try{ currentShift = active; }catch(e){}
+
+    const expected = Number(active.startCash || 0) + Number(active.revenue || 0);
+    const input = prompt(
+      'Tiền cuối ca hệ thống: ' + gmMoney(expected) +
+      '\nNhập tiền thực tế đếm được:',
+      ''
+    );
+    if(input === null) return;
+
+    const realCash = Number(String(input).replace(/\./g,'').replace(/,/g,'').trim());
+    if(isNaN(realCash) || realCash < 0){
+      alert('❌ Tiền thực tế không hợp lệ');
+      return;
+    }
+
+    const suggestions = gmShiftSuggestions();
+    let handoverTo = prompt(
+      '🔄 BÀN GIAO CA\n\nNhập người nhận ca / người được bàn giao:' +
+      (suggestions ? '\n\nGợi ý nhân viên:\n' + suggestions : '') +
+      '\n\nVí dụ: Thu ngân ca chiều, thungan2, Quản lý',
+      ''
+    );
+    if(handoverTo === null) return;
+    handoverTo = String(handoverTo).trim();
+    if(!handoverTo){
+      alert('❌ Bạn chưa nhập người nhận ca. Kết ca cần có người nhận để bàn giao rõ ràng.');
+      return;
+    }
+
+    let handoverNote = prompt(
+      'Ghi chú bàn giao ca:\nVí dụ: Đã bàn giao tiền mặt, hóa đơn, hàng hóa; thiếu/dư tiền nếu có.',
+      'Đã bàn giao tiền mặt và tình trạng ca.'
+    );
+    if(handoverNote === null) return;
+    handoverNote = String(handoverNote).trim() || '-';
+
+    active.endTime = new Date().toLocaleString('vi-VN');
+    active.expectedCash = expected;
+    active.realCash = realCash;
+    active.diff = expected - realCash;
+    active.handoverTo = handoverTo;
+    active.handoverNote = handoverNote;
+    active.handoverAt = new Date().toLocaleString('vi-VN');
+    active.handoverBy = gmUserName();
+
+    try{ currentShift = active; }catch(e){}
+    try{ if(typeof saveShift === 'function') saveShift(); }catch(e){}
+    try{ if(typeof addLog === 'function') addLog('Bàn giao ca', gmHandoverLog(active)); }catch(e){}
+
+    try{ currentShift = null; }catch(e){}
+    try{ sessionStorage.removeItem('v2_active_shift_id'); }catch(e){}
+
+    try{ if(typeof saveShift === 'function') saveShift(); }catch(e){}
+    try{ if(typeof renderShift === 'function') renderShift(); }catch(e){}
+    try{ if(typeof renderShiftReport === 'function') renderShiftReport(); }catch(e){}
+    try{ if(typeof renderLogs === 'function') renderLogs(); }catch(e){}
+
+    const diff = Number(active.diff || 0);
+    const diffText = diff === 0 ? 'Đúng tiền' : (diff > 0 ? 'Thiếu ' + gmMoney(Math.abs(diff)) : 'Dư ' + gmMoney(Math.abs(diff)));
+    alert(
+      '✅ KẾT CA + BÀN GIAO CA THÀNH CÔNG\n\n' +
+      'Người giao: ' + (active.staff || active.handoverBy || '-') + '\n' +
+      'Người nhận: ' + active.handoverTo + '\n' +
+      'Ca: ' + (active.shiftName || '-') + '\n' +
+      'Doanh thu: ' + gmMoney(active.revenue || 0) + '\n' +
+      'Tiền hệ thống: ' + gmMoney(expected) + '\n' +
+      'Tiền thực tế: ' + gmMoney(realCash) + '\n' +
+      'Chênh lệch: ' + diffText + '\n' +
+      'Ghi chú: ' + active.handoverNote
+    );
+  };
+
+  try{ closeShift = window.closeShift; }catch(e){}
+})();
+</script>
+
 </body>
 </html>`;
 }
@@ -7365,6 +7663,155 @@ tbody tr:hover td{background:#f8fffb!important}
 }
 
 </style>
+
+
+
+<!-- =========================================================
+     FIX V35: BÀN GIAO CA CHẮC CHẮN SAU KHI ĐẾM TIỀN
+     Đặt cuối file để không bị hàm/phân quyền phía trước ghi đè.
+     ========================================================= -->
+<script>
+(function(){
+  function gmRoleOf(u){
+    return String((u && u.role) || '').toLowerCase().trim();
+  }
+  function gmMoney(v){
+    try{
+      if(typeof money === 'function') return money(v || 0);
+    }catch(e){}
+    return Number(v || 0).toLocaleString('vi-VN') + ' VNĐ';
+  }
+  function gmUserName(){
+    return (typeof current !== 'undefined' && current && (current.name || current.user)) ? (current.name || current.user) : 'Không rõ';
+  }
+  function gmGetActiveShiftSafe(){
+    try{
+      if(typeof getActiveShift === 'function') return getActiveShift();
+    }catch(e){}
+    try{
+      if(typeof currentShift !== 'undefined' && currentShift && !currentShift.endTime) return currentShift;
+    }catch(e){}
+    try{
+      if(typeof shifts !== 'undefined') return (shifts || []).find(s => s && !s.endTime) || null;
+    }catch(e){}
+    return null;
+  }
+  function gmShiftSuggestions(){
+    try{
+      return (users || [])
+        .filter(u => u && u.user && gmRoleOf(u) !== 'accountant')
+        .map(u => (u.name || u.user) + ' (' + u.user + ')')
+        .join('\n');
+    }catch(e){
+      return '';
+    }
+  }
+  function gmHandoverLog(shift){
+    const diff = Number(shift.diff || 0);
+    const diffText = diff === 0 ? 'Đúng tiền' : (diff > 0 ? 'Thiếu ' + gmMoney(Math.abs(diff)) : 'Dư ' + gmMoney(Math.abs(diff)));
+    return [
+      '🔄 BÀN GIAO CA',
+      'Ca: ' + (shift.shiftName || '-'),
+      'Người giao: ' + (shift.staff || shift.handoverBy || '-'),
+      'Người nhận: ' + (shift.handoverTo || '-'),
+      'Doanh thu ca: ' + gmMoney(shift.revenue || 0),
+      'Số hóa đơn: ' + Number(shift.orders || 0),
+      'Tiền hệ thống: ' + gmMoney(shift.expectedCash || 0),
+      'Tiền thực tế: ' + gmMoney(shift.realCash || 0),
+      'Chênh lệch: ' + diffText,
+      'Ghi chú: ' + (shift.handoverNote || '-')
+    ].join(' | ');
+  }
+
+  window.closeShift = function(){
+    const role = (typeof current !== 'undefined' && current) ? gmRoleOf(current) : '';
+    if(!['admin','manager','cashier'].includes(role)){
+      alert('Tài khoản này không có quyền kết ca.');
+      return;
+    }
+
+    const active = gmGetActiveShiftSafe();
+    if(!active){
+      alert('Chưa mở ca!');
+      return;
+    }
+
+    try{ currentShift = active; }catch(e){}
+
+    const expected = Number(active.startCash || 0) + Number(active.revenue || 0);
+    const input = prompt(
+      'Tiền cuối ca hệ thống: ' + gmMoney(expected) +
+      '\nNhập tiền thực tế đếm được:',
+      ''
+    );
+    if(input === null) return;
+
+    const realCash = Number(String(input).replace(/\./g,'').replace(/,/g,'').trim());
+    if(isNaN(realCash) || realCash < 0){
+      alert('❌ Tiền thực tế không hợp lệ');
+      return;
+    }
+
+    const suggestions = gmShiftSuggestions();
+    let handoverTo = prompt(
+      '🔄 BÀN GIAO CA\n\nNhập người nhận ca / người được bàn giao:' +
+      (suggestions ? '\n\nGợi ý nhân viên:\n' + suggestions : '') +
+      '\n\nVí dụ: Thu ngân ca chiều, thungan2, Quản lý',
+      ''
+    );
+    if(handoverTo === null) return;
+    handoverTo = String(handoverTo).trim();
+    if(!handoverTo){
+      alert('❌ Bạn chưa nhập người nhận ca. Kết ca cần có người nhận để bàn giao rõ ràng.');
+      return;
+    }
+
+    let handoverNote = prompt(
+      'Ghi chú bàn giao ca:\nVí dụ: Đã bàn giao tiền mặt, hóa đơn, hàng hóa; thiếu/dư tiền nếu có.',
+      'Đã bàn giao tiền mặt và tình trạng ca.'
+    );
+    if(handoverNote === null) return;
+    handoverNote = String(handoverNote).trim() || '-';
+
+    active.endTime = new Date().toLocaleString('vi-VN');
+    active.expectedCash = expected;
+    active.realCash = realCash;
+    active.diff = expected - realCash;
+    active.handoverTo = handoverTo;
+    active.handoverNote = handoverNote;
+    active.handoverAt = new Date().toLocaleString('vi-VN');
+    active.handoverBy = gmUserName();
+
+    try{ currentShift = active; }catch(e){}
+    try{ if(typeof saveShift === 'function') saveShift(); }catch(e){}
+    try{ if(typeof addLog === 'function') addLog('Bàn giao ca', gmHandoverLog(active)); }catch(e){}
+
+    try{ currentShift = null; }catch(e){}
+    try{ sessionStorage.removeItem('v2_active_shift_id'); }catch(e){}
+
+    try{ if(typeof saveShift === 'function') saveShift(); }catch(e){}
+    try{ if(typeof renderShift === 'function') renderShift(); }catch(e){}
+    try{ if(typeof renderShiftReport === 'function') renderShiftReport(); }catch(e){}
+    try{ if(typeof renderLogs === 'function') renderLogs(); }catch(e){}
+
+    const diff = Number(active.diff || 0);
+    const diffText = diff === 0 ? 'Đúng tiền' : (diff > 0 ? 'Thiếu ' + gmMoney(Math.abs(diff)) : 'Dư ' + gmMoney(Math.abs(diff)));
+    alert(
+      '✅ KẾT CA + BÀN GIAO CA THÀNH CÔNG\n\n' +
+      'Người giao: ' + (active.staff || active.handoverBy || '-') + '\n' +
+      'Người nhận: ' + active.handoverTo + '\n' +
+      'Ca: ' + (active.shiftName || '-') + '\n' +
+      'Doanh thu: ' + gmMoney(active.revenue || 0) + '\n' +
+      'Tiền hệ thống: ' + gmMoney(expected) + '\n' +
+      'Tiền thực tế: ' + gmMoney(realCash) + '\n' +
+      'Chênh lệch: ' + diffText + '\n' +
+      'Ghi chú: ' + active.handoverNote
+    );
+  };
+
+  try{ closeShift = window.closeShift; }catch(e){}
+})();
+</script>
 
 </body>
 </html>`;
@@ -10086,6 +10533,155 @@ onAuthStateChanged(auth, async (firebaseUser) => {
 });
 
 setSyncStatus("ℹ️ Đăng nhập để đồng bộ Firebase", true);
+</script>
+
+
+
+<!-- =========================================================
+     FIX V35: BÀN GIAO CA CHẮC CHẮN SAU KHI ĐẾM TIỀN
+     Đặt cuối file để không bị hàm/phân quyền phía trước ghi đè.
+     ========================================================= -->
+<script>
+(function(){
+  function gmRoleOf(u){
+    return String((u && u.role) || '').toLowerCase().trim();
+  }
+  function gmMoney(v){
+    try{
+      if(typeof money === 'function') return money(v || 0);
+    }catch(e){}
+    return Number(v || 0).toLocaleString('vi-VN') + ' VNĐ';
+  }
+  function gmUserName(){
+    return (typeof current !== 'undefined' && current && (current.name || current.user)) ? (current.name || current.user) : 'Không rõ';
+  }
+  function gmGetActiveShiftSafe(){
+    try{
+      if(typeof getActiveShift === 'function') return getActiveShift();
+    }catch(e){}
+    try{
+      if(typeof currentShift !== 'undefined' && currentShift && !currentShift.endTime) return currentShift;
+    }catch(e){}
+    try{
+      if(typeof shifts !== 'undefined') return (shifts || []).find(s => s && !s.endTime) || null;
+    }catch(e){}
+    return null;
+  }
+  function gmShiftSuggestions(){
+    try{
+      return (users || [])
+        .filter(u => u && u.user && gmRoleOf(u) !== 'accountant')
+        .map(u => (u.name || u.user) + ' (' + u.user + ')')
+        .join('\n');
+    }catch(e){
+      return '';
+    }
+  }
+  function gmHandoverLog(shift){
+    const diff = Number(shift.diff || 0);
+    const diffText = diff === 0 ? 'Đúng tiền' : (diff > 0 ? 'Thiếu ' + gmMoney(Math.abs(diff)) : 'Dư ' + gmMoney(Math.abs(diff)));
+    return [
+      '🔄 BÀN GIAO CA',
+      'Ca: ' + (shift.shiftName || '-'),
+      'Người giao: ' + (shift.staff || shift.handoverBy || '-'),
+      'Người nhận: ' + (shift.handoverTo || '-'),
+      'Doanh thu ca: ' + gmMoney(shift.revenue || 0),
+      'Số hóa đơn: ' + Number(shift.orders || 0),
+      'Tiền hệ thống: ' + gmMoney(shift.expectedCash || 0),
+      'Tiền thực tế: ' + gmMoney(shift.realCash || 0),
+      'Chênh lệch: ' + diffText,
+      'Ghi chú: ' + (shift.handoverNote || '-')
+    ].join(' | ');
+  }
+
+  window.closeShift = function(){
+    const role = (typeof current !== 'undefined' && current) ? gmRoleOf(current) : '';
+    if(!['admin','manager','cashier'].includes(role)){
+      alert('Tài khoản này không có quyền kết ca.');
+      return;
+    }
+
+    const active = gmGetActiveShiftSafe();
+    if(!active){
+      alert('Chưa mở ca!');
+      return;
+    }
+
+    try{ currentShift = active; }catch(e){}
+
+    const expected = Number(active.startCash || 0) + Number(active.revenue || 0);
+    const input = prompt(
+      'Tiền cuối ca hệ thống: ' + gmMoney(expected) +
+      '\nNhập tiền thực tế đếm được:',
+      ''
+    );
+    if(input === null) return;
+
+    const realCash = Number(String(input).replace(/\./g,'').replace(/,/g,'').trim());
+    if(isNaN(realCash) || realCash < 0){
+      alert('❌ Tiền thực tế không hợp lệ');
+      return;
+    }
+
+    const suggestions = gmShiftSuggestions();
+    let handoverTo = prompt(
+      '🔄 BÀN GIAO CA\n\nNhập người nhận ca / người được bàn giao:' +
+      (suggestions ? '\n\nGợi ý nhân viên:\n' + suggestions : '') +
+      '\n\nVí dụ: Thu ngân ca chiều, thungan2, Quản lý',
+      ''
+    );
+    if(handoverTo === null) return;
+    handoverTo = String(handoverTo).trim();
+    if(!handoverTo){
+      alert('❌ Bạn chưa nhập người nhận ca. Kết ca cần có người nhận để bàn giao rõ ràng.');
+      return;
+    }
+
+    let handoverNote = prompt(
+      'Ghi chú bàn giao ca:\nVí dụ: Đã bàn giao tiền mặt, hóa đơn, hàng hóa; thiếu/dư tiền nếu có.',
+      'Đã bàn giao tiền mặt và tình trạng ca.'
+    );
+    if(handoverNote === null) return;
+    handoverNote = String(handoverNote).trim() || '-';
+
+    active.endTime = new Date().toLocaleString('vi-VN');
+    active.expectedCash = expected;
+    active.realCash = realCash;
+    active.diff = expected - realCash;
+    active.handoverTo = handoverTo;
+    active.handoverNote = handoverNote;
+    active.handoverAt = new Date().toLocaleString('vi-VN');
+    active.handoverBy = gmUserName();
+
+    try{ currentShift = active; }catch(e){}
+    try{ if(typeof saveShift === 'function') saveShift(); }catch(e){}
+    try{ if(typeof addLog === 'function') addLog('Bàn giao ca', gmHandoverLog(active)); }catch(e){}
+
+    try{ currentShift = null; }catch(e){}
+    try{ sessionStorage.removeItem('v2_active_shift_id'); }catch(e){}
+
+    try{ if(typeof saveShift === 'function') saveShift(); }catch(e){}
+    try{ if(typeof renderShift === 'function') renderShift(); }catch(e){}
+    try{ if(typeof renderShiftReport === 'function') renderShiftReport(); }catch(e){}
+    try{ if(typeof renderLogs === 'function') renderLogs(); }catch(e){}
+
+    const diff = Number(active.diff || 0);
+    const diffText = diff === 0 ? 'Đúng tiền' : (diff > 0 ? 'Thiếu ' + gmMoney(Math.abs(diff)) : 'Dư ' + gmMoney(Math.abs(diff)));
+    alert(
+      '✅ KẾT CA + BÀN GIAO CA THÀNH CÔNG\n\n' +
+      'Người giao: ' + (active.staff || active.handoverBy || '-') + '\n' +
+      'Người nhận: ' + active.handoverTo + '\n' +
+      'Ca: ' + (active.shiftName || '-') + '\n' +
+      'Doanh thu: ' + gmMoney(active.revenue || 0) + '\n' +
+      'Tiền hệ thống: ' + gmMoney(expected) + '\n' +
+      'Tiền thực tế: ' + gmMoney(realCash) + '\n' +
+      'Chênh lệch: ' + diffText + '\n' +
+      'Ghi chú: ' + active.handoverNote
+    );
+  };
+
+  try{ closeShift = window.closeShift; }catch(e){}
+})();
 </script>
 
 </body>
