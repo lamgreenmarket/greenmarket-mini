@@ -8745,52 +8745,97 @@ function addToShift(total){
   saveShift();
 }
 
-/* ===== KẾT CA ===== */
+/* ===== KẾT CA + BÀN GIAO CA ===== */
 function closeShift(){
   const active = getActiveShift();
   if(!active){
     alert("Chưa mở ca!");
     return;
   }
+
   currentShift = active;
 
   const expected =
-    currentShift.startCash + currentShift.revenue;
+    Number(currentShift.startCash || 0) + Number(currentShift.revenue || 0);
 
   const input = prompt(
-  "Tiền cuối ca hệ thống: " + money(expected) +
-  "\nNhập tiền thực tế đếm được:",
-  ""
-);
+    "Tiền cuối ca hệ thống: " + money(expected) +
+    "\n\nNhập tiền thực tế đếm được:",
+    ""
+  );
 
-if(input === null) return;
+  if(input === null) return;
 
-const realCash = Number(
-  String(input).replace(/\./g, '').replace(/,/g, '')
-);
+  const realCash = Number(
+    String(input).replace(/\./g, '').replace(/,/g, '')
+  );
+
+  if(isNaN(realCash) || realCash < 0){
+    alert("❌ Tiền thực tế không hợp lệ!");
+    return;
+  }
+
+  // Hỏi người nhận ca
+  let receiver = prompt(
+    "Người nhận ca là ai?\nVí dụ: Thu ngân ca sau / Quản lý / Admin",
+    ""
+  );
+
+  if(receiver === null) return;
+  receiver = receiver.trim();
+
+  if(receiver === ""){
+    alert("❌ Bạn chưa nhập người nhận ca!");
+    return;
+  }
+
+  // Ghi chú bàn giao
+  let note = prompt(
+    "Ghi chú bàn giao ca:\nVí dụ: Đã bàn giao tiền mặt, hàng hóa bình thường.",
+    "Đã bàn giao tiền mặt và hàng hóa."
+  );
+
+  if(note === null) note = "";
+  note = note.trim();
 
   currentShift.endTime = new Date().toLocaleString();
 
   currentShift.expectedCash = expected; // tiền hệ thống
   currentShift.realCash = realCash;     // tiền đếm
+  currentShift.diff = expected - realCash; // thiếu/dư
 
-  currentShift.diff =
-    expected - realCash; // thiếu/dư
+  currentShift.handoverTo = receiver;
+  currentShift.handoverNote = note;
 
   saveShift();
 
+  addLog(
+    "Bàn giao ca",
+    "Ca: " + currentShift.shiftName +
+    " | Người giao: " + (current?.name || currentShift.staff || "Không rõ") +
+    " | Người nhận: " + receiver +
+    " | Doanh thu: " + money(currentShift.revenue || 0) +
+    " | Tiền hệ thống: " + money(expected) +
+    " | Tiền thực tế: " + money(realCash) +
+    " | Chênh lệch: " + money(currentShift.diff) +
+    (note ? " | Ghi chú: " + note : "")
+  );
+
   alert(
-    "KẾT CA\n" +
+    "KẾT CA & BÀN GIAO CA\n" +
     "Tiền đầu ca: " + money(currentShift.startCash) + "\n" +
     "Doanh thu: " + money(currentShift.revenue) + "\n" +
     "Tiền cuối ca (hệ thống): " + money(expected) + "\n" +
     "Tiền thực tế: " + money(realCash) + "\n" +
-    "Chênh lệch: " + money(currentShift.diff)
+    "Chênh lệch: " + money(currentShift.diff) + "\n\n" +
+    "Người nhận ca: " + receiver + "\n" +
+    "Ghi chú: " + (note || "Không có")
   );
 
-  currentShift = null;
   sessionStorage.removeItem(KACTIVE_SHIFT);
+  currentShift = null;
 
+  renderLogs();
   saveShift();
   renderShift();
 }
