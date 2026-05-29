@@ -7816,6 +7816,56 @@ function getVisibleBillsWithIndex(visibleBills){
   })).filter(x => x.globalIndex >= 0);
 }
 
+
+function findBillIndexByCodeSafe(code){
+  const target = String(code || '').trim();
+  if(!target) return -1;
+
+  for(let i = 0; i < bills.length; i++){
+    if(String(getBillCode(bills[i], i)).trim() === target){
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+function viewBillDetailByCode(code){
+  const index = findBillIndexByCodeSafe(code);
+  if(index < 0){
+    alert('Không tìm thấy hóa đơn: ' + code);
+    return;
+  }
+  viewBillDetail(index);
+}
+
+function printReturnReceiptByCode(code){
+  const index = findBillIndexByCodeSafe(code);
+  if(index < 0){
+    alert('Không tìm thấy hóa đơn hoàn trả: ' + code);
+    return;
+  }
+  printReturnReceiptByIndex(index);
+}
+
+function printBillReceiptByCode(code){
+  const index = findBillIndexByCodeSafe(code);
+  if(index < 0){
+    alert('Không tìm thấy hóa đơn: ' + code);
+    return;
+  }
+  printBillReceiptByIndex(index);
+}
+
+function returnFullBillByCode(code){
+  const index = findBillIndexByCodeSafe(code);
+  if(index < 0){
+    alert('Không tìm thấy hóa đơn để trả hàng: ' + code);
+    return;
+  }
+  returnFullBill(index);
+}
+
 function renderBillHistory(visibleBills){
   const body = document.getElementById('billBody');
   if(!body) return;
@@ -7863,7 +7913,7 @@ function renderBillHistory(visibleBills){
           }
         </td>
         <td>
-          <button class="btn-blue" onclick="viewBillDetail(${x.globalIndex})">Xem chi tiết</button>
+          <button class="btn-blue" onclick="viewBillDetailByCode(\`${escapeHTML(getBillCode(b, x.globalIndex))}\`)">Xem chi tiết</button>
         </td>
       </tr>
     `;
@@ -8022,9 +8072,19 @@ function canAccessBill(bill){
 }
 
 function viewBillDetail(index){
-  const b = bills[index];
+  let b = bills[index];
   const box = document.getElementById('billDetailBox');
   if(!b || !box) return;
+
+  // Lấy lại hóa đơn mới nhất theo mã để tránh mở nhầm chi tiết sau khi lọc/sắp xếp/đồng bộ Firebase.
+  let billCodeForDetail = getBillCode(b, index);
+  const latestIndex = findBillIndexByCodeSafe(billCodeForDetail);
+  if(latestIndex >= 0){
+    index = latestIndex;
+    b = bills[index];
+    billCodeForDetail = getBillCode(b, index);
+  }
+
   if(!canAccessBill(b)){
     alert('Bạn chỉ được xem hóa đơn của chính mình.');
     return;
@@ -8044,7 +8104,7 @@ function viewBillDetail(index){
   box.innerHTML = `
     <div class="bill-detail-head">
       <div>
-        <h3>🧾 Chi tiết hóa đơn ${escapeHTML(getBillCode(b, index))}</h3>
+        <h3>🧾 Chi tiết hóa đơn ${escapeHTML(billCodeForDetail)}</h3>
         <div class="bill-detail-meta">
           Ngày: ${escapeHTML(b.time || '')}<br>
           Nhân viên: ${escapeHTML(b.staff || '')}<br>
@@ -8056,10 +8116,10 @@ function viewBillDetail(index){
       </div>
       <div class="bill-action-group">
         ${isBillReturned(b)
-          ? `<button class="btn-orange" onclick="printReturnReceiptByIndex(${index})">🖨️ In phiếu trả hàng</button>`
-          : `<button class="btn-green" onclick="printBillReceiptByIndex(${index})">🖨️ In lại hóa đơn</button>`
+          ? `<button class="btn-orange" onclick="printReturnReceiptByCode(\`${escapeHTML(billCodeForDetail)}\`)">🖨️ In hóa đơn hoàn trả</button>`
+          : `<button class="btn-green" onclick="printBillReceiptByCode(\`${escapeHTML(billCodeForDetail)}\`)">🖨️ In lại hóa đơn</button>`
         }
-        ${isAdminUser() && !isBillReturned(b) ? `<button class="btn-red" onclick="returnFullBill(${index})">🔄 Trả toàn bộ hóa đơn</button>` : ''}
+        ${isAdminUser() && !isBillReturned(b) ? `<button class="btn-red" onclick="returnFullBillByCode(\`${escapeHTML(billCodeForDetail)}\`)">🔄 Trả toàn bộ hóa đơn</button>` : ''}
         <button class="btn-gray" onclick="closeBillDetail()">Đóng</button>
       </div>
     </div>
@@ -8098,8 +8158,8 @@ function printReturnReceiptByIndex(index){
     alert('Không tìm thấy hóa đơn để in phiếu trả hàng');
     return;
   }
-  if(!isAdminUser()){
-    alert('Chỉ Admin/Quản lý được in phiếu trả hàng.');
+  if(!canAccessBill(b)){
+    alert('Bạn chỉ được in hóa đơn hoàn trả của chính mình.');
     return;
   }
   if(!isBillReturned(b)){
@@ -8118,8 +8178,8 @@ function printReturnReceiptByIndex(index){
   `).join('') || '<div class="receipt-item">Không có dữ liệu món trả</div>';
 
   addLog(
-    'In phiếu trả hàng',
-    `${returnCode} - In phiếu trả hàng cho hóa đơn ${billCode} - Số tiền hoàn ${money(returnAmount)}`
+    'In hóa đơn hoàn trả',
+    `${returnCode} - ${current?.name || 'Hệ thống'} in hóa đơn hoàn trả cho hóa đơn ${billCode} - Số tiền hoàn ${money(returnAmount)}`
   );
   save();
   renderAll();
