@@ -1505,16 +1505,16 @@ body.cashier-mode #home .chart-row{
     <button onclick="showPage('home')">🏠 Trang chủ</button>
     <button onclick="showPage('shift')">⏱ Ca làm việc</button>
     <button onclick="showPage('sell')">🛒 Bán hàng</button>
-    <button class="admin-only" onclick="showPage('shiftReport')">📊 Báo cáo ca</button>
-    <button class="admin-only" onclick="showStockAll()">📦 Kho hàng</button>
-    <button class="admin-only" onclick="showPage('imports')">📥 Hàng mới nhập</button>
-    <button class="admin-only" onclick="showBarcodePage()">🏷️ In tem mã vạch A4</button>
+    <button class="role-admin role-manager role-accountant" onclick="showPage('shiftReport')">📊 Báo cáo ca</button>
+    <button class="role-admin role-manager role-accountant" onclick="showStockAll()">📦 Kho hàng</button>
+    <button class="role-admin role-manager" onclick="showPage('imports')">📥 Hàng mới nhập</button>
+    <button class="role-admin role-manager" onclick="showBarcodePage()">🏷️ In tem mã vạch A4</button>
     <button onclick="showPage('bills')">🧾 Hóa đơn</button>
-    <button class="admin-only" onclick="showPage('money')">💵 Thu chi</button>
-    <button class="admin-only" onclick="showPage('staff')">👥 Nhân viên</button>
+    <button class="role-admin role-manager role-accountant" onclick="showPage('money')">💵 Thu chi</button>
+    <button class="role-admin role-manager" onclick="showPage('staff')">👥 Nhân viên</button>
     
-    <button class="admin-only" onclick="showPage('logs')">📋 Nhật ký</button>
-    <div class="menu-dropdown admin-only">
+    <button class="role-admin role-manager" onclick="showPage('logs')">📋 Nhật ký</button>
+    <div class="menu-dropdown role-admin">
       <button type="button" class="menu-btn" onclick="toggleDataMenu(event)">📦 Dữ liệu ⏷</button>
       <div id="dataDropdown" class="dropdown-content">
         <button type="button" onclick="downloadBackupToday();closeDataMenu()">💾 Tải backup hôm nay</button>
@@ -2057,7 +2057,7 @@ body.cashier-mode #home .chart-row{
     <div id="billDetailBox" class="bill-detail-box hidden"></div>
   </section>
   <section id="money" class="page hidden card"><h2>💵 Thu chi</h2><div class="table-wrap"><table><thead><tr><th>STT</th><th>Ngày</th><th>Loại</th><th>Số tiền</th></tr></thead><tbody id="moneyBody"></tbody></table></div></section>
-  <section id="staff" class="page hidden card"><h2>👥 Quản lý nhân viên</h2><div class="grid"><input id="staffName" placeholder="Tên nhân viên"><input id="staffUser" placeholder="Tên đăng nhập"><input id="staffPass" type="password" placeholder="Mật khẩu Firebase Auth (không lưu local)"><select id="staffRole"><option value="cashier">Thu ngân</option><option value="admin">Admin</option></select></div><button class="btn-blue full" onclick="addStaff()">Thêm nhân viên</button><div class="table-wrap"><table><thead><tr><th>STT</th><th>Tên</th><th>Tài khoản</th><th>Quyền</th><th>Thao tác</th></tr></thead><tbody id="staffBody"></tbody></table></div></section>
+  <section id="staff" class="page hidden card"><h2>👥 Quản lý nhân viên</h2><div class="grid"><input id="staffName" placeholder="Tên nhân viên"><input id="staffUser" placeholder="Tên đăng nhập"><input id="staffPass" type="password" placeholder="Mật khẩu Firebase Auth (không lưu local)"><select id="staffRole"><option value="cashier">Thu ngân</option><option value="accountant">Kế toán</option><option value="manager">Quản lý</option><option value="admin">Admin</option></select></div><button class="btn-blue full" onclick="addStaff()">Thêm nhân viên</button><div class="table-wrap"><table><thead><tr><th>STT</th><th>Tên</th><th>Tài khoản</th><th>Quyền</th><th>Thao tác</th></tr></thead><tbody id="staffBody"></tbody></table></div></section>
   <section id="logs" class="page hidden card"><h2>📋 Nhật ký hoạt động</h2><div class="table-wrap"><table><thead><tr><th>STT</th><th>Thời gian</th><th>Nhân viên</th><th>Quyền</th><th>Hoạt động</th><th>Chi tiết</th></tr></thead><tbody id="logBody"></tbody></table></div></section>
 
 
@@ -2211,7 +2211,7 @@ function addSecurityLog(action, detail, userText){
   logs.unshift({
     time: now(),
     user: current?.name || cleanText(userText) || 'Chưa đăng nhập',
-    role: current?.role === 'admin' ? 'Admin' : (current ? 'Thu ngân' : 'Ngoài hệ thống'),
+    role: current ? getRoleLabel(current.role) : 'Ngoài hệ thống',
     action,
     detail
   });
@@ -2297,7 +2297,7 @@ function addLog(action, detail){
   logs.unshift({
     time: now(),
     user: current?.name || 'Hệ thống',
-    role: current?.role === 'admin' ? 'Admin' : (current ? 'Thu ngân' : ''),
+    role: current ? getRoleLabel(current.role) : '',
     action,
     detail
   });
@@ -2307,7 +2307,7 @@ function addLog(action, detail){
 function renderShift(){
   if(!document.getElementById('shiftBody')) return;
 const list =
-  current?.role === 'admin'
+  canManageStore()
     ? shifts.map((s, i) => ({ s, i }))
     : shifts
         .map((s, i) => ({ s, i }))
@@ -2536,7 +2536,7 @@ async function login(){
     addLog('Đăng nhập', 'Đăng nhập hệ thống bằng Firebase Auth thành công');
 
     userName.textContent = current.name;
-    userRole.textContent = current.role === 'admin' ? 'Admin' : 'Thu ngân';
+    userRole.textContent = getRoleLabel(current.role);
     loginMsg.textContent = '';
 
     loginPage.classList.add('hidden');
@@ -2581,32 +2581,91 @@ document.addEventListener('keydown', e => {
 /* =========================================================
    20. MENU / PHÂN QUYỀN
    ========================================================= */
+const ROLE_LABELS = {
+  admin: 'Admin',
+  manager: 'Quản lý',
+  accountant: 'Kế toán',
+  cashier: 'Thu ngân'
+};
+
+const PAGE_ROLES = {
+  home: ['admin','manager','accountant','cashier'],
+  shift: ['admin','manager','cashier'],
+  sell: ['admin','manager','cashier'],
+  bills: ['admin','manager','accountant','cashier'],
+  shiftReport: ['admin','manager','accountant'],
+  stock: ['admin','manager','accountant'],
+  imports: ['admin','manager'],
+  barcodeA4: ['admin','manager'],
+  money: ['admin','manager','accountant'],
+  staff: ['admin','manager'],
+  logs: ['admin','manager']
+};
+
+function normalizeRole(role){
+  return ['admin','manager','accountant','cashier'].includes(role) ? role : 'cashier';
+}
+
+function getRoleLabel(role){
+  return ROLE_LABELS[normalizeRole(role)] || 'Thu ngân';
+}
+
+function canAccessPage(id){
+  const role = normalizeRole(current?.role);
+  return (PAGE_ROLES[id] || ['admin']).includes(role);
+}
+
+function canViewStoreWide(){
+  return ['admin','manager','accountant'].includes(normalizeRole(current?.role));
+}
+
+function canManageStore(){
+  return ['admin','manager'].includes(normalizeRole(current?.role));
+}
+
 function applyPermission(){
-  const isAdmin = current?.role === 'admin';
-  document.body.classList.toggle('cashier-mode', !isAdmin);
+  const role = normalizeRole(current?.role);
+  document.body.classList.toggle('cashier-mode', role === 'cashier');
 
   document.querySelectorAll('.admin-only').forEach(el => {
-    if(isAdmin){
-      el.classList.remove('hidden');
-    }else{
-      el.classList.add('hidden');
-    }
+    el.classList.toggle('hidden', role !== 'admin');
+  });
+
+  document.querySelectorAll('[class*="role-"]').forEach(el => {
+    const allowed = Array.from(el.classList).some(c => c === 'role-' + role);
+    el.classList.toggle('hidden', !allowed);
   });
 }
 
 
 function isAdminUser(){
-  return current?.role === 'admin';
+  return normalizeRole(current?.role) === 'admin';
 }
 
 function requireAdmin(action = 'chức năng quản trị'){
   if(isAdminUser()) return true;
 
-  const msg = 'Tài khoản thu ngân không có quyền dùng ' + action;
+  const msg = 'Tài khoản ' + getRoleLabel(current?.role) + ' không có quyền dùng ' + action;
   try{
     addLog('Chặn quyền', msg);
   }catch(e){}
 
+  alert(msg);
+  return false;
+}
+
+function requirePageAccess(id, action = 'chức năng này'){
+  if(canAccessPage(id)) return true;
+  const msg = 'Tài khoản ' + getRoleLabel(current?.role) + ' không có quyền dùng ' + action;
+  try{ addLog('Chặn quyền', msg); }catch(e){}
+  alert(msg);
+  return false;
+}
+
+function requireManager(action = 'chức năng quản lý'){
+  if(canManageStore()) return true;
+  const msg = 'Tài khoản ' + getRoleLabel(current?.role) + ' không có quyền dùng ' + action;
+  try{ addLog('Chặn quyền', msg); }catch(e){}
   alert(msg);
   return false;
 }
@@ -2635,7 +2694,7 @@ function clearSensitiveAdminViews(){
   });
 
   const summary = document.getElementById('shiftReportSummary');
-  if(summary) summary.innerHTML = 'Tài khoản thu ngân không có quyền xem báo cáo ca toàn cửa hàng.';
+  if(summary) summary.innerHTML = 'Tài khoản này không có quyền xem báo cáo ca toàn cửa hàng.';
 }
 
 function showPage(id){
@@ -2645,8 +2704,8 @@ function showPage(id){
   window.__keepBillDetailOnce = false;
   if(!current) return;
 
-  const adminPages = ['stock', 'imports', 'barcodeA4', 'money', 'staff', 'logs', 'shiftReport'];
-  if(adminPages.includes(id) && !requireAdmin('mục ' + id)){
+  if(!canAccessPage(id)){
+    requirePageAccess(id, 'mục ' + id);
     showPage('home');
     return;
   }
@@ -2801,11 +2860,7 @@ function editShift(index){
   alert("Đã sửa tiền thực tế đếm");
 }
 function applyRoleUI(){
-  const isAdmin = current?.role === 'admin';
-
-  document.querySelectorAll('.admin-only').forEach(el => {
-    el.style.display = isAdmin ? 'inline-block' : 'none';
-  });
+  applyPermission();
 }
 
 /* =========================================================
@@ -2914,7 +2969,7 @@ function syncImportHistoryWithProducts(showMessage = false){
 }
 
 function showBarcodePage(productId){
-  if(!requireAdmin('in tem mã vạch')) return;
+  if(!requireManager('in tem mã vạch')) return;
   showPage('barcodeA4');
   renderBarcodeControls();
 
@@ -3666,7 +3721,7 @@ tbody tr:hover td{background:#f8fffb!important}
 }
 
 function autoGenerateMissingBarcodes(){
-  if(!requireAdmin('tự tạo mã vạch')) return;
+  if(!requireManager('tự tạo mã vạch')) return;
   let count = 0;
 
   products.forEach(p => {
@@ -3691,7 +3746,7 @@ function autoGenerateMissingBarcodes(){
    không tạo thêm dòng rác nữa.
    ========================================================= */
 function addProduct(){
-  if(!requireAdmin('thêm / nhập kho sản phẩm')) return;
+  if(!requireManager('thêm / nhập kho sản phẩm')) return;
   let name = cleanText(pName.value);
   let barcode = normalizeBarcodeCode(pBarcode.value);
   const qty = Number(pQty.value || 0);
@@ -3923,21 +3978,21 @@ function setStockTab(id){
 }
 
 function showStockAll(){
-  if(!requireAdmin('xem kho hàng')) return;
+  if(!requirePageAccess('stock', 'xem kho hàng')) return;
   stockFilter = 'all';
   setStockTab('btnStockAll');
   showPage('stock');
 }
 
 function showLowStock(){
-  if(!requireAdmin('xem cảnh báo tồn kho')) return;
+  if(!requirePageAccess('stock', 'xem cảnh báo tồn kho')) return;
   stockFilter = 'low';
   setStockTab('btnStockLow');
   showPage('stock');
 }
 
 function showOutStock(){
-  if(!requireAdmin('xem hàng hết')) return;
+  if(!requirePageAccess('stock', 'xem hàng hết')) return;
   stockFilter = 'out';
   setStockTab('btnStockOut');
   showPage('stock');
@@ -3956,7 +4011,7 @@ function getVisibleStock(){
 }
 
 function renderStock(){
-  if(!isAdminUser()){
+  if(!canAccessPage('stock')){
     clearSensitiveAdminViews();
     return;
   }
@@ -4810,9 +4865,9 @@ async function delStaff(user){
 }
 
 function renderLogs(){
-  if(!isAdminUser()){
+  if(!canAccessPage('logs')){
     const el = document.getElementById('logBody');
-    if(el) el.innerHTML = '<tr><td colspan="6">Tài khoản thu ngân không có quyền xem nhật ký</td></tr>';
+    if(el) el.innerHTML = '<tr><td colspan="6">Tài khoản này không có quyền xem nhật ký</td></tr>';
     return;
   }
   if(!document.getElementById('logBody')) return;
@@ -5013,7 +5068,7 @@ function sameDay(d1, d2){
 
 function renderChart(){
   const map = {};
-  const visibleBills = current?.role === 'admin'
+  const visibleBills = canViewStoreWide()
     ? bills
     : bills.filter(b => b.staff === current?.name);
 
@@ -5057,7 +5112,7 @@ function renderChart(){
 function renderBillChart(){
   const map = {};
 
-  const visibleBills = current.role === 'admin'
+  const visibleBills = canViewStoreWide()
     ? bills
     : bills.filter(b => b.staff === current.name);
 
@@ -5094,7 +5149,7 @@ function renderBillChart(){
 function renderStaffChart(){
   const map = {};
 
-  const visibleBills = current?.role === 'admin'
+  const visibleBills = canViewStoreWide()
     ? bills
     : bills.filter(b => b.staff === current?.name);
 
@@ -5139,7 +5194,7 @@ function renderTopProducts(type = 'today'){
 
   const map = {};
 
-  const visibleBills = current?.role === 'admin' ? bills : bills.filter(b => b.staff === current?.name);
+  const visibleBills = canViewStoreWide() ? bills : bills.filter(b => b.staff === current?.name);
 
   visibleBills.forEach(b => {
     const bd = toDateVN(getBillDate(b));
@@ -5541,7 +5596,7 @@ function renderImportDraft(){
 }
 
 function saveImportReceipt(){
-  if(!requireAdmin('lưu phiếu nhập kho')) return;
+  if(!requireManager('lưu phiếu nhập kho')) return;
   ensureImportReceipt();
 
   if(!importDraft.length){
@@ -5615,7 +5670,7 @@ function cancelImportSaveBox(){
 }
 
 function commitImportReceipt(){
-  if(!requireAdmin('xác nhận cộng kho')) return null;
+  if(!requireManager('xác nhận cộng kho')) return null;
   ensureImportReceipt();
 
   if(!importDraft.length){
@@ -6571,7 +6626,7 @@ function openImportReceiptPrintWindow(data){
 }
 
 function printCurrentImportDraftReceipt(){
-  if(!requireAdmin('in phiếu nhập kho')) return;
+  if(!requireManager('in phiếu nhập kho')) return;
   const data = getCurrentDraftPrintData();
   const ok = openImportReceiptPrintWindow(data);
   if(ok){
@@ -6585,7 +6640,7 @@ function printCurrentImportDraftReceipt(){
 }
 
 function printImportReceipt(receiptCode){
-  if(!requireAdmin('in lại phiếu nhập kho')) return;
+  if(!requireManager('in lại phiếu nhập kho')) return;
   const lines = groupImportReceiptLines(receiptCode);
   if(!lines.length){
     alert('Không tìm thấy phiếu để in');
@@ -7430,7 +7485,7 @@ function downloadWorkbook(wb, filename){
 }
 
 function exportDailyImportReportExcel(){
-  if(!requireAdmin('xuất báo cáo nhập kho Excel')) return;
+  if(!requireManager('xuất báo cáo nhập kho Excel')) return;
   if(!checkXLSXReady()) return;
   const {selected, list} = getDailyImportReportList();
   if(!list.length){
@@ -7506,7 +7561,7 @@ function buildPriceIncreaseAlertsArray(){
 }
 
 function exportAccountingExcel(){
-  if(!requireAdmin('xuất Excel kế toán')) return;
+  if(!requirePageAccess('money', 'xuất Excel kế toán')) return;
   if(!checkXLSXReady()) return;
 
   const wb = XLSX.utils.book_new();
@@ -7611,7 +7666,7 @@ function exportAccountingExcel(){
 }
 
 function printDailyImportReport(){
-  if(!requireAdmin('in báo cáo nhập kho')) return;
+  if(!requireManager('in báo cáo nhập kho')) return;
   const {selected, list} = getDailyImportReportList();
   if(!list.length){
     alert('Ngày này chưa có dữ liệu nhập kho để in báo cáo');
@@ -7692,7 +7747,7 @@ function renderPriceIncreaseAlerts(){
 }
 
 function editImportHistory(index){
-  if(!requireAdmin('sửa lịch sử nhập kho')) return;
+  if(!requireManager('sửa lịch sử nhập kho')) return;
   const item = importHistory[index];
 
   if(!item){
@@ -8027,12 +8082,12 @@ function ensureBillReprintFields(bill){
 }
 
 function isAdminUser(){
-  return current?.role === 'admin';
+  return normalizeRole(current?.role) === 'admin';
 }
 
 function canAccessBill(bill){
   if(!current || !bill) return false;
-  if(current.role === 'admin') return true;
+  if(canViewStoreWide()) return true;
   return String(bill.staff || '').trim().toLowerCase() === String(current.name || '').trim().toLowerCase();
 }
 
@@ -8341,7 +8396,7 @@ function isSameWeekForDashboard(a, b){
 }
 
 function getVisibleBillsForDashboard(){
-  return current?.role === 'admin'
+  return canViewStoreWide()
     ? bills
     : bills.filter(b => b.staff === current?.name);
 }
@@ -8460,20 +8515,20 @@ function renderDashboardPro(){
 function renderAll(){
   if(!current) return;
 
-  const visibleBills = current.role === 'admin'
+  const visibleBills = canViewStoreWide()
     ? bills
     : bills.filter(b => b.staff === current.name);
 
-  const visibleMoney = current.role === 'admin'
+  const visibleMoney = canViewStoreWide()
     ? moneyList
     : moneyList.filter(m => m.staff === current.name);
 
   const dashboardRevenue = visibleBills.reduce((s, b) => s + Number(b.total || 0), 0);
 
   const statRevenueEl = document.getElementById('statRevenue');
-  if(statRevenueEl) statRevenueEl.innerHTML = `${money(dashboardRevenue)}<small>${current.role === 'admin' ? 'toàn cửa hàng' : 'của nhân viên hiện tại'}</small>`;
+  if(statRevenueEl) statRevenueEl.innerHTML = `${money(dashboardRevenue)}<small>${canViewStoreWide() ? 'toàn cửa hàng' : 'của nhân viên hiện tại'}</small>`;
   const statBillsEl = document.getElementById('statBills');
-  if(statBillsEl) statBillsEl.innerHTML = `${visibleBills.length} đơn<small>${current.role === 'admin' ? 'toàn cửa hàng' : 'của tôi'}</small>`;
+  if(statBillsEl) statBillsEl.innerHTML = `${visibleBills.length} đơn<small>${canViewStoreWide() ? 'toàn cửa hàng' : 'của tôi'}</small>`;
   const statProductsEl = document.getElementById('statProducts');
   if(statProductsEl) statProductsEl.innerHTML = `${products.length} mặt hàng<small>đang quản lý trong kho</small>`;
   if(document.getElementById('dashboardUpdated')){
@@ -8484,10 +8539,10 @@ function renderAll(){
   const dashboardTitleH2 = document.querySelector('#home .dashboard-title h2');
   const dashboardTitleP = document.querySelector('#home .dashboard-title p');
   if(dashboardTitleH2){
-    dashboardTitleH2.textContent = current.role === 'admin' ? '📊 Tổng quan vận hành' : '📊 Thống kê bán hàng cá nhân';
+    dashboardTitleH2.textContent = canViewStoreWide() ? '📊 Tổng quan vận hành' : '📊 Thống kê bán hàng cá nhân';
   }
   if(dashboardTitleP){
-    dashboardTitleP.textContent = current.role === 'admin'
+    dashboardTitleP.textContent = canViewStoreWide()
       ? 'Theo dõi nhanh doanh thu, đơn bán, tồn kho và hiệu suất bán hàng.'
       : 'Chỉ hiển thị doanh thu, số đơn và biểu đồ của tài khoản đang đăng nhập.';
   }
@@ -8528,7 +8583,7 @@ function renderAll(){
       <td>${i + 1}</td>
       <td>${u.name}</td>
       <td>${u.user}</td>
-      <td>${u.role === 'admin' ? 'Admin' : 'Thu ngân'}</td>
+      <td>${getRoleLabel(u.role)}</td>
       <td>
         <button
           class="btn-red"
@@ -8747,11 +8802,11 @@ function getShiftDateInput(s){
 }
 
 function renderShiftReport(){
-  if(!isAdminUser()){
+  if(!canAccessPage('shiftReport')){
     const body = document.getElementById('shiftReportBody');
-    if(body) body.innerHTML = '<tr><td colspan="10">Tài khoản thu ngân không có quyền xem báo cáo ca toàn cửa hàng</td></tr>';
+    if(body) body.innerHTML = '<tr><td colspan="10">Tài khoản này không có quyền xem báo cáo ca toàn cửa hàng</td></tr>';
     const summary = document.getElementById('shiftReportSummary');
-    if(summary) summary.innerHTML = 'Tài khoản thu ngân không có quyền xem báo cáo ca toàn cửa hàng.';
+    if(summary) summary.innerHTML = 'Tài khoản này không có quyền xem báo cáo ca toàn cửa hàng.';
     return;
   }
   if(!document.getElementById('shiftReportBody')) return;
@@ -9514,7 +9569,7 @@ async function getProfileByEmail(email){
           email: mail,
           name: x.name || x.displayName || (mail === 'hieuthao@greenmarket.com' ? 'Hiếu Thảo' : (mail === 'thungan@greenmarket.com' ? 'Thu ngân' : authEmailToUsername(mail))),
           user: x.user || authEmailToUsername(mail),
-          role: x.role === 'admin' ? 'admin' : 'cashier',
+          role: normalizeRole(x.role),
           active: x.active !== false,
           source: colName
         };
@@ -9561,7 +9616,7 @@ window.greenMarketLoadUserProfiles = async function(){
         name: x.name || authEmailToUsername(email),
         user: x.user || authEmailToUsername(email),
         email,
-        role: x.role === 'admin' ? 'admin' : 'cashier'
+        role: normalizeRole(x.role)
       });
     });
   }catch(e){
@@ -9582,7 +9637,7 @@ window.greenMarketLoadUserProfiles = async function(){
           name: x.name || x.displayName || (email === 'hieuthao@greenmarket.com' ? 'Hiếu Thảo' : (email === 'thungan@greenmarket.com' ? 'Thu ngân' : authEmailToUsername(email))),
           user: x.user || authEmailToUsername(email),
           email,
-          role: x.role === 'admin' ? 'admin' : 'cashier'
+          role: normalizeRole(x.role)
         });
       });
     }catch(e){
@@ -9635,7 +9690,7 @@ async function buildGreenMarketSessionFromFirebaseUser(firebaseUser){
     name: profile.name || authEmailToUsername(email),
     user: profile.user || authEmailToUsername(email),
     email,
-    role: profile.role === 'admin' ? 'admin' : 'cashier'
+    role: normalizeRole(profile.role)
   };
 }
 
@@ -9665,7 +9720,7 @@ window.greenMarketAuthCreateStaff = async function({name, user, pass, role}){
     const data = await res.json();
     if(!res.ok) throw new Error(data?.error?.message || 'Không tạo được tài khoản Auth');
     const uid = data.localId;
-    const normalizedRole = role === 'admin' ? 'admin' : 'cashier';
+    const normalizedRole = normalizeRole(role);
     const profile = {
       name,
       user: String(user || '').trim(),
@@ -9895,7 +9950,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
       await initFirebaseSync(true);
 
       userName.textContent = current.name;
-      userRole.textContent = current.role === 'admin' ? 'Admin' : 'Thu ngân';
+      userRole.textContent = getRoleLabel(current.role);
       loginMsg.textContent = '';
       loginPage.classList.add('hidden');
       appPage.classList.remove('hidden');
