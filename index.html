@@ -2707,7 +2707,7 @@ function clearSensitiveAdminViews(){
   });
 
   const summary = document.getElementById('shiftReportSummary');
-  if(summary) summary.innerHTML = 'Tài khoản này không có quyền xem báo cáo ca toàn cửa hàng.';
+  if(summary) summary.innerHTML = 'Tài khoản thu ngân không có quyền xem báo cáo ca toàn cửa hàng.';
 }
 
 function showPage(id){
@@ -8827,11 +8827,11 @@ function getShiftDateInput(s){
 }
 
 function renderShiftReport(){
-  if(!roleCan('shiftReport')){
+  if(!isAdminUser()){
     const body = document.getElementById('shiftReportBody');
-    if(body) body.innerHTML = '<tr><td colspan="10">Tài khoản này không có quyền xem báo cáo ca toàn cửa hàng</td></tr>';
+    if(body) body.innerHTML = '<tr><td colspan="10">Tài khoản thu ngân không có quyền xem báo cáo ca toàn cửa hàng</td></tr>';
     const summary = document.getElementById('shiftReportSummary');
-    if(summary) summary.innerHTML = 'Tài khoản này không có quyền xem báo cáo ca toàn cửa hàng.';
+    if(summary) summary.innerHTML = 'Tài khoản thu ngân không có quyền xem báo cáo ca toàn cửa hàng.';
     return;
   }
   if(!document.getElementById('shiftReportBody')) return;
@@ -9696,18 +9696,26 @@ window.greenMarketLoadUserProfiles = async function(){
 async function buildGreenMarketSessionFromFirebaseUser(firebaseUser){
   if(!firebaseUser) return null;
   const email = String(firebaseUser.email || '').trim().toLowerCase();
+  const userKey = authEmailToUsername(email);
+
+  // FIX QUAN TRỌNG: tài khoản admin luôn là admin.
+  // Tránh trường hợp Firestore collection role/user_roles có document cũ sai role
+  // làm admin bị hiểu nhầm thành Quản lý khi bấm Backup/Restore.
+  let profile = null;
+  if(userKey === 'admin'){
+    profile = {name:'Admin', user:'admin', email, role:'admin', active:true, source:'admin-force'};
+  }
 
   // Ưu tiên 1: hồ sơ theo email để nhân viên tạo tay trong Firestore đăng nhập được ngay.
-  let profile = await getProfileByEmail(email);
+  if(!profile) profile = await getProfileByEmail(email);
 
   // Ưu tiên 2: hồ sơ UID cũ nếu email chưa có trong role/user_roles.
   if(!profile){
     profile = await getProfileByUid(firebaseUser.uid);
   }
 
-  // Admin mặc định.
+  // Admin mặc định / tài khoản chưa có hồ sơ quyền.
   if(!profile){
-    const userKey = authEmailToUsername(email);
     if(userKey === 'admin'){
       profile = {name:'Admin', user:'admin', email, role:'admin', active:true};
     }else{
@@ -9881,160 +9889,7 @@ function shouldUseCloud(cloudData, force = false){
 async function initFirebaseSync(forceLoadCloud = false){
   try{
     if(!auth.currentUser){
-      
-
-/* =========================================================
-   GREEN MARKET V31 - KHÓA QUYỀN THẬT BÊN TRONG CODE
-   Mục tiêu:
-   - Kế toán: chỉ xem, không sửa/xóa/nhập/bán/khôi phục.
-   - Quản lý: được vận hành, sửa kho/giá/nhập hàng; không backup/restore/xóa dữ liệu/xóa nhân viên.
-   - Admin: toàn quyền.
-   Các hàm dưới đây được đặt cuối file để vá an toàn, không đụng nhiều logic cũ.
-   ========================================================= */
-(function(){
-  function r(){ return normalizeRole(window.current?.role || current?.role); }
-  function roleText(){ return roleLabel(window.current?.role || current?.role); }
-  function deny(action){
-    const msg = 'Tài khoản ' + roleText() + ' không có quyền dùng ' + action;
-    try{ addLog('Chặn quyền', msg); save?.(); }catch(e){}
-    alert(msg);
-    return false;
-  }
-
-  window.gmCan = function(action){
-    const role = r();
-    const a = String(action || '').toLowerCase();
-
-    if(role === 'admin') return true;
-
-    if(role === 'manager'){
-      // Quản lý được vận hành và sửa kho/giá/nhập hàng, nhưng không được đụng dữ liệu hệ thống nguy hiểm.
-      const blocked = [
-        'backup','khôi phục','restore','nhập dữ liệu','xuất dữ liệu','tải backup','áp dụng dữ liệu',
-        'xóa dữ liệu','xóa sản phẩm','xóa nhân viên','thêm nhân viên','phân quyền','firebase rules'
-      ];
-      if(blocked.some(k => a.includes(k))) return false;
-      return true;
-    }
-
-    if(role === 'accountant'){
-      // Kế toán chỉ xem / in / xuất báo cáo, không làm thay đổi dữ liệu.
-      const allowed = [
-        'xem','báo cáo','in báo cáo','xuất excel kế toán','xem kho','xem hóa đơn','xem thu chi',
-        'mục stock','mục bills','mục money','mục shiftreport'
-      ];
-      const mutating = [
-        'sửa','xóa','thêm','nhập kho','lưu phiếu','cộng kho','bán hàng','thanh toán',
-        'trả hàng','hoàn trả','mở ca','kết ca','backup','restore','khôi phục','nhập dữ liệu',
-        'xuất dữ liệu','nhân viên','phân quyền'
-      ];
-      if(mutating.some(k => a.includes(k))) return false;
-      return allowed.some(k => a.includes(k));
-    }
-
-    // Thu ngân chỉ bán hàng/ca/hóa đơn của mình, không quản trị.
-    if(role === 'cashier'){
-      return ['bán hàng','thanh toán','mở ca','kết ca','in hóa đơn','trả hàng hóa đơn của mình'].some(k => a.includes(k));
-    }
-
-    return false;
-  };
-
-  // Ghi đè kiểm tra quyền cũ bằng bản chặt hơn.
-  window.roleCanAction = function(action=''){
-    return window.gmCan(action);
-  };
-  window.requireAdmin = function(action='chức năng quản trị'){
-    return window.gmCan(action) || deny(action);
-  };
-
-  // Báo cáo ca: Admin / Quản lý / Kế toán đều được xem; Thu ngân không xem toàn cửa hàng.
-  if(typeof renderShiftReport === 'function'){
-    const originalRenderShiftReport = renderShiftReport;
-    window.renderShiftReport = renderShiftReport = function(){
-      if(!roleCan('shiftReport')){
-        const body = document.getElementById('shiftReportBody');
-        if(body) body.innerHTML = '<tr><td colspan="10">Tài khoản này không có quyền xem báo cáo ca toàn cửa hàng</td></tr>';
-        const summary = document.getElementById('shiftReportSummary');
-        if(summary) summary.innerHTML = 'Tài khoản này không có quyền xem báo cáo ca toàn cửa hàng.';
-        return;
-      }
-      // Tạm coi manager/accountant như nhóm được xem báo cáo để vượt qua điều kiện cũ if(!isAdminUser()).
-      const oldIsAdminUser = window.isAdminUser;
-      window.isAdminUser = function(){ return ['admin','manager','accountant'].includes(r()); };
-      try{ return originalRenderShiftReport.apply(this, arguments); }
-      finally{ window.isAdminUser = oldIsAdminUser; }
-    };
-  }
-
-  function wrap(name, action, allowedRoles){
-    const fn = window[name];
-    if(typeof fn !== 'function') return;
-    window[name] = function(){
-      const role = r();
-      if(Array.isArray(allowedRoles) && !allowedRoles.includes(role)) return deny(action);
-      if(!window.gmCan(action)) return false;
-      return fn.apply(this, arguments);
-    };
-    try{ eval(name + ' = window[name];'); }catch(e){}
-  }
-
-  // Khóa các thao tác làm thay đổi dữ liệu.
-  wrap('checkout', 'thanh toán / bán hàng', ['admin','manager','cashier']);
-  wrap('addToCart', 'bán hàng', ['admin','manager','cashier']);
-  wrap('directQuickAddProduct', 'bán hàng', ['admin','manager','cashier']);
-  wrap('quickAddProduct', 'bán hàng', ['admin','manager','cashier']);
-  wrap('addProductToCartById', 'bán hàng', ['admin','manager','cashier']);
-  wrap('openShift', 'mở ca', ['admin','manager','cashier']);
-  wrap('selectShift', 'mở ca', ['admin','manager','cashier']);
-  wrap('closeShift', 'kết ca', ['admin','manager','cashier']);
-  wrap('addProduct', 'thêm / nhập kho sản phẩm', ['admin','manager']);
-  wrap('editProductPrice', 'sửa thông tin sản phẩm', ['admin','manager']);
-  wrap('delProduct', 'xóa sản phẩm', ['admin']);
-  wrap('saveImportReceipt', 'lưu phiếu nhập kho', ['admin','manager']);
-  wrap('commitImportReceipt', 'xác nhận cộng kho', ['admin','manager']);
-  wrap('addImportDraftLine', 'lập phiếu nhập kho', ['admin','manager']);
-  wrap('editImportDraftLine', 'sửa dòng phiếu nhập kho', ['admin','manager']);
-  wrap('removeImportDraftLine', 'xóa dòng phiếu nhập kho', ['admin','manager']);
-  wrap('returnFullBill', 'trả hàng / hoàn trả hóa đơn', ['admin','manager','cashier']);
-  wrap('addStaff', 'thêm nhân viên / phân quyền', ['admin']);
-  wrap('delStaff', 'xóa nhân viên', ['admin']);
-  wrap('exportData', 'xuất dữ liệu backup', ['admin']);
-  wrap('downloadBackupToday', 'tải backup hôm nay', ['admin']);
-  wrap('importData', 'nhập dữ liệu', ['admin']);
-  wrap('restoreBackupFile', 'khôi phục backup', ['admin']);
-  wrap('applyBackupData', 'áp dụng dữ liệu backup', ['admin']);
-
-  // Ẩn nút thao tác nguy hiểm trong giao diện kế toán nếu lỡ render ra.
-  const oldRenderStock = window.renderStock || renderStock;
-  if(typeof oldRenderStock === 'function'){
-    window.renderStock = renderStock = function(){
-      const result = oldRenderStock.apply(this, arguments);
-      if(r() === 'accountant'){
-        document.querySelectorAll('#stock button, #imports button').forEach(btn => {
-          const text = (btn.textContent || '').toLowerCase();
-          if(['sửa','xóa','lưu','cộng','nhập','thêm'].some(k => text.includes(k))){
-            btn.classList.add('hidden');
-          }
-        });
-      }
-      return result;
-    };
-  }
-
-  // Nhật ký rõ hơn khi quản lý sửa sản phẩm: bản gốc đã addLog, phần này đảm bảo Firebase sync sau log.
-  const oldAddLog = window.addLog || addLog;
-  window.addLog = addLog = function(action, detail){
-    oldAddLog.apply(this, arguments);
-    try{
-      if(typeof window.greenMarketScheduleFirebaseSave === 'function'){
-        window.greenMarketScheduleFirebaseSave('permission_log');
-      }
-    }catch(e){}
-  };
-})();
-
-setSyncStatus("ℹ️ Đăng nhập để đồng bộ Firebase", true);
+      setSyncStatus("ℹ️ Đăng nhập để đồng bộ Firebase", true);
       return false;
     }
 
@@ -10158,159 +10013,6 @@ onAuthStateChanged(auth, async (firebaseUser) => {
     showLogin();
   }
 });
-
-
-
-/* =========================================================
-   GREEN MARKET V31 - KHÓA QUYỀN THẬT BÊN TRONG CODE
-   Mục tiêu:
-   - Kế toán: chỉ xem, không sửa/xóa/nhập/bán/khôi phục.
-   - Quản lý: được vận hành, sửa kho/giá/nhập hàng; không backup/restore/xóa dữ liệu/xóa nhân viên.
-   - Admin: toàn quyền.
-   Các hàm dưới đây được đặt cuối file để vá an toàn, không đụng nhiều logic cũ.
-   ========================================================= */
-(function(){
-  function r(){ return normalizeRole(window.current?.role || current?.role); }
-  function roleText(){ return roleLabel(window.current?.role || current?.role); }
-  function deny(action){
-    const msg = 'Tài khoản ' + roleText() + ' không có quyền dùng ' + action;
-    try{ addLog('Chặn quyền', msg); save?.(); }catch(e){}
-    alert(msg);
-    return false;
-  }
-
-  window.gmCan = function(action){
-    const role = r();
-    const a = String(action || '').toLowerCase();
-
-    if(role === 'admin') return true;
-
-    if(role === 'manager'){
-      // Quản lý được vận hành và sửa kho/giá/nhập hàng, nhưng không được đụng dữ liệu hệ thống nguy hiểm.
-      const blocked = [
-        'backup','khôi phục','restore','nhập dữ liệu','xuất dữ liệu','tải backup','áp dụng dữ liệu',
-        'xóa dữ liệu','xóa sản phẩm','xóa nhân viên','thêm nhân viên','phân quyền','firebase rules'
-      ];
-      if(blocked.some(k => a.includes(k))) return false;
-      return true;
-    }
-
-    if(role === 'accountant'){
-      // Kế toán chỉ xem / in / xuất báo cáo, không làm thay đổi dữ liệu.
-      const allowed = [
-        'xem','báo cáo','in báo cáo','xuất excel kế toán','xem kho','xem hóa đơn','xem thu chi',
-        'mục stock','mục bills','mục money','mục shiftreport'
-      ];
-      const mutating = [
-        'sửa','xóa','thêm','nhập kho','lưu phiếu','cộng kho','bán hàng','thanh toán',
-        'trả hàng','hoàn trả','mở ca','kết ca','backup','restore','khôi phục','nhập dữ liệu',
-        'xuất dữ liệu','nhân viên','phân quyền'
-      ];
-      if(mutating.some(k => a.includes(k))) return false;
-      return allowed.some(k => a.includes(k));
-    }
-
-    // Thu ngân chỉ bán hàng/ca/hóa đơn của mình, không quản trị.
-    if(role === 'cashier'){
-      return ['bán hàng','thanh toán','mở ca','kết ca','in hóa đơn','trả hàng hóa đơn của mình'].some(k => a.includes(k));
-    }
-
-    return false;
-  };
-
-  // Ghi đè kiểm tra quyền cũ bằng bản chặt hơn.
-  window.roleCanAction = function(action=''){
-    return window.gmCan(action);
-  };
-  window.requireAdmin = function(action='chức năng quản trị'){
-    return window.gmCan(action) || deny(action);
-  };
-
-  // Báo cáo ca: Admin / Quản lý / Kế toán đều được xem; Thu ngân không xem toàn cửa hàng.
-  if(typeof renderShiftReport === 'function'){
-    const originalRenderShiftReport = renderShiftReport;
-    window.renderShiftReport = renderShiftReport = function(){
-      if(!roleCan('shiftReport')){
-        const body = document.getElementById('shiftReportBody');
-        if(body) body.innerHTML = '<tr><td colspan="10">Tài khoản này không có quyền xem báo cáo ca toàn cửa hàng</td></tr>';
-        const summary = document.getElementById('shiftReportSummary');
-        if(summary) summary.innerHTML = 'Tài khoản này không có quyền xem báo cáo ca toàn cửa hàng.';
-        return;
-      }
-      // Tạm coi manager/accountant như nhóm được xem báo cáo để vượt qua điều kiện cũ if(!isAdminUser()).
-      const oldIsAdminUser = window.isAdminUser;
-      window.isAdminUser = function(){ return ['admin','manager','accountant'].includes(r()); };
-      try{ return originalRenderShiftReport.apply(this, arguments); }
-      finally{ window.isAdminUser = oldIsAdminUser; }
-    };
-  }
-
-  function wrap(name, action, allowedRoles){
-    const fn = window[name];
-    if(typeof fn !== 'function') return;
-    window[name] = function(){
-      const role = r();
-      if(Array.isArray(allowedRoles) && !allowedRoles.includes(role)) return deny(action);
-      if(!window.gmCan(action)) return false;
-      return fn.apply(this, arguments);
-    };
-    try{ eval(name + ' = window[name];'); }catch(e){}
-  }
-
-  // Khóa các thao tác làm thay đổi dữ liệu.
-  wrap('checkout', 'thanh toán / bán hàng', ['admin','manager','cashier']);
-  wrap('addToCart', 'bán hàng', ['admin','manager','cashier']);
-  wrap('directQuickAddProduct', 'bán hàng', ['admin','manager','cashier']);
-  wrap('quickAddProduct', 'bán hàng', ['admin','manager','cashier']);
-  wrap('addProductToCartById', 'bán hàng', ['admin','manager','cashier']);
-  wrap('openShift', 'mở ca', ['admin','manager','cashier']);
-  wrap('selectShift', 'mở ca', ['admin','manager','cashier']);
-  wrap('closeShift', 'kết ca', ['admin','manager','cashier']);
-  wrap('addProduct', 'thêm / nhập kho sản phẩm', ['admin','manager']);
-  wrap('editProductPrice', 'sửa thông tin sản phẩm', ['admin','manager']);
-  wrap('delProduct', 'xóa sản phẩm', ['admin']);
-  wrap('saveImportReceipt', 'lưu phiếu nhập kho', ['admin','manager']);
-  wrap('commitImportReceipt', 'xác nhận cộng kho', ['admin','manager']);
-  wrap('addImportDraftLine', 'lập phiếu nhập kho', ['admin','manager']);
-  wrap('editImportDraftLine', 'sửa dòng phiếu nhập kho', ['admin','manager']);
-  wrap('removeImportDraftLine', 'xóa dòng phiếu nhập kho', ['admin','manager']);
-  wrap('returnFullBill', 'trả hàng / hoàn trả hóa đơn', ['admin','manager','cashier']);
-  wrap('addStaff', 'thêm nhân viên / phân quyền', ['admin']);
-  wrap('delStaff', 'xóa nhân viên', ['admin']);
-  wrap('exportData', 'xuất dữ liệu backup', ['admin']);
-  wrap('downloadBackupToday', 'tải backup hôm nay', ['admin']);
-  wrap('importData', 'nhập dữ liệu', ['admin']);
-  wrap('restoreBackupFile', 'khôi phục backup', ['admin']);
-  wrap('applyBackupData', 'áp dụng dữ liệu backup', ['admin']);
-
-  // Ẩn nút thao tác nguy hiểm trong giao diện kế toán nếu lỡ render ra.
-  const oldRenderStock = window.renderStock || renderStock;
-  if(typeof oldRenderStock === 'function'){
-    window.renderStock = renderStock = function(){
-      const result = oldRenderStock.apply(this, arguments);
-      if(r() === 'accountant'){
-        document.querySelectorAll('#stock button, #imports button').forEach(btn => {
-          const text = (btn.textContent || '').toLowerCase();
-          if(['sửa','xóa','lưu','cộng','nhập','thêm'].some(k => text.includes(k))){
-            btn.classList.add('hidden');
-          }
-        });
-      }
-      return result;
-    };
-  }
-
-  // Nhật ký rõ hơn khi quản lý sửa sản phẩm: bản gốc đã addLog, phần này đảm bảo Firebase sync sau log.
-  const oldAddLog = window.addLog || addLog;
-  window.addLog = addLog = function(action, detail){
-    oldAddLog.apply(this, arguments);
-    try{
-      if(typeof window.greenMarketScheduleFirebaseSave === 'function'){
-        window.greenMarketScheduleFirebaseSave('permission_log');
-      }
-    }catch(e){}
-  };
-})();
 
 setSyncStatus("ℹ️ Đăng nhập để đồng bộ Firebase", true);
 </script>
