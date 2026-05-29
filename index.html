@@ -2131,6 +2131,8 @@ let stockFilter = 'all';
 let chart;
 let billChart;
 let staffChart;
+let activeBillDetailCode = null;
+let billDetailRefreshing = false;
 
 /* =========================================================
    17. HÀM TIỆN ÍCH CHUNG
@@ -2541,6 +2543,7 @@ async function login(){
     loginPage.classList.add('hidden');
     appPage.classList.remove('hidden');
 
+    try{ closeBillDetail(); }catch(e){}
     applyPermission();
     showPage('home');
     renderAll();
@@ -7816,6 +7819,46 @@ function getVisibleBillsWithIndex(visibleBills){
   })).filter(x => x.globalIndex >= 0);
 }
 
+
+function findBillIndexByCode(code){
+  const target = String(code || '').trim();
+  if(!target) return -1;
+
+  for(let i = 0; i < bills.length; i++){
+    if(String(getBillCode(bills[i], i)).trim() === target){
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+function refreshActiveBillDetail(){
+  const box = document.getElementById('billDetailBox');
+  if(!box || box.classList.contains('hidden') || !activeBillDetailCode) return;
+
+  const index = findBillIndexByCode(activeBillDetailCode);
+  if(index < 0){
+    closeBillDetail();
+    return;
+  }
+
+  const b = bills[index];
+  if(!canAccessBill(b)){
+    closeBillDetail();
+    return;
+  }
+
+  if(billDetailRefreshing) return;
+
+  try{
+    billDetailRefreshing = true;
+    viewBillDetail(index, true);
+  }finally{
+    billDetailRefreshing = false;
+  }
+}
+
 function renderBillHistory(visibleBills){
   const body = document.getElementById('billBody');
   if(!body) return;
@@ -7872,6 +7915,9 @@ function renderBillHistory(visibleBills){
       <td colspan="8" style="text-align:center;color:#64748b;font-weight:700">Chưa có hóa đơn phù hợp</td>
     </tr>
   `;
+
+  // Sau khi Firebase đồng bộ/danh sách render lại, chi tiết đang mở cũng phải cập nhật đúng trạng thái mới.
+  try{ refreshActiveBillDetail(); }catch(e){}
 }
 
 function getBillReprintCount(bill){
@@ -8021,10 +8067,21 @@ function canAccessBill(bill){
   return String(bill.staff || '').trim().toLowerCase() === String(current.name || '').trim().toLowerCase();
 }
 
-function viewBillDetail(index){
-  const b = bills[index];
+function viewBillDetail(index, silentRefresh = false){
+  let b = bills[index];
   const box = document.getElementById('billDetailBox');
   if(!b || !box) return;
+
+  // Luôn lấy hóa đơn mới nhất theo mã hóa đơn để tránh chi tiết cũ sau khi Firebase đồng bộ.
+  const code = getBillCode(b, index);
+  const latestIndex = findBillIndexByCode(code);
+  if(latestIndex >= 0){
+    index = latestIndex;
+    b = bills[index];
+  }
+
+  activeBillDetailCode = getBillCode(b, index);
+
   if(!canAccessBill(b)){
     alert('Bạn chỉ được xem hóa đơn của chính mình.');
     return;
@@ -8080,10 +8137,13 @@ function viewBillDetail(index){
     }
     ${!isBillReturned(b) ? `<div class="bill-total-line"><span>Tổng cộng:</span><span>${money(b.total)}</span></div>` : ''}
   `;
-  box.scrollIntoView({behavior:'smooth', block:'nearest'});
+  if(!silentRefresh){
+    box.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
 }
 
 function closeBillDetail(){
+  activeBillDetailCode = null;
   const box = document.getElementById('billDetailBox');
   if(box){
     box.classList.add('hidden');
@@ -9877,7 +9937,8 @@ onAuthStateChanged(auth, async (firebaseUser) => {
       loginMsg.textContent = '';
       loginPage.classList.add('hidden');
       appPage.classList.remove('hidden');
-      applyPermission();
+      try{ closeBillDetail(); }catch(e){}
+    applyPermission();
       showPage('home');
       renderAll();
       renderTopProducts();
