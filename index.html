@@ -7930,7 +7930,24 @@ function getBillOriginalTotal(bill){
 }
 
 function isBillReturned(bill){
-  return !!(bill && bill.returned);
+  // FIX 29/05: nhận diện trả hàng theo nhiều kiểu dữ liệu để danh sách và chi tiết luôn đồng bộ.
+  // Có hóa đơn cũ/Firebase cũ chỉ có returnCode/returnTime/returnAmount/status chứ chưa chắc có returned=true.
+  if(!bill) return false;
+  const statusText = String(
+    bill.status ?? bill.trangThai ?? bill.billStatus ?? bill.returnStatus ?? ''
+  ).toLowerCase();
+
+  return !!(
+    bill.returned === true ||
+    bill.isReturned === true ||
+    bill.daTraHang === true ||
+    bill.returnCode ||
+    bill.returnTime ||
+    Number(bill.returnAmount || 0) > 0 ||
+    statusText.includes('trả') ||
+    statusText.includes('tra') ||
+    statusText.includes('return')
+  );
 }
 
 function getReturnCode(bill, index = 0){
@@ -8001,6 +8018,11 @@ function returnFullBill(index){
     String(new Date().getSeconds()).padStart(2, '0');
 
   b.returned = true;
+  b.isReturned = true;
+  b.daTraHang = true;
+  b.status = 'Đã trả hàng';
+  b.trangThai = 'Đã trả hàng';
+  b.billStatus = 'Đã trả hàng';
   b.returnCode = returnCode;
   b.returnTime = now();
   b.returnBy = current?.name || 'Admin';
