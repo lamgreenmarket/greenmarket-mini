@@ -4898,16 +4898,18 @@ function renderLogs(){
     return;
   }
   if(!document.getElementById('logBody')) return;
-  logBody.innerHTML = logs.map((l, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHTML(l.time)}</td>
-      <td>${escapeHTML(l.user)}</td>
-      <td>${escapeHTML(l.role)}</td>
-      <td>${escapeHTML(l.action)}</td>
-      <td>${escapeHTML(l.detail)}</td>
-    </tr>
-  `).join('');
+ logBody.innerHTML = logs.map((l, i) => `
+  <tr>
+    <td>${i + 1}</td>
+    <td>${escapeHTML(l.time)}</td>
+    <td>${escapeHTML(l.user)}</td>
+    <td>${escapeHTML(l.role)}</td>
+    <td>${escapeHTML(l.action)}</td>
+    <td style="white-space:normal;word-break:break-word;max-width:650px;line-height:1.5;">
+      ${escapeHTML(l.detail)}
+    </td>
+  </tr>
+`).join('');
 }
 
 /* =========================================================
