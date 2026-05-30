@@ -314,8 +314,19 @@ tr:nth-child(even) td{
 /* =========================================================
    POS BÁN HÀNG - GIAO DIỆN MÁY THU NGÂN
    ========================================================= */
-.pos-shell{display:grid;grid-template-columns:1.15fr 1.45fr .9fr;gap:18px;align-items:start}
-.pos-panel{background:#fff;border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 8px 20px #0000000d}
+.pos-shell{
+  display:grid;
+  grid-template-columns:1.15fr 1.65fr .8fr;
+  gap:18px;
+  align-items:start;
+}
+.pos-panel{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:22px;
+  padding:16px;
+  box-shadow:0 8px 20px #0000000d;
+}
 .pos-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
 .pos-title h3{margin:0;color:#0f4c81;font-size:19px}
 .pos-search{position:sticky;top:170px;background:white;z-index:1;padding-bottom:10px}
@@ -330,7 +341,12 @@ tr:nth-child(even) td{
 .pos-product-card .pos-select-hint{font-size:12px;color:#64748b;margin-top:6px}
 .pos-total-box{background:linear-gradient(135deg,#0ea5e9,#16a34a);color:#fff;border-radius:22px;padding:20px;margin-bottom:14px;box-shadow:0 12px 26px #0ea5e933}
 .pos-total-box .label{font-size:14px;opacity:.9;font-weight:700}
-.pos-total-box .total{font-size:34px;font-weight:900;margin-top:6px;letter-spacing:.3px}
+.pos-total-box .total{
+  font-size:30px;
+  font-weight:900;
+  margin-top:6px;
+  letter-spacing:.3px;
+}
 .pos-pay-row{display:flex;justify-content:space-between;gap:10px;margin:10px 0;font-weight:700}
 .pos-pay-row span:last-child{font-weight:900;color:#0f4c81;text-align:right}
 .pos-change{font-size:24px!important;color:#16a34a!important}
@@ -343,6 +359,17 @@ tr:nth-child(even) td{
 .pos-hotkeys{font-size:13px;color:#64748b;line-height:1.5;margin-top:10px}
 .pos-cart table{min-width:720px}
 .pos-cart .table-wrap{max-height:430px;overflow:auto}
+.pos-shell{
+  min-height: calc(100vh - 360px);
+}
+
+.pos-panel:last-child{
+  max-height: none;
+}
+
+.pos-panel:last-child .btn-red{
+  margin-top:12px;
+}
 @media(max-width:1100px){.pos-shell{grid-template-columns:1fr}.pos-search{position:static}.pos-products{max-height:none}}
 
 
