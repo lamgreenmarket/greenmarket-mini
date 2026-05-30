@@ -403,6 +403,64 @@ tr:nth-child(even) td{
     font-size:13px!important;
   }
 }
+/* FIX POS DESKTOP - THU GỌN KHUNG THANH TOÁN */
+@media (min-width: 901px){
+  .pos-shell{
+    grid-template-columns:1.05fr 1.75fr .78fr!important;
+    gap:18px!important;
+  }
+
+  .pos-shell > .pos-panel:nth-child(3){
+    padding:13px!important;
+  }
+
+  .pos-shell > .pos-panel:nth-child(3) .pos-total-box{
+    padding:11px 14px!important;
+    margin-bottom:8px!important;
+    border-radius:18px!important;
+  }
+
+  .pos-shell > .pos-panel:nth-child(3) .pos-total-box .total{
+    font-size:27px!important;
+  }
+
+  .pos-shell > .pos-panel:nth-child(3) .pos-methods{
+    margin:6px 0 8px!important;
+    gap:6px!important;
+  }
+
+  .pos-shell > .pos-panel:nth-child(3) .pos-methods button{
+    min-height:36px!important;
+    padding:6px 6px!important;
+    font-size:12px!important;
+  }
+
+  .pos-shell > .pos-panel:nth-child(3) input{
+    height:40px!important;
+    padding:8px 10px!important;
+  }
+
+  .pos-shell > .pos-panel:nth-child(3) .pos-status{
+    padding:8px 10px!important;
+    margin:8px 0!important;
+    line-height:1.35!important;
+  }
+
+  .pos-shell > .pos-panel:nth-child(3) .pos-pay-row{
+    margin:6px 0!important;
+    font-size:14px!important;
+  }
+
+  .pos-shell > .pos-panel:nth-child(3) .pos-change{
+    font-size:22px!important;
+  }
+
+  .pos-shell > .pos-panel:nth-child(3) button.full{
+    min-height:38px!important;
+    margin-top:8px!important;
+    padding:7px 10px!important;
+  }
+}
 /* =========================================================
    TEM MÃ VẠCH A4 - FINAL 40x20MM, 60 TEM/TRANG
    Không ảnh hưởng CSS in hóa đơn nhiệt vì phần in A4 dùng cửa sổ riêng.
