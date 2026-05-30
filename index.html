@@ -8222,12 +8222,7 @@ function printReturnReceiptByIndex(index){
       Trả ${Number(c.qty || 0)} x ${money(c.price)} = ${money(Number(c.total || c.qty * c.price))}
     </div>
   `).join('') || '<div class="receipt-item">Không có dữ liệu món trả</div>';
-  const actorRole =
-  current?.role === 'admin' ? 'Admin' :
-  current?.role === 'manager' ? 'Quản lý' :
-  current?.role === 'accountant' ? 'Kế toán' :
-  current?.role === 'cashier' ? 'Thu ngân' :
-  'Không rõ';
+ 
   addLog(
     'In hóa đơn hoàn trả',
     `${returnCode} - In hóa đơn hoàn trả cho hóa đơn ${billCode} - Số tiền hoàn ${money(returnAmount)}`
@@ -8333,6 +8328,12 @@ function printBillReceiptByIndex(index){
   `).join('') || '<div class="receipt-item">Hóa đơn cũ chưa có chi tiết món</div>';
 
   b.reprintCount = nextCount;
+  const actorRole =
+  current?.role === 'admin' ? 'Admin' :
+  current?.role === 'manager' ? 'Quản lý' :
+  current?.role === 'accountant' ? 'Kế toán' :
+  current?.role === 'cashier' ? 'Thu ngân' :
+  'Không rõ';
   b.reprintLogs.push({
     time: now(),
     user: current?.name || 'Hệ thống',
