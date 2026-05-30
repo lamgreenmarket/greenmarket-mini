@@ -1645,6 +1645,8 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
       <button type="button" class="menu-btn" onclick="toggleDataMenu(event)">📦 Dữ liệu ⏷</button>
       <div id="dataDropdown" class="dropdown-content">
         <button type="button" onclick="downloadBackupToday();closeDataMenu()">💾 Tải backup hôm nay</button>
+        <button type="button" onclick="greenMarketBackupFirebaseNow();closeDataMenu()">☁️ Backup Firebase ngay</button>
+        <button type="button" onclick="greenMarketRestoreFirebaseBackup();closeDataMenu()">♻️ Khôi phục backup Firebase</button>
         <button type="button" onclick="exportData();closeDataMenu()">📤 Xuất dữ liệu</button>
         <button type="button" onclick="document.getElementById('importFile').click();closeDataMenu()">📥 Nhập dữ liệu</button>
         <button type="button" onclick="document.getElementById('restoreBackupFile').click();closeDataMenu()">♻️ Khôi phục backup</button>
@@ -5072,6 +5074,14 @@ function autoBackupDaily(showToast = false){
   localStorage.setItem(key, JSON.stringify(buildBackupData()));
   localStorage.setItem('green_market_backup_latest_key', key);
   cleanOldBackups(5);
+
+  // Nếu đã đăng nhập Firebase, tự tạo thêm 1 bản backup cloud/ngày.
+  // Hàm cloud nằm ở module Firebase phía cuối file, nên chỉ gọi khi đã sẵn sàng.
+  try{
+    if(typeof window.greenMarketAutoBackupCloud === 'function'){
+      window.greenMarketAutoBackupCloud(false);
+    }
+  }catch(e){}
 
   if(showToast){
     alert('✅ Đã auto backup hôm nay: ' + today);
@@ -9643,6 +9653,7 @@ import {
   getDoc,
   getDocs,
   collection,
+  deleteDoc,
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
@@ -9667,6 +9678,8 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const CLOUD_DOC = doc(db, "greenmarket", "main_data");
+const BACKUP_COLLECTION = "greenmarket_backups";
+const CLOUD_BACKUP_KEEP = 7;
 const AUTH_USERS_COLLECTION = "greenmarket_auth_users";
 const CLOUD_KEYS = [
   "v2_products",
@@ -10074,6 +10087,179 @@ function shouldUseCloud(cloudData, force = false){
   return false;
 }
 
+
+function getCloudBackupDateKey(){
+  try{
+    if(typeof window.getBackupDateKey === 'function') return window.getBackupDateKey();
+  }catch(e){}
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function cloudBackupAllowed(){
+  const role = typeof window.normalizeRole === 'function'
+    ? window.normalizeRole(window.current?.role)
+    : String(window.current?.role || '').toLowerCase();
+  return ['admin','manager'].includes(role);
+}
+
+async function cleanCloudBackups(maxKeep = CLOUD_BACKUP_KEEP){
+  try{
+    const qs = await getDocs(collection(db, BACKUP_COLLECTION));
+    const list = [];
+    qs.forEach(d => list.push({id:d.id, ...(d.data() || {})}));
+    list.sort((a,b) => String(a.id).localeCompare(String(b.id)));
+    while(list.length > maxKeep){
+      const old = list.shift();
+      await deleteDoc(doc(db, BACKUP_COLLECTION, old.id));
+    }
+  }catch(e){
+    console.warn('Không dọn được backup cũ Firebase', e);
+  }
+}
+
+let cloudBackupBusy = false;
+
+async function saveCloudBackupNow(manual = false, showAlert = false){
+  if(cloudBackupBusy) return false;
+  if(!auth.currentUser){
+    if(showAlert) alert('Bạn cần đăng nhập Firebase trước khi backup.');
+    return false;
+  }
+  if(!cloudBackupAllowed()){
+    if(showAlert) alert('Chỉ Admin hoặc Quản lý được backup Firebase.');
+    return false;
+  }
+
+  const today = getCloudBackupDateKey();
+  const doneKey = 'green_market_cloud_backup_done_' + today;
+
+  if(!manual && localStorage.getItem(doneKey) === 'yes'){
+    return true;
+  }
+
+  cloudBackupBusy = true;
+  try{
+    const backupData = typeof window.buildBackupData === 'function'
+      ? window.buildBackupData()
+      : {};
+
+    const backupDoc = {
+      app: 'greenmarket-mini',
+      date: today,
+      backupAt: serverTimestamp(),
+      backupLocalTime: new Date().toISOString(),
+      manual: !!manual,
+      by: {
+        name: window.current?.name || '',
+        user: window.current?.user || '',
+        role: window.current?.role || ''
+      },
+      counts: localCounts(),
+      data: backupData
+    };
+
+    await setDoc(doc(db, BACKUP_COLLECTION, today), backupDoc, { merge: true });
+    originalSetItem(doneKey, 'yes');
+    originalSetItem('green_market_cloud_backup_latest_date', today);
+
+    await cleanCloudBackups(CLOUD_BACKUP_KEEP);
+
+    if(manual){
+      try{
+        if(typeof window.addLog === 'function'){
+          window.addLog('Backup Firebase', 'Backup thủ công lên Firebase ngày ' + today);
+        }
+      }catch(e){}
+      try{ await saveCloudNow('manual_cloud_backup_' + today); }catch(e){}
+    }
+
+    setSyncStatus('☁️ Đã backup Firebase ' + today, true);
+    if(showAlert) alert('✅ Đã backup Firebase ngày ' + today + '. Hệ thống giữ 7 bản gần nhất.');
+    return true;
+  }catch(err){
+    console.error('❌ Cloud backup error', err);
+    setSyncStatus('⚠️ Backup Firebase lỗi', false);
+    if(showAlert) alert('❌ Backup Firebase lỗi: ' + (err?.message || err));
+    return false;
+  }finally{
+    cloudBackupBusy = false;
+  }
+}
+
+window.greenMarketAutoBackupCloud = function(){
+  return saveCloudBackupNow(false, false);
+};
+
+window.greenMarketBackupFirebaseNow = async function(){
+  try{
+    if(typeof window.requireAdmin === 'function' && !window.requireAdmin('backup Firebase ngay')) return;
+  }catch(e){}
+  await saveCloudBackupNow(true, true);
+};
+
+window.greenMarketRestoreFirebaseBackup = async function(){
+  try{
+    if(typeof window.requireAdmin === 'function' && !window.requireAdmin('khôi phục backup Firebase')) return;
+  }catch(e){}
+
+  if(!auth.currentUser){
+    alert('Bạn cần đăng nhập Firebase trước khi khôi phục backup.');
+    return;
+  }
+
+  try{
+    const qs = await getDocs(collection(db, BACKUP_COLLECTION));
+    const list = [];
+    qs.forEach(d => list.push({id:d.id, ...(d.data() || {})}));
+    list.sort((a,b) => String(b.id).localeCompare(String(a.id)));
+
+    if(list.length === 0){
+      alert('Chưa có bản backup Firebase nào.');
+      return;
+    }
+
+    const text = list.map((b, i) => {
+      const c = b.counts || {};
+      const by = b.by?.name ? (' - ' + b.by.name) : '';
+      return `${i + 1}. ${b.id}${by} | HĐ: ${c.bills || 0}, Kho: ${c.products || 0}, Nhật ký: ${c.logs || 0}`;
+    }).join('\n');
+
+    const input = prompt('Chọn số thứ tự bản backup Firebase cần khôi phục:\n\n' + text, '1');
+    if(input === null) return;
+
+    const idx = Number(input) - 1;
+    if(!Number.isInteger(idx) || idx < 0 || idx >= list.length){
+      alert('Số thứ tự không hợp lệ.');
+      return;
+    }
+
+    const chosen = list[idx];
+    if(!confirm('⚠️ Khôi phục backup ngày ' + chosen.id + ' sẽ thay dữ liệu hiện tại. Bạn chắc chắn muốn tiếp tục?')) return;
+
+    if(typeof window.applyBackupData !== 'function'){
+      alert('Không tìm thấy hàm khôi phục dữ liệu trong trang.');
+      return;
+    }
+
+    window.applyBackupData(chosen.data || {});
+
+    try{
+      if(typeof window.addLog === 'function'){
+        window.addLog('Khôi phục Backup Firebase', 'Khôi phục dữ liệu từ bản backup Firebase ngày ' + chosen.id);
+      }
+    }catch(e){}
+
+    try{ await saveCloudNow('restore_cloud_backup_' + chosen.id); }catch(e){}
+    setSyncStatus('☁️ Đã khôi phục backup Firebase ' + chosen.id, true);
+    alert('✅ Đã khôi phục backup Firebase ngày ' + chosen.id);
+  }catch(err){
+    console.error('❌ Restore cloud backup error', err);
+    setSyncStatus('⚠️ Lỗi khôi phục Backup Firebase', false);
+    alert('❌ Lỗi khôi phục Backup Firebase: ' + (err?.message || err));
+  }
+};
+
 async function initFirebaseSync(forceLoadCloud = false){
   try{
     if(!auth.currentUser){
@@ -10122,6 +10308,7 @@ async function initFirebaseSync(forceLoadCloud = false){
     }
 
     firebaseSyncReady = true;
+    try{ window.greenMarketAutoBackupCloud(); }catch(e){}
     console.log("✅ Firebase sync ready after auth");
     return true;
   }catch(err){
