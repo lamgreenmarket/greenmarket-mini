@@ -8304,16 +8304,22 @@ function printBillReceiptByIndex(index){
     return;
   }
 
-  let reason = '';
-  if(admin && oldCount >= 1){
-    reason = prompt(`Hóa đơn ${billCode} đã in lại ${oldCount} lần.\nNhập lý do để Admin/Quản lý in lại lần ${nextCount}:`, 'Khách yêu cầu / đối chiếu hóa đơn');
-    if(reason === null) return;
-    reason = cleanText(reason);
-    if(!reason){
-      alert('Admin/Quản lý phải nhập lý do khi in lại từ lần 2 trở đi.');
-      return;
-    }
+let reason = '';
+if(admin){
+  reason = prompt(
+    `Nhập lý do in lại hóa đơn ${billCode} lần ${nextCount}:\n\nGợi ý: Khách yêu cầu / Đối chiếu hóa đơn / Khách làm mất hóa đơn / Kiểm tra doanh thu`,
+    'Đối chiếu hóa đơn'
+  );
+
+  if(reason === null) return;
+
+  reason = cleanText(reason);
+
+  if(!reason){
+    alert('Admin/Quản lý phải nhập lý do khi in lại hóa đơn.');
+    return;
   }
+}
 
   const confirmText = admin
     ? `Xác nhận IN LẠI hóa đơn ${billCode} lần ${nextCount}?\nHóa đơn sẽ có dấu BẢN IN LẠI và được lưu nhật ký.`
