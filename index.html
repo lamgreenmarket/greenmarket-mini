@@ -2574,14 +2574,29 @@ async function login(){
 }
 
 async function logout(){
+
   try{ resetBillDetailForNewSession(); }catch(e){}
+
   addLog('Đăng xuất', 'Thoát khỏi hệ thống an toàn');
+
+  if(typeof save === 'function'){
+    save();
+  }
+
   try{
-    if(typeof window.greenMarketAuthSignOut === 'function') await window.greenMarketAuthSignOut();
+    await new Promise(r => setTimeout(r, 500));
   }catch(e){}
+
+  try{
+    if(typeof window.greenMarketAuthSignOut === 'function')
+      await window.greenMarketAuthSignOut();
+  }catch(e){}
+
   current = null;
+
   loginUser.value = '';
   loginPass.value = '';
+
   showLogin();
 }
 
