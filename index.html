@@ -212,7 +212,7 @@ tr:nth-child(even) td{
   color:#000;
   margin:0 auto;
   padding:2.6mm;
-  font-family:Arial, sans-serif;
+  font-family:Tahoma, Arial, sans-serif;
   font-size:14px;
   font-weight:700;
   line-height:1.28;
@@ -221,7 +221,7 @@ tr:nth-child(even) td{
   border-radius:6px;
 }
 .receipt *{
-  font-family:Arial, sans-serif;
+  font-family:Tahoma, Arial, sans-serif;
   font-weight:700;
   box-sizing:border-box;
 }
@@ -236,23 +236,44 @@ tr:nth-child(even) td{
   border-top:1px dashed #000;
   margin:6px 0;
 }
+
+.receipt-info{
+  font-size:13px;
+  line-height:1.23;
+  margin:1px 0;
+  word-break:break-word;
+}
+.receipt-info::before{
+  content:"• ";
+  font-weight:900;
+}
+
 .receipt-total{
   display:grid;
-  grid-template-columns:1fr auto;
+  grid-template-columns:minmax(0,1fr) max-content;
   align-items:start;
-  column-gap:6px;
-  font-size:14px;
+  column-gap:5px;
+  font-size:13.2px;
   font-weight:900;
-  line-height:1.25;
+  line-height:1.18;
   margin:2px 0;
 }
 .receipt-total span:first-child{
   min-width:0;
   white-space:nowrap;
+  overflow:hidden;
 }
 .receipt-total span:last-child{
   text-align:right;
   white-space:nowrap;
+  font-size:13.2px;
+}
+.receipt-total-long{
+  font-size:12px;
+  column-gap:3px;
+}
+.receipt-total-long span:last-child{
+  font-size:12px;
 }
 .receipt-item{
   margin:3px 0 1px;
@@ -1307,9 +1328,11 @@ tr:hover td{background:#f0fdf4!important}
   padding:4px 3px;
   margin:4px 0 6px;
   text-align:center;
-  font-size:16px;
+  font-family:Tahoma, Arial, sans-serif;
+  font-size:15px;
   font-weight:900;
-  letter-spacing:.3px;
+  letter-spacing:0;
+  line-height:1.15;
 }
 
 .bill-return-note{
@@ -4763,7 +4786,7 @@ function checkout(){
 function printReceipt(total, paymentText = 'Tiền mặt'){
   const staffName = escapeHTML(current?.name || 'Admin');
   const itemHtml = cart.map(c => `
-    <div class="receipt-item">• ${escapeHTML(c.name)}</div>
+    <div class="receipt-item">• ${escapeHTML(c.name)}:</div>
     <div class="receipt-money">
       ${Number(c.qty)} x ${money(c.price)} = ${money(c.qty * c.price)}
     </div>
@@ -8370,7 +8393,7 @@ function printReturnReceiptByIndex(index){
   const returnCode = b.returnCode || getReturnCode(b, index);
   const returnAmount = Number(b.returnAmount || b.returnOriginalTotal || 0);
   const itemHtml = (b.returnItems || b.items || []).map(c => `
-    <div class="receipt-item">• ${escapeHTML(c.name)}</div>
+    <div class="receipt-item">• ${escapeHTML(c.name)}:</div>
     <div class="receipt-money">
       Trả ${Number(c.qty || 0)} x ${money(c.price)} = ${money(Number(c.total || c.qty * c.price))}
     </div>
@@ -8389,13 +8412,13 @@ function printReturnReceiptByIndex(index){
     <div class="receipt-return-stamp">PHIẾU TRẢ HÀNG</div>
     <div class="receipt-line"></div>
 
-    <div>Mã phiếu trả: ${escapeHTML(returnCode)}</div>
-    <div>Hóa đơn gốc: ${escapeHTML(billCode)}</div>
-    <div>Ngày bán: ${escapeHTML(b.time || '')}</div>
-    <div>Ngày trả: ${escapeHTML(b.returnTime || '')}</div>
-    <div>Người xử lý: ${escapeHTML(b.returnBy || current?.name || '')}</div>
-    <div>Nhân viên bán: ${escapeHTML(b.staff || '')}</div>
-    <div>Lý do: ${escapeHTML(b.returnReason || '')}</div>
+    <div class="receipt-info">Mã phiếu trả: ${escapeHTML(returnCode)}</div>
+    <div class="receipt-info">Hóa đơn gốc: ${escapeHTML(billCode)}</div>
+    <div class="receipt-info">Ngày bán: ${escapeHTML(b.time || '')}</div>
+    <div class="receipt-info">Ngày trả: ${escapeHTML(b.returnTime || '')}</div>
+    <div class="receipt-info">Người xử lý: ${escapeHTML(b.returnBy || current?.name || '')}</div>
+    <div class="receipt-info">Nhân viên bán: ${escapeHTML(b.staff || '')}</div>
+    <div class="receipt-info">Lý do: ${escapeHTML(b.returnReason || '')}</div>
     <div class="receipt-line"></div>
 
     ${itemHtml}
@@ -8409,7 +8432,7 @@ function printReturnReceiptByIndex(index){
       <span>HOÀN TIỀN:</span>
       <span>${money(returnAmount)}</span>
     </div>
-    <div class="receipt-total">
+    <div class="receipt-total receipt-total-long">
       <span>DOANH THU SAU TRẢ:</span>
       <span>${money(0)}</span>
     </div>
@@ -8480,7 +8503,7 @@ if(admin){
   if(!confirm(confirmText)) return;
 
   const itemHtml = (b.items || []).map(c => `
-    <div class="receipt-item">• ${escapeHTML(c.name)}</div>
+    <div class="receipt-item">• ${escapeHTML(c.name)}:</div>
     <div class="receipt-money">
       ${Number(c.qty)} x ${money(c.price)} = ${money(Number(c.total || c.qty * c.price))}
     </div>
