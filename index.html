@@ -206,7 +206,7 @@ tr:nth-child(even) td{
    07. HÓA ĐƠN IN 58MM - BẢN ĐẸP CHO MÁY IN NHIỆT
    ========================================================= */
 .receipt{
-  width:56mm;
+  width:54mm;
   min-height:auto;
   background:#fff;
   color:#000;
@@ -267,14 +267,16 @@ tr:nth-child(even) td{
 .receipt-total span:last-child{
   text-align:right;
   white-space:nowrap;
-  font-size:13.8px;
+  font-size:13.2px;
+  padding-right:2mm;
 }
 .receipt-total-long{
   font-size:12px;
   column-gap:3px;
 }
 .receipt-total-long span:last-child{
-  font-size:12px;
+  font-size:11.8px;
+  padding-right:2mm;
 }
 .receipt-item{
   margin:3px 0 1px;
@@ -373,8 +375,8 @@ tr:nth-child(even) td{
 
   /* BỎ KHUNG DỌC: chỉ giữ gạch trên/gạch dưới, tránh lệch và mất viền phải */
   #receiptPrint .receipt{
-    width:56mm!important;
-    max-width:56mm!important;
+    width:54mm!important;
+    max-width:54mm!important;
     margin:0 auto!important;
     border-left:none!important;
     border-right:none!important;
@@ -384,6 +386,15 @@ tr:nth-child(even) td{
   }
 
   #receiptPrint .receipt-spacer{height:3mm!important;}
+
+  /* FIX XPRINTER 58MM: chừa mép phải để không mất chữ VNĐ / hệ thống */
+  #receiptPrint .receipt-info,
+  #receiptPrint .receipt-item,
+  #receiptPrint .receipt-money,
+  #receiptPrint .receipt-footer{
+    padding-right:1.5mm!important;
+    overflow-wrap:anywhere!important;
+  }
 }
 
 
@@ -8627,7 +8638,7 @@ function printReturnReceiptByIndex(index){
 
     <div style="text-align:center; margin-top:6px; font-size:12px; line-height:1.25; font-style:italic; font-weight:700;">
       Phiếu này dùng để đối chiếu trả hàng.<br>
-      Hóa đơn gốc không bị xóa khỏi hệ thống.
+      Hóa đơn gốc vẫn lưu trong hệ thống.
     </div>
 
     <div class="receipt-spacer"></div>
