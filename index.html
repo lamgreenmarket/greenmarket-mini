@@ -8092,14 +8092,58 @@ function editImportHistory(index){
     return;
   }
 
+  /*
+    BẢN SỬA AN TOÀN TRUY VẾT:
+    - KHÓA: STT, Mã phiếu, Thời gian.
+    - CHO SỬA từ cột Nhà cung cấp trở về sau.
+    - Mã phiếu và thời gian giữ nguyên để đối chiếu chứng từ/Firebase/Nhật ký.
+  */
+
+  const oldSupplier = item.supplier || '';
+  const oldSupplierInvoice = item.supplierInvoice || item.supplierBill || item.nccInvoice || item.invoiceNo || item.supplierReceipt || '';
+  const oldNote = item.note || '';
+  const oldName = item.name || '';
+  const oldBarcode = item.barcode || '';
+  const oldPackUnit = item.packUnit || 'đơn vị';
+  const oldSaleUnit = item.saleUnit || 'cái';
+
+  const newSupplier = prompt('Nhà cung cấp:', oldSupplier);
+  if(newSupplier === null) return;
+
+  const newSupplierInvoice = prompt('Số phiếu nhà cung cấp:', oldSupplierInvoice);
+  if(newSupplierInvoice === null) return;
+
+  const newNote = prompt('Ghi chú:', oldNote);
+  if(newNote === null) return;
+
+  const newName = prompt('Tên sản phẩm:', oldName);
+  if(newName === null) return;
+
+  const newBarcode = prompt('Mã vạch:', oldBarcode);
+  if(newBarcode === null) return;
+
+  const newPackUnit = prompt('Nhập theo đơn vị nào? Ví dụ: thùng, lốc, bao:', oldPackUnit);
+  if(newPackUnit === null) return;
+
+  const newSaleUnit = prompt('Đơn vị bán/tồn kho? Ví dụ: cái, chai, gói, bịch:', oldSaleUnit);
+  if(newSaleUnit === null) return;
+
   let p = null;
 
   if(item.productId){
     p = products.find(x => String(x.id) === String(item.productId));
   }
 
+  if(!p && newBarcode){
+    p = findProductByBarcode(newBarcode);
+  }
+
   if(!p && item.barcode){
     p = findProductByBarcode(item.barcode);
+  }
+
+  if(!p && newName){
+    p = findProductByName(newName);
   }
 
   if(!p && item.name){
@@ -8114,24 +8158,27 @@ function editImportHistory(index){
   const oldPackQty = Number(item.packQty || 0);
   const oldConvertQty = Number(item.convertQty || 1);
   const oldUnitQty = Number(item.unitQty ?? item.qty ?? (oldPackQty * oldConvertQty) ?? 0);
-  const oldLotPrice = Number(item.lotPrice ?? (oldUnitQty * Number(item.importPrice || 0)));
+  const oldImportPrice = Number(item.importPrice || 0);
+  const oldSellPrice = Number(item.sellPrice || 0);
+  const oldLotPrice = Number(item.lotPrice ?? (oldUnitQty * oldImportPrice));
 
-  const newPackQtyText = prompt('Số lượng nhập theo ' + (item.packUnit || 'đơn vị') + ':', oldPackQty || item.qty || 1);
+  const newPackQtyText = prompt('Số lượng nhập theo ' + (newPackUnit || oldPackUnit || 'đơn vị') + ':', oldPackQty || item.qty || 1);
   if(newPackQtyText === null) return;
 
-  const newConvertText = prompt('Quy đổi: 1 ' + (item.packUnit || 'đơn vị') + ' = bao nhiêu ' + (item.saleUnit || 'cái') + '?', oldConvertQty || 1);
+  const newConvertText = prompt('Quy đổi: 1 ' + (newPackUnit || oldPackUnit || 'đơn vị') + ' = bao nhiêu ' + (newSaleUnit || oldSaleUnit || 'cái') + '?', oldConvertQty || 1);
   if(newConvertText === null) return;
 
-  const newUnitImportText = prompt('Giá nhập 1 ' + (item.saleUnit || 'cái') + ':', Number(item.importPrice || 0));
+  const newUnitImportText = prompt('Giá nhập 1 ' + (newSaleUnit || oldSaleUnit || 'cái') + ':', oldImportPrice);
   if(newUnitImportText === null) return;
 
-  const newSellText = prompt('Giá bán 1 ' + (item.saleUnit || 'cái') + ':', Number(item.sellPrice || 0));
+  const newSellText = prompt('Giá bán 1 ' + (newSaleUnit || oldSaleUnit || 'cái') + ':', oldSellPrice);
   if(newSellText === null) return;
 
-  const packQty = Number(String(newPackQtyText).replace(/\./g,'').replace(/,/g,''));
-  const convertQty = Number(String(newConvertText).replace(/\./g,'').replace(/,/g,''));
-  const unitImportPrice = Number(String(newUnitImportText).replace(/\./g,'').replace(/,/g,''));
-  const sellPrice = Number(String(newSellText).replace(/\./g,'').replace(/,/g,''));
+  const parseVNNumber = v => Number(String(v || '').replace(/\./g,'').replace(/,/g,''));
+  const packQty = parseVNNumber(newPackQtyText);
+  const convertQty = parseVNNumber(newConvertText);
+  const unitImportPrice = parseVNNumber(newUnitImportText);
+  const sellPrice = parseVNNumber(newSellText);
 
   if(packQty <= 0 || convertQty <= 0 || unitImportPrice <= 0 || sellPrice <= 0){
     alert('Số lượng, quy đổi, giá nhập và giá bán phải lớn hơn 0');
@@ -8150,12 +8197,21 @@ function editImportHistory(index){
     return;
   }
 
+  p.name = cleanText(newName) || p.name;
+  p.barcode = cleanText(newBarcode) || p.barcode;
   p.importPrice = unitImportPrice;
   p.sellPrice = sellPrice;
+  p.saleUnit = cleanText(newSaleUnit) || p.saleUnit || oldSaleUnit;
+  p.unit = cleanText(newSaleUnit) || p.unit || oldSaleUnit;
 
   item.productId = p.id;
-  item.name = p.name;
-  item.barcode = p.barcode;
+  item.supplier = cleanText(newSupplier);
+  item.supplierInvoice = cleanText(newSupplierInvoice);
+  item.note = cleanText(newNote);
+  item.name = cleanText(newName) || p.name;
+  item.barcode = cleanText(newBarcode) || p.barcode;
+  item.packUnit = cleanText(newPackUnit) || oldPackUnit;
+  item.saleUnit = cleanText(newSaleUnit) || oldSaleUnit;
   item.packQty = packQty;
   item.convertQty = convertQty;
   item.unitQty = unitQty;
@@ -8188,14 +8244,14 @@ function editImportHistory(index){
 
   addLog(
     'Sửa hàng mới nhập',
-    `${item.name}: SL ${oldUnitQty} → ${unitQty}, giá nhập ${money(item.importPrice)}, giá lô ${money(lotPrice)}`
+    `Phiếu ${item.receiptCode || '-'} | ${oldName} → ${item.name} | NCC: ${oldSupplier || '-'} → ${item.supplier || '-'} | Số phiếu NCC: ${oldSupplierInvoice || '-'} → ${item.supplierInvoice || '-'} | SL ${oldUnitQty} → ${unitQty} | Giá nhập ${money(oldImportPrice)} → ${money(unitImportPrice)} | Giá lô ${money(oldLotPrice)} → ${money(lotPrice)}`
   );
 
   save();
   renderAll();
   renderImportReports();
 
-  alert('Đã sửa dòng nhập và cập nhật lại tồn kho, giá lô, báo cáo.');
+  alert('Đã sửa dòng nhập. STT, Mã phiếu và Thời gian vẫn được khóa để phục vụ truy vết.');
 }
 
 /* =========================================================
