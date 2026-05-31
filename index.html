@@ -9950,7 +9950,7 @@ async function getProfileByEmail(email){
         const x = snap.data() || {};
         return {
           email: mail,
-          name: x.name || x.displayName || (mail === 'hieuthao@greenmarket.com' ? 'Hiếu Thảo' : (mail === 'thungan@greenmarket.com' ? 'Thu ngân' : authEmailToUsername(mail))),
+          name: x.name || x.displayName || (mail === 'hieuthao@greenmarket.com' ? 'Hiếu Thảo' : (mail === 'thungan@greenmarket.com' ? 'Thu Ngân' : authEmailToUsername(mail))),
           user: x.user || authEmailToUsername(mail),
           role: normalizeRole(x.role),
           active: x.active !== false,
@@ -9965,16 +9965,16 @@ async function getProfileByEmail(email){
   // Dự phòng an toàn: 2 tài khoản nhân viên đã tạo trong Firebase Auth.
   // Chỉ chạy sau khi Firebase Auth xác thực email/password thành công.
   if(mail === 'thungan@greenmarket.com'){
-    return {email:mail, name:'Thu ngân', user:'thungan', role:'cashier', active:true, source:'fallback'};
+    return {email:mail, name:'Thu Ngân', user:'thungan', role:'cashier', active:true, source:'fallback'};
   }
   if(mail === 'hieuthao@greenmarket.com'){
     return {email:mail, name:'Hiếu Thảo', user:'hieuthao', role:'cashier', active:true, source:'fallback'};
   }
   if(mail === 'quanly@greenmarket.com'){
-    return {email:mail, name:'Quản lý', user:'quanly', role:'manager', active:true, source:'fallback'};
+    return {email:mail, name:'Quản Lý', user:'quanly', role:'manager', active:true, source:'fallback'};
   }
   if(mail === 'ketoan@greenmarket.com'){
-    return {email:mail, name:'Kế toán', user:'ketoan', role:'accountant', active:true, source:'fallback'};
+    return {email:mail, name:'Kế Toán', user:'ketoan', role:'accountant', active:true, source:'fallback'};
   }
 
   return null;
@@ -10036,16 +10036,16 @@ window.greenMarketLoadUserProfiles = async function(){
 
   // 3) Đảm bảo danh sách có 2 nhân viên Auth đã tạo, phòng khi Firestore chưa kịp đọc.
   if(!map.has('thungan@greenmarket.com')){
-    map.set('thungan@greenmarket.com', {uid:'thungan@greenmarket.com', name:'Thu ngân', user:'thungan', email:'thungan@greenmarket.com', role:'cashier'});
+    map.set('thungan@greenmarket.com', {uid:'thungan@greenmarket.com', name:'Thu Ngân', user:'thungan', email:'thungan@greenmarket.com', role:'cashier'});
   }
   if(!map.has('hieuthao@greenmarket.com')){
     map.set('hieuthao@greenmarket.com', {uid:'hieuthao@greenmarket.com', name:'Hiếu Thảo', user:'hieuthao', email:'hieuthao@greenmarket.com', role:'cashier'});
   }
   if(!map.has('quanly@greenmarket.com')){
-    map.set('quanly@greenmarket.com', {uid:'quanly@greenmarket.com', name:'Quản lý', user:'quanly', email:'quanly@greenmarket.com', role:'manager'});
+    map.set('quanly@greenmarket.com', {uid:'quanly@greenmarket.com', name:'Quản Lý', user:'quanly', email:'quanly@greenmarket.com', role:'manager'});
   }
   if(!map.has('ketoan@greenmarket.com')){
-    map.set('ketoan@greenmarket.com', {uid:'ketoan@greenmarket.com', name:'Kế toán', user:'ketoan', email:'ketoan@greenmarket.com', role:'accountant'});
+    map.set('ketoan@greenmarket.com', {uid:'ketoan@greenmarket.com', name:'Kế Toán', user:'ketoan', email:'ketoan@greenmarket.com', role:'accountant'});
   }
 
   return Array.from(map.values()).sort((a,b) => (a.name || '').localeCompare(b.name || '', 'vi'));
