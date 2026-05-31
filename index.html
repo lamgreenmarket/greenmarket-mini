@@ -1828,6 +1828,72 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
   }
 }
 
+
+/* =========================================================
+   FIX CUỐI PHIẾU TRẢ HÀNG 58MM
+   - Giữ khung "PHIẾU TRẢ HÀNG" nhưng thu ngắn để không mất cạnh.
+   - Các dòng tổng tiền xuống 2 dòng để không mất chữ VNĐ.
+   ========================================================= */
+.receipt-return-stamp{
+  width:75%;
+  margin:4px auto 6px!important;
+  border:2px solid #000;
+  padding:4px 3px;
+  text-align:center;
+  box-sizing:border-box;
+}
+.receipt-return-money-block{
+  margin-top:4px;
+  font-size:14px;
+  font-weight:900;
+  line-height:1.18;
+}
+.receipt-return-money-row{
+  margin:4px 0 6px;
+}
+.receipt-return-money-label{
+  display:block;
+  white-space:normal;
+}
+.receipt-return-money-value{
+  display:block;
+  text-align:left;
+  white-space:nowrap;
+  padding-left:6mm;
+  font-size:14px;
+}
+@media print{
+  #receiptPrint .receipt-return-stamp{
+    width:75%!important;
+    margin:4px auto 6px!important;
+    border:2px solid #000!important;
+    padding:4px 3px!important;
+    box-sizing:border-box!important;
+    text-align:center!important;
+  }
+  #receiptPrint .receipt-return-money-block{
+    margin-top:4px!important;
+    font-size:14px!important;
+    font-weight:900!important;
+    line-height:1.18!important;
+  }
+  #receiptPrint .receipt-return-money-row{
+    margin:4px 0 6px!important;
+  }
+  #receiptPrint .receipt-return-money-label{
+    display:block!important;
+    white-space:normal!important;
+  }
+  #receiptPrint .receipt-return-money-value{
+    display:block!important;
+    text-align:left!important;
+    white-space:nowrap!important;
+    padding-left:6mm!important;
+    padding-right:0!important;
+    font-size:14px!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -8723,17 +8789,19 @@ function printReturnReceiptByIndex(index){
     ${itemHtml}
 
     <div class="receipt-line"></div>
-    <div class="receipt-total">
-      <span>TỔNG GỐC:</span>
-      <span>${money(b.returnOriginalTotal || returnAmount)}</span>
-    </div>
-    <div class="receipt-total">
-      <span>HOÀN TIỀN:</span>
-      <span>${money(returnAmount)}</span>
-    </div>
-    <div class="receipt-total receipt-total-long">
-      <span>DOANH THU SAU TRẢ:</span>
-      <span>${money(0)}</span>
+    <div class="receipt-return-money-block">
+      <div class="receipt-return-money-row">
+        <div class="receipt-return-money-label">TỔNG GỐC:</div>
+        <div class="receipt-return-money-value">${money(b.returnOriginalTotal || returnAmount)}</div>
+      </div>
+      <div class="receipt-return-money-row">
+        <div class="receipt-return-money-label">HOÀN TIỀN:</div>
+        <div class="receipt-return-money-value">${money(returnAmount)}</div>
+      </div>
+      <div class="receipt-return-money-row">
+        <div class="receipt-return-money-label">DOANH THU SAU TRẢ:</div>
+        <div class="receipt-return-money-value">${money(0)}</div>
+      </div>
     </div>
 
     <div style="text-align:center; margin-top:6px; font-size:12px; line-height:1.25; font-style:italic; font-weight:700;">
