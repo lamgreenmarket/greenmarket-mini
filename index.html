@@ -1834,6 +1834,11 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
           <button id="payQrBtn" onclick="setPaymentMethod('qr')">📱 QR</button>
           <button id="payCardBtn" onclick="setPaymentMethod('card')">💳 Thẻ/Ví</button>
         </div>
+        <label>Số liên hóa đơn</label>
+        <select id="receiptCopies" onchange="localStorage.setItem('greenmarket_receipt_copies', this.value)">
+          <option value="1" selected>In 1 liên</option>
+          <option value="2">In 2 liên - cắt giấy rồi in tiếp</option>
+        </select>
         <div id="cashBox" class="pos-cash-box">
           <label>Khách đưa tiền</label>
           <input id="customerCash" type="number" placeholder="Nhập số tiền khách đưa" oninput="updatePaymentBox()" onkeydown="if(event.key==='Enter'){event.preventDefault(); checkout();}">
@@ -4780,11 +4785,28 @@ function checkout(){
   setTimeout(() => document.getElementById('posSearch')?.focus(), 300);
 }
 
+
+function getReceiptCopiesSetting(){
+  const el = document.getElementById('receiptCopies');
+  const val = el ? String(el.value || '1') : '1';
+  return val === '2' ? 2 : 1;
+}
+
+function initReceiptCopiesSetting(){
+  const el = document.getElementById('receiptCopies');
+  if(!el) return;
+  const saved = localStorage.getItem('greenmarket_receipt_copies');
+  el.value = saved === '2' ? '2' : '1';
+}
+
+document.addEventListener('DOMContentLoaded', initReceiptCopiesSetting);
+
 /* =========================================================
    23. IN HÓA ĐƠN
    ========================================================= */
 function printReceipt(total, paymentText = 'Tiền mặt'){
   const staffName = escapeHTML(current?.name || 'Admin');
+  const copies = getReceiptCopiesSetting();
   const itemHtml = cart.map(c => `
     <div class="receipt-item">• ${escapeHTML(c.name)}:</div>
     <div class="receipt-money">
@@ -4792,43 +4814,62 @@ function printReceipt(total, paymentText = 'Tiền mặt'){
     </div>
   `).join('');
 
+  function buildSaleReceipt(copyLabel = ''){
+    return `
+      <div class="receipt-title">SIÊU THỊ MINI GREEN MARKET</div>
+      ${copyLabel ? `<div class="receipt-reprint-stamp">${copyLabel}</div>` : ''}
+      <div class="receipt-line"></div>
+
+      <div>• Ngày: ${now()}</div>
+      <div>• Nhân viên: ${staffName}</div>
+      <div>• Thanh toán: ${escapeHTML(paymentText)}</div>
+      <div class="receipt-line"></div>
+
+      ${itemHtml}
+
+      <div class="receipt-line"></div>
+      <div class="receipt-total">
+        <span>TỔNG:</span>
+        <span>${money(total)}</span>
+      </div>
+
+      <div style="text-align:center;margin-top:6px">
+        <div class="qr"></div>
+        <div>QR thanh toán</div>
+      </div>
+
+      <div style="text-align:center; margin-top:6px; font-size:14px; font-style:italic; font-weight:500;">
+        Cảm ơn quý khách!<br>
+        Hẹn gặp lại!
+      </div>
+
+      <div class="receipt-spacer"></div>
+    `;
+  }
+
   receiptPrint.classList.remove('hidden');
-  receiptPrint.innerHTML = `
-    <div class="receipt-title">SIÊU THỊ MINI GREEN MARKET</div>
-    <div class="receipt-line"></div>
-
-    <div>Ngày: ${now()}</div>
-    <div>Nhân viên: ${staffName}</div>
-    <div>Thanh toán: ${escapeHTML(paymentText)}</div>
-    <div class="receipt-line"></div>
-
-    ${itemHtml}
-
-    <div class="receipt-line"></div>
-    <div class="receipt-total">
-      <span>TỔNG:</span>
-      <span>${money(total)}</span>
-    </div>
-
-    <div style="text-align:center;margin-top:9px">
-      <div class="qr"></div>
-      <div>QR thanh toán</div>
-    </div>
-
-    <div style="text-align:center; margin-top:6px; font-size:14px; font-style:italic; font-weight:500;">
-      Cảm ơn quý khách!<br>
-      Hẹn gặp lại!
-    </div>
-
-    <div class="receipt-spacer"></div>
-  `;
-
+  receiptPrint.innerHTML = buildSaleReceipt(copies === 2 ? 'LIÊN 1 - KHÁCH HÀNG' : '');
   window.print();
 
-  setTimeout(() => {
-    receiptPrint.classList.add('hidden');
-    receiptPrint.innerHTML = '';
-  }, 700);
+  if(copies === 2){
+    setTimeout(() => {
+      const ok = confirm('Đã in liên 1. Vui lòng cắt giấy, rồi bấm OK để in liên 2.');
+      if(ok){
+        receiptPrint.classList.remove('hidden');
+        receiptPrint.innerHTML = buildSaleReceipt('LIÊN 2 - LƯU CỬA HÀNG');
+        window.print();
+      }
+      setTimeout(() => {
+        receiptPrint.classList.add('hidden');
+        receiptPrint.innerHTML = '';
+      }, 700);
+    }, 500);
+  }else{
+    setTimeout(() => {
+      receiptPrint.classList.add('hidden');
+      receiptPrint.innerHTML = '';
+    }, 700);
+  }
 }
 
 /* =========================================================
@@ -8538,14 +8579,14 @@ if(admin){
     <div class="receipt-reprint-note">Lần in lại: ${nextCount}</div>
     <div class="receipt-line"></div>
 
-    <div>Mã HĐ: ${escapeHTML(billCode)}</div>
-    <div>Ngày bán: ${escapeHTML(b.time || '')}</div>
-    <div>Ngày in lại: ${now()}</div>
-    <div>Người in lại: ${escapeHTML(current?.name || '')}</div>
-    <div>Nhân viên bán: ${escapeHTML(b.staff || '')}</div>
-    <div>Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}</div>
+    <div>• Mã HĐ: ${escapeHTML(billCode)}</div>
+    <div>• Ngày bán: ${escapeHTML(b.time || '')}</div>
+    <div>• Ngày in lại: ${now()}</div>
+    <div>• Người in lại: ${escapeHTML(current?.name || '')}</div>
+    <div>• Nhân viên bán: ${escapeHTML(b.staff || '')}</div>
+    <div>• Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}</div>
     ${isBillReturned(b) ? `<div style="text-align:center;font-size:16px;font-weight:900;border:1px solid #000;margin:5px 0;padding:3px">HÓA ĐƠN ĐÃ TRẢ HÀNG</div><div>Mã phiếu trả: ${escapeHTML(b.returnCode || '')}</div>` : ''}
-    ${reason ? `<div>Lý do: ${escapeHTML(reason)}</div>` : ''}
+    ${reason ? `<div>• Lý do: ${escapeHTML(reason)}</div>` : ''}
     <div class="receipt-line"></div>
 
     ${itemHtml}
