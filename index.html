@@ -4880,7 +4880,7 @@ document.addEventListener('DOMContentLoaded', initReceiptCopiesSetting);
    23. IN HÓA ĐƠN
    ========================================================= */
 function printReceipt(total, paymentText = 'Tiền mặt'){
-  const staffName = escapeHTML(String(current?.name || 'Admin').replace(/Thu ngân/g,'Thu Ngân')); 
+  const staffName = escapeHTML(String(current?.name || 'Admin').replace(/Thu Ngân/g,'Thu Ngân')); 
   const copies = getReceiptCopiesSetting();
   const itemHtml = cart.map(c => `
     <div class="receipt-item">• ${escapeHTML(c.name)}:</div>
@@ -10023,7 +10023,7 @@ window.greenMarketLoadUserProfiles = async function(){
         if(!email || !email.includes('@')) return;
         map.set(email, {
           uid: d.id,
-          name: x.name || x.displayName || (email === 'hieuthao@greenmarket.com' ? 'Hiếu Thảo' : (email === 'thungan@greenmarket.com' ? 'Thu ngân' : authEmailToUsername(email))),
+          name: x.name || x.displayName || (email === 'hieuthao@greenmarket.com' ? 'Hiếu Thảo' : (email === 'thungan@greenmarket.com' ? 'Thu Ngân' : authEmailToUsername(email))),
           user: x.user || authEmailToUsername(email),
           email,
           role: normalizeRole(x.role)
