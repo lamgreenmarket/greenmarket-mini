@@ -1727,8 +1727,8 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
   <div class="login-card">
     <div class="logo">🛒 SIÊU THỊ MINI GREEN MARKET</div>
    
-    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" autocomplete="off" placeholder="admin hoặc admin@greenmarket.com">
-    <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" type="password" autocomplete="off"><button class="eye" onclick="togglePass()">👁️</button></div>
+    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" name="gm_login_user_manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly onfocus="this.removeAttribute(\'readonly\')" placeholder="admin hoặc admin@greenmarket.com" value="">
+    <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" name="gm_login_pass_manual" type="password" autocomplete="new-password" readonly onfocus="this.removeAttribute(\'readonly\')" value=""><button class="eye" onclick="togglePass()">👁️</button></div>
     <button class="btn-blue full" onclick="login()">Đăng nhập</button><p id="loginMsg" class="msg"></p>
   </div>
 </section>
@@ -2733,8 +2733,18 @@ function scanEnter(e){
 /* =========================================================
    19. ĐĂNG NHẬP / ĐĂNG XUẤT
    ========================================================= */
+function clearLoginForm(){
+  try{
+    loginUser.value = '';
+    loginPass.value = '';
+    loginUser.setAttribute('readonly', 'readonly');
+    loginPass.setAttribute('readonly', 'readonly');
+  }catch(e){}
+}
+
 function showLogin(){
   try{ resetBillDetailForNewSession(); }catch(e){}
+  clearLoginForm();
   loginPage.classList.remove('hidden');
   appPage.classList.add('hidden');
 }
@@ -2842,6 +2852,10 @@ document.addEventListener('keydown', e => {
     login();
   }
 });
+
+// Chống trình duyệt tự điền lại tài khoản/mật khẩu cũ khi mở trang.
+window.addEventListener('DOMContentLoaded', () => setTimeout(clearLoginForm, 80));
+window.addEventListener('pageshow', () => setTimeout(clearLoginForm, 80));
 
 /* =========================================================
    20. MENU / PHÂN QUYỀN
@@ -9820,7 +9834,7 @@ import {
   onAuthStateChanged,
   signOut,
   setPersistence,
-  browserSessionPersistence
+  inMemoryPersistence
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -9836,11 +9850,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-// BẢO MẬT ĐĂNG NHẬP:
-// Chỉ giữ đăng nhập trong phiên trình duyệt hiện tại.
-// Tắt trình duyệt/tắt máy rồi mở lại sẽ bắt đăng nhập lại,
-// nhưng sau khi bấm đăng nhập thì Firebase vẫn đăng nhập thật để đồng bộ cloud.
-try{ await setPersistence(auth, browserSessionPersistence); }catch(e){ console.warn("Không đặt được browserSessionPersistence", e); }
+
+// BẢO MẬT PHIÊN ĐĂNG NHẬP:
+// Không dùng Local persistence của Firebase nữa.
+// Đóng tab / mở lại trang sẽ không tự đăng nhập bằng phiên cũ.
+const greenMarketAuthPersistenceReady = setPersistence(auth, inMemoryPersistence)
+  .catch(err => console.warn('Không đặt được chế độ không lưu phiên Firebase:', err));
+
 const CLOUD_DOC = doc(db, "greenmarket", "main_data");
 const BACKUP_COLLECTION = "greenmarket_backups";
 const CLOUD_BACKUP_KEEP = 7;
@@ -10106,23 +10122,21 @@ async function buildGreenMarketSessionFromFirebaseUser(firebaseUser){
 
 window.greenMarketAuthSignIn = async function(username, password){
   let lastErr = null;
-  window.greenMarketManualLoginInProgress = true;
+  try{ await greenMarketAuthPersistenceReady; }catch(e){}
+  window.greenMarketManualFirebaseLogin = true;
+
   try{
     for(const email of authCandidateEmails(username)){
       try{
         const cred = await signInWithEmailAndPassword(auth, email, password);
-        const session = await buildGreenMarketSessionFromFirebaseUser(cred.user);
-        // Giữ cờ thêm một chút để onAuthStateChanged không hiểu nhầm lần đăng nhập tay là phiên cũ.
-        setTimeout(() => { window.greenMarketManualLoginInProgress = false; }, 2000);
-        return session;
+        return await buildGreenMarketSessionFromFirebaseUser(cred.user);
       }catch(err){
         lastErr = err;
       }
     }
     throw new Error(friendlyAuthError(lastErr));
-  }catch(err){
-    window.greenMarketManualLoginInProgress = false;
-    throw err;
+  }finally{
+    setTimeout(() => { window.greenMarketManualFirebaseLogin = false; }, 1200);
   }
 };
 window.greenMarketAuthSignOut = async function(){
@@ -10531,30 +10545,21 @@ window.greenMarketLoadFirebaseNow = async function(showAlert = true){
 
 let firebaseAuthBooted = false;
 onAuthStateChanged(auth, async (firebaseUser) => {
-  // BẢO MẬT: không tự mở app từ phiên Firebase cũ.
-  // Chỉ cho vào app sau khi người dùng bấm nút Đăng nhập trong hàm login().
+  // KHÔNG tự khôi phục phiên Firebase cũ khi mở lại trang.
+  // Chỉ khi người dùng tự bấm nút "Đăng nhập" thì hàm login() mới mở app.
   try{
-    if(!firebaseAuthBooted){ firebaseAuthBooted = true; }
-
-    // Nếu vừa bấm Đăng nhập thì không can thiệp, để hàm login() xử lý đồng bộ và mở app.
-    if(window.greenMarketManualLoginInProgress) return;
-
-    // Nếu trình duyệt còn giữ phiên cũ nhưng app chưa có current user,
-    // đăng xuất Firebase và đưa về màn hình đăng nhập.
-    if(firebaseUser && !window.current){
-      await signOut(auth);
-      current = null;
-      window.current = null;
-      try{ loginUser.value = ''; loginPass.value = ''; }catch(e){}
+    if(!firebaseAuthBooted){
+      firebaseAuthBooted = true;
       showLogin();
-      setSyncStatus("ℹ️ Vui lòng đăng nhập lại", true);
-      return;
+    }
+
+    if(firebaseUser && !window.current && !window.greenMarketManualFirebaseLogin){
+      await signOut(auth);
+      showLogin();
+      setSyncStatus("ℹ️ Vui lòng đăng nhập để đồng bộ Firebase", true);
     }
   }catch(err){
-    console.error('Firebase Auth safe boot error:', err);
-    try{ await signOut(auth); }catch(e){}
-    current = null;
-    window.current = null;
+    console.error('Firebase Auth cleanup error:', err);
     showLogin();
   }
 });
