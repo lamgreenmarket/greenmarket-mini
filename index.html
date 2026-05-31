@@ -1727,7 +1727,7 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
   <div class="login-card">
     <div class="logo">🛒 SIÊU THỊ MINI GREEN MARKET</div>
    
-    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" autocomplete="off" placeholder="Nhập tài khoản/email">
+    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" autocomplete="off" placeholder="admin hoặc admin@greenmarket.com">
     <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" type="password" autocomplete="off"><button class="eye" onclick="togglePass()">👁️</button></div>
     <button class="btn-blue full" onclick="login()">Đăng nhập</button><p id="loginMsg" class="msg"></p>
   </div>
@@ -2735,10 +2735,6 @@ function scanEnter(e){
    ========================================================= */
 function showLogin(){
   try{ resetBillDetailForNewSession(); }catch(e){}
-  try{
-    loginUser.value = '';
-    loginPass.value = '';
-  }catch(e){}
   loginPage.classList.remove('hidden');
   appPage.classList.add('hidden');
 }
@@ -9824,7 +9820,7 @@ import {
   onAuthStateChanged,
   signOut,
   setPersistence,
-  inMemoryPersistence
+  browserSessionPersistence
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -9840,12 +9836,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-
-// BẢO MẬT PHIÊN ĐĂNG NHẬP:
-// Không lưu phiên Firebase vào máy/trình duyệt.
-// Tắt máy, đóng tab, mở lại trang => luôn phải đăng nhập lại.
-try{ await setPersistence(auth, inMemoryPersistence); }catch(e){ console.warn("Không đặt được inMemoryPersistence", e); }
-
+// BẢO MẬT ĐĂNG NHẬP:
+// Chỉ giữ đăng nhập trong phiên trình duyệt hiện tại.
+// Tắt trình duyệt/tắt máy rồi mở lại sẽ bắt đăng nhập lại,
+// nhưng sau khi bấm đăng nhập thì Firebase vẫn đăng nhập thật để đồng bộ cloud.
+try{ await setPersistence(auth, browserSessionPersistence); }catch(e){ console.warn("Không đặt được browserSessionPersistence", e); }
 const CLOUD_DOC = doc(db, "greenmarket", "main_data");
 const BACKUP_COLLECTION = "greenmarket_backups";
 const CLOUD_BACKUP_KEEP = 7;
@@ -10111,15 +10106,24 @@ async function buildGreenMarketSessionFromFirebaseUser(firebaseUser){
 
 window.greenMarketAuthSignIn = async function(username, password){
   let lastErr = null;
-  for(const email of authCandidateEmails(username)){
-    try{
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      return await buildGreenMarketSessionFromFirebaseUser(cred.user);
-    }catch(err){
-      lastErr = err;
+  window.greenMarketManualLoginInProgress = true;
+  try{
+    for(const email of authCandidateEmails(username)){
+      try{
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const session = await buildGreenMarketSessionFromFirebaseUser(cred.user);
+        // Giữ cờ thêm một chút để onAuthStateChanged không hiểu nhầm lần đăng nhập tay là phiên cũ.
+        setTimeout(() => { window.greenMarketManualLoginInProgress = false; }, 2000);
+        return session;
+      }catch(err){
+        lastErr = err;
+      }
     }
+    throw new Error(friendlyAuthError(lastErr));
+  }catch(err){
+    window.greenMarketManualLoginInProgress = false;
+    throw err;
   }
-  throw new Error(friendlyAuthError(lastErr));
 };
 window.greenMarketAuthSignOut = async function(){
   await signOut(auth);
@@ -10527,12 +10531,16 @@ window.greenMarketLoadFirebaseNow = async function(showAlert = true){
 
 let firebaseAuthBooted = false;
 onAuthStateChanged(auth, async (firebaseUser) => {
-  // BẢO MẬT: không tự khôi phục phiên đăng nhập cũ.
-  // Nếu trình duyệt/Firebase còn giữ phiên từ lần trước thì đăng xuất ngay
-  // và đưa về màn hình đăng nhập.
+  // BẢO MẬT: không tự mở app từ phiên Firebase cũ.
+  // Chỉ cho vào app sau khi người dùng bấm nút Đăng nhập trong hàm login().
   try{
     if(!firebaseAuthBooted){ firebaseAuthBooted = true; }
 
+    // Nếu vừa bấm Đăng nhập thì không can thiệp, để hàm login() xử lý đồng bộ và mở app.
+    if(window.greenMarketManualLoginInProgress) return;
+
+    // Nếu trình duyệt còn giữ phiên cũ nhưng app chưa có current user,
+    // đăng xuất Firebase và đưa về màn hình đăng nhập.
     if(firebaseUser && !window.current){
       await signOut(auth);
       current = null;
