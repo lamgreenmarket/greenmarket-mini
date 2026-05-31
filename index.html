@@ -376,7 +376,7 @@ tr:nth-child(even) td{
   }
 
   /* FIX XPRINTER 58MM: căn giữa vùng in thực tế, giữ khung phiếu trả hàng đủ 4 cạnh */
-  #receiptPrint.receipt{
+  #receiptPrint .receipt{
     width:53.2mm!important;
     max-width:53.2mm!important;
     margin:0!important;
@@ -1743,6 +1743,89 @@ body.cashier-mode #home .chart-row{
 body.accountant-mode #home .dashboard-pro-staff-card,
 body.accountant-mode #home .chart-row .card:nth-child(3){
   display:none!important;
+}
+
+
+
+/* =========================================================
+   FIX CUỐI XPRINTER 58MM - CĂN GIỮA, GIỮ KHUNG PHIẾU TRẢ HÀNG
+   Mục tiêu: không mất cạnh trái/phải, không mất chữ VNĐ, phiếu cân hai bên.
+   ========================================================= */
+.receipt{
+  width:52mm!important;
+  max-width:52mm!important;
+  padding:2mm 2mm!important;
+  margin:0 auto!important;
+  box-sizing:border-box!important;
+}
+.receipt-return-stamp{
+  width:100%!important;
+  margin:4px 0 6px!important;
+  padding:4px 2px!important;
+  border:2px solid #000!important;
+  box-sizing:border-box!important;
+  text-align:center!important;
+}
+.receipt-total span:last-child{
+  padding-right:.8mm!important;
+  font-size:13.1px!important;
+}
+@media print{
+  @page{size:58mm auto;margin:0;}
+  html,body{
+    width:58mm!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+    background:#fff!important;
+  }
+  #receiptPrint{
+    display:block!important;
+    position:absolute!important;
+    left:0!important;
+    top:0!important;
+    width:58mm!important;
+    max-width:58mm!important;
+    margin:0!important;
+    padding:0!important;
+    box-sizing:border-box!important;
+    overflow:visible!important;
+  }
+  #receiptPrint .receipt{
+    width:52mm!important;
+    max-width:52mm!important;
+    margin:0 auto!important;
+    padding:2mm 2mm!important;
+    border-left:none!important;
+    border-right:none!important;
+    border-top:2px solid #000!important;
+    border-bottom:2px solid #000!important;
+    border-radius:0!important;
+    box-sizing:border-box!important;
+  }
+  #receiptPrint .receipt-return-stamp{
+    width:100%!important;
+    margin:4px 0 6px!important;
+    padding:4px 2px!important;
+    border:2px solid #000!important;
+    box-sizing:border-box!important;
+    text-align:center!important;
+  }
+  #receiptPrint .receipt-total{
+    padding-left:0!important;
+    padding-right:0!important;
+  }
+  #receiptPrint .receipt-total span:last-child{
+    padding-right:.8mm!important;
+    font-size:13.1px!important;
+  }
+  #receiptPrint .receipt-info,
+  #receiptPrint .receipt-item,
+  #receiptPrint .receipt-money,
+  #receiptPrint .receipt-footer{
+    padding-right:.8mm!important;
+    overflow-wrap:anywhere!important;
+  }
 }
 
 </style>
