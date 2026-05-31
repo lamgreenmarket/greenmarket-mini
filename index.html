@@ -355,20 +355,29 @@ tr:nth-child(even) td{
   #receiptPrint{
     display:block!important;
     position:absolute!important;
-    left:1.5mm!important;
+    left:0!important;
     top:0!important;
     transform:none!important;
-    width:51mm!important;
-    max-width:51mm!important;
+    width:58mm!important;
+    max-width:58mm!important;
     min-height:auto!important;
     margin:0!important;
-    padding:2.4mm!important;
+    padding:0.8mm 0 0 0.8mm!important;
     overflow:visible!important;
     page-break-before:auto!important;
     page-break-after:auto!important;
     break-before:auto!important;
     break-after:auto!important;
   }
+
+  /* FIX V4: thu nhẹ và đẩy phiếu vào trong để không mất viền phải */
+  #receiptPrint .receipt{
+    width:52.5mm!important;
+    max-width:52.5mm!important;
+    margin-left:0!important;
+    margin-right:auto!important;
+  }
+
   #receiptPrint .receipt-spacer{height:3mm!important;}
 }
 
