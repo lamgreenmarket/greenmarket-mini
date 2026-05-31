@@ -1727,8 +1727,8 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
   <div class="login-card">
     <div class="logo">🛒 SIÊU THỊ MINI GREEN MARKET</div>
    
-    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" name="gm_login_user_manual" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly onfocus="this.removeAttribute(\'readonly\')" placeholder="admin hoặc admin@greenmarket.com" value="">
-    <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" name="gm_login_pass_manual" type="password" autocomplete="new-password" readonly onfocus="this.removeAttribute(\'readonly\')" value=""><button class="eye" onclick="togglePass()">👁️</button></div>
+    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" name="gm_login_user_manual_2026" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" placeholder="admin hoặc admin@greenmarket.com" value="">
+    <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" name="gm_login_pass_manual_2026" type="password" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value=""><button class="eye" onclick="togglePass()">👁️</button></div>
     <button class="btn-blue full" onclick="login()">Đăng nhập</button><p id="loginMsg" class="msg"></p>
   </div>
 </section>
@@ -2737,8 +2737,6 @@ function clearLoginForm(){
   try{
     loginUser.value = '';
     loginPass.value = '';
-    loginUser.setAttribute('readonly', 'readonly');
-    loginPass.setAttribute('readonly', 'readonly');
   }catch(e){}
 }
 
