@@ -325,29 +325,51 @@ tr:nth-child(even) td{
     margin:0;
   }
   html,body{
-    margin:0;
-    padding:0;
-    width:58mm;
-    background:#fff;
+    margin:0!important;
+    padding:0!important;
+    width:58mm!important;
+    min-height:0!important;
+    background:#fff!important;
+    overflow:visible!important;
   }
-  body *{
-    visibility:hidden!important;
+
+  /* FIX V3: tránh Chrome lấy cả chiều cao trang web làm trang trắng thứ 2 */
+  #loginPage{display:none!important;}
+  #appPage{
+    display:block!important;
+    padding:0!important;
+    margin:0!important;
+    width:58mm!important;
+    min-height:0!important;
+    background:#fff!important;
+    overflow:visible!important;
   }
+  #appPage::before{display:none!important;}
+  #appPage > *:not(#receiptPrint){
+    display:none!important;
+  }
+
   #receiptPrint,#receiptPrint *{
     visibility:visible!important;
   }
- #receiptPrint{
-  position:absolute!important;
-  left:0!important;
-  top:0!important;
-  transform:none!important;
-  width:54mm!important;
-  min-height:auto!important;
-  margin:0!important;
-  page-break-after:auto!important;
-  page-break-before:auto!important;
-}
-  #receiptPrint .receipt-spacer{height:4mm!important;}
+  #receiptPrint{
+    display:block!important;
+    position:absolute!important;
+    left:1.5mm!important;
+    top:0!important;
+    transform:none!important;
+    width:51mm!important;
+    max-width:51mm!important;
+    min-height:auto!important;
+    margin:0!important;
+    padding:2.4mm!important;
+    overflow:visible!important;
+    page-break-before:auto!important;
+    page-break-after:auto!important;
+    break-before:auto!important;
+    break-after:auto!important;
+  }
+  #receiptPrint .receipt-spacer{height:3mm!important;}
 }
 
 
