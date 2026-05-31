@@ -1727,8 +1727,8 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
   <div class="login-card">
     <div class="logo">🛒 SIÊU THỊ MINI GREEN MARKET</div>
    
-    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" autocomplete="username" placeholder="admin hoặc admin@greenmarket.com">
-    <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" type="password" autocomplete="current-password"><button class="eye" onclick="togglePass()">👁️</button></div>
+    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" autocomplete="off" placeholder="Nhập tài khoản/email">
+    <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" type="password" autocomplete="off"><button class="eye" onclick="togglePass()">👁️</button></div>
     <button class="btn-blue full" onclick="login()">Đăng nhập</button><p id="loginMsg" class="msg"></p>
   </div>
 </section>
@@ -2735,6 +2735,10 @@ function scanEnter(e){
    ========================================================= */
 function showLogin(){
   try{ resetBillDetailForNewSession(); }catch(e){}
+  try{
+    loginUser.value = '';
+    loginPass.value = '';
+  }catch(e){}
   loginPage.classList.remove('hidden');
   appPage.classList.add('hidden');
 }
@@ -9818,7 +9822,9 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   onAuthStateChanged,
-  signOut
+  signOut,
+  setPersistence,
+  inMemoryPersistence
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -9834,6 +9840,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+// BẢO MẬT PHIÊN ĐĂNG NHẬP:
+// Không lưu phiên Firebase vào máy/trình duyệt.
+// Tắt máy, đóng tab, mở lại trang => luôn phải đăng nhập lại.
+try{ await setPersistence(auth, inMemoryPersistence); }catch(e){ console.warn("Không đặt được inMemoryPersistence", e); }
+
 const CLOUD_DOC = doc(db, "greenmarket", "main_data");
 const BACKUP_COLLECTION = "greenmarket_backups";
 const CLOUD_BACKUP_KEEP = 7;
@@ -10515,33 +10527,26 @@ window.greenMarketLoadFirebaseNow = async function(showAlert = true){
 
 let firebaseAuthBooted = false;
 onAuthStateChanged(auth, async (firebaseUser) => {
-  // Firebase Auth là nguồn đăng nhập duy nhất. Nếu còn phiên đăng nhập cũ, tự mở app lại.
+  // BẢO MẬT: không tự khôi phục phiên đăng nhập cũ.
+  // Nếu trình duyệt/Firebase còn giữ phiên từ lần trước thì đăng xuất ngay
+  // và đưa về màn hình đăng nhập.
   try{
     if(!firebaseAuthBooted){ firebaseAuthBooted = true; }
+
     if(firebaseUser && !window.current){
-      const session = await buildGreenMarketSessionFromFirebaseUser(firebaseUser);
-      window.current = current = session;
-      users = await window.greenMarketLoadUserProfiles();
-      if(!users.some(x => x.user === current.user)) users.unshift({...current});
-
-      await initFirebaseSync(true);
-
-      userName.textContent = current.name;
-      userRole.textContent = roleLabel(current.role);
-      loginMsg.textContent = '';
-      loginPage.classList.add('hidden');
-      appPage.classList.remove('hidden');
-      try{ resetBillDetailForNewSession(); }catch(e){}
-      applyPermission();
-      showPage('home');
-      renderAll();
-      renderTopProducts();
-      if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
+      await signOut(auth);
+      current = null;
+      window.current = null;
+      try{ loginUser.value = ''; loginPass.value = ''; }catch(e){}
+      showLogin();
+      setSyncStatus("ℹ️ Vui lòng đăng nhập lại", true);
+      return;
     }
   }catch(err){
-    console.error('Firebase Auth resume error:', err);
+    console.error('Firebase Auth safe boot error:', err);
     try{ await signOut(auth); }catch(e){}
-    loginMsg.textContent = err?.message || 'Không khôi phục được phiên đăng nhập Firebase';
+    current = null;
+    window.current = null;
     showLogin();
   }
 });
