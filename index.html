@@ -207,7 +207,7 @@ tr:nth-child(even) td{
    ========================================================= */
 .receipt{
   width:54mm;
-  min-height:98mm;
+  min-height:auto;
   background:#fff;
   color:#000;
   margin:0 auto;
@@ -285,8 +285,8 @@ tr:nth-child(even) td{
   line-height:1.25;
 }
 .qr{
-  width:92px;
-  height:92px;
+  width:76px;
+  height:76px;
   border:2px solid #000;
   margin:8px auto 2px;
 }
@@ -297,7 +297,7 @@ tr:nth-child(even) td{
   opacity: 0.9;
 }
 .receipt-spacer{
-  height:14mm;
+  height:6mm;
 }
 
 /* =========================================================
@@ -337,12 +337,17 @@ tr:nth-child(even) td{
     visibility:visible!important;
   }
  #receiptPrint{
-  position: fixed;
-  left: 50%;
-  transform: translateX(-52%);  /* 🔥 CĂN GIỮA */
-  top: 0;
-  width: 58mm;
+  position:absolute!important;
+  left:0!important;
+  top:0!important;
+  transform:none!important;
+  width:54mm!important;
+  min-height:auto!important;
+  margin:0!important;
+  page-break-after:auto!important;
+  page-break-before:auto!important;
 }
+  #receiptPrint .receipt-spacer{height:4mm!important;}
 }
 
 
@@ -496,6 +501,38 @@ tr:nth-child(even) td{
     padding:7px 10px!important;
   }
 }
+
+/* FIX HÓA ĐƠN 1 LIÊN/2 LIÊN - KHÔNG LÀM VỠ GIAO DIỆN POS */
+.receipt-copy-row{
+  display:grid;
+  grid-template-columns:110px 1fr;
+  gap:8px;
+  align-items:center;
+  margin:8px 0 6px;
+}
+.receipt-copy-row label{
+  margin:0!important;
+  font-size:13px;
+}
+.receipt-copy-row select{
+  height:38px!important;
+  padding:7px 10px!important;
+  font-size:13px!important;
+  border-radius:12px!important;
+}
+.pos-shell > .pos-panel:nth-child(3) .actions{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:8px!important;
+}
+.pos-shell > .pos-panel:nth-child(3) .actions button{
+  width:100%!important;
+  margin-top:0!important;
+}
+@media(max-width:768px){
+  .receipt-copy-row{grid-template-columns:1fr!important;}
+}
+
 /* =========================================================
    TEM MÃ VẠCH A4 - FINAL 40x20MM, 60 TEM/TRANG
    Không ảnh hưởng CSS in hóa đơn nhiệt vì phần in A4 dùng cửa sổ riêng.
@@ -1834,11 +1871,13 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
           <button id="payQrBtn" onclick="setPaymentMethod('qr')">📱 QR</button>
           <button id="payCardBtn" onclick="setPaymentMethod('card')">💳 Thẻ/Ví</button>
         </div>
-        <label>Số liên hóa đơn</label>
-        <select id="receiptCopies" onchange="localStorage.setItem('greenmarket_receipt_copies', this.value)">
-          <option value="1" selected>In 1 liên</option>
-          <option value="2">In 2 liên - cắt giấy rồi in tiếp</option>
-        </select>
+        <div class="receipt-copy-row">
+          <label>Số liên</label>
+          <select id="receiptCopies" onchange="localStorage.setItem('greenmarket_receipt_copies', this.value)">
+            <option value="1" selected>In 1 liên</option>
+            <option value="2">In 2 liên - cắt giấy rồi in tiếp</option>
+          </select>
+        </div>
         <div id="cashBox" class="pos-cash-box">
           <label>Khách đưa tiền</label>
           <input id="customerCash" type="number" placeholder="Nhập số tiền khách đưa" oninput="updatePaymentBox()" onkeydown="if(event.key==='Enter'){event.preventDefault(); checkout();}">
@@ -4833,7 +4872,7 @@ function printReceipt(total, paymentText = 'Tiền mặt'){
         <span>${money(total)}</span>
       </div>
 
-      <div style="text-align:center;margin-top:6px">
+      <div style="text-align:center;margin-top:4px">
         <div class="qr"></div>
         <div>QR thanh toán</div>
       </div>
@@ -4848,25 +4887,29 @@ function printReceipt(total, paymentText = 'Tiền mặt'){
   }
 
   receiptPrint.classList.remove('hidden');
+  receiptPrint.classList.add('receipt-sale');
   receiptPrint.innerHTML = buildSaleReceipt(copies === 2 ? 'LIÊN 1 - KHÁCH HÀNG' : '');
-  window.print();
+  setTimeout(() => window.print(), 250);
 
   if(copies === 2){
     setTimeout(() => {
       const ok = confirm('Đã in liên 1. Vui lòng cắt giấy, rồi bấm OK để in liên 2.');
       if(ok){
         receiptPrint.classList.remove('hidden');
+        receiptPrint.classList.add('receipt-sale');
         receiptPrint.innerHTML = buildSaleReceipt('LIÊN 2 - LƯU CỬA HÀNG');
-        window.print();
+        setTimeout(() => window.print(), 250);
       }
       setTimeout(() => {
         receiptPrint.classList.add('hidden');
+        receiptPrint.classList.remove('receipt-sale');
         receiptPrint.innerHTML = '';
       }, 700);
     }, 500);
   }else{
     setTimeout(() => {
       receiptPrint.classList.add('hidden');
+      receiptPrint.classList.remove('receipt-sale');
       receiptPrint.innerHTML = '';
     }, 700);
   }
