@@ -2644,6 +2644,15 @@ function now(){
   return new Date().toLocaleString('vi-VN');
 }
 
+function splitReceiptDateTime(value){
+  const s = String(value || '').trim();
+  const m = s.match(/(\d{1,2}:\d{2}(?::\d{2})?)/);
+  if(!m) return { date: s, time: '' };
+  const time = m[1];
+  const date = s.replace(time, '').replace(/[,，]/g, ' ').replace(/\s+/g, ' ').trim();
+  return { date: date || s, time };
+}
+
 function makeBillCode(){
   const d = new Date();
   const pad = n => String(n).padStart(2, '0');
@@ -5135,7 +5144,8 @@ document.addEventListener('DOMContentLoaded', initReceiptCopiesSetting);
    23. IN HÓA ĐƠN
    ========================================================= */
 function printReceipt(total, paymentText = 'Tiền mặt'){
-  const staffName = escapeHTML(String(current?.name || 'Admin').replace(/Thu Ngân/g,'Thu Ngân')); 
+  const staffName = escapeHTML(String(current?.name || 'Admin').replace(/Thu Ngân/g,'Thu Ngân'));
+  const printedAt = splitReceiptDateTime(now());
   const copies = getReceiptCopiesSetting();
   const itemHtml = cart.map(c => `
     <div class="receipt-item">• ${escapeHTML(c.name)}:</div>
@@ -5150,7 +5160,8 @@ function printReceipt(total, paymentText = 'Tiền mặt'){
       ${copyLabel ? `<div class="receipt-reprint-stamp">${copyLabel}</div>` : ''}
       <div class="receipt-line"></div>
 
-      <div>• Ngày: ${now()}</div>
+      <div>• Ngày: ${escapeHTML(printedAt.date)}</div>
+      <div>• Giờ: ${escapeHTML(printedAt.time)}</div>
       <div>• Nhân viên: ${staffName}</div>
       <div>• Thanh toán: ${escapeHTML(paymentText)}</div>
       <div class="receipt-line"></div>
@@ -8964,6 +8975,9 @@ if(admin){
   save();
   renderAll();
 
+  const billPrintedAt = splitReceiptDateTime(b.time || '');
+  const reprintPrintedAt = splitReceiptDateTime(now());
+
   receiptPrint.classList.remove('hidden');
   receiptPrint.innerHTML = `
     <div class="receipt-title">SIÊU THỊ MINI GREEN MARKET</div>
@@ -8972,8 +8986,10 @@ if(admin){
     <div class="receipt-line"></div>
 
     <div>• Mã HĐ: ${escapeHTML(billCode)}</div>
-    <div>• Ngày bán: ${escapeHTML(b.time || '')}</div>
-    <div>• Ngày in lại: ${now()}</div>
+    <div>• Ngày bán: ${escapeHTML(billPrintedAt.date)}</div>
+    <div>• Giờ bán: ${escapeHTML(billPrintedAt.time)}</div>
+    <div>• Ngày in lại: ${escapeHTML(reprintPrintedAt.date)}</div>
+    <div>• Giờ in lại: ${escapeHTML(reprintPrintedAt.time)}</div>
     <div>• Người in lại: ${escapeHTML(current?.name || '')}</div>
     <div>• Nhân viên bán: ${escapeHTML(b.staff || '')}</div>
     <div>• Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}</div>
