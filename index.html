@@ -213,7 +213,7 @@ tr:nth-child(even) td{
   margin:0 auto;
   padding:2.6mm;
   font-family:Tahoma, Arial, sans-serif;
-  font-size:14px;
+  font-size:15px;
   font-weight:700;
   line-height:1.28;
   box-sizing:border-box;
@@ -238,7 +238,7 @@ tr:nth-child(even) td{
 }
 
 .receipt-info{
-  font-size:13px;
+  font-size:14px;
   line-height:1.23;
   margin:1px 0;
   word-break:break-word;
@@ -249,31 +249,31 @@ tr:nth-child(even) td{
 }
 
 .receipt-total{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) max-content;
-  align-items:start;
-  column-gap:5px;
-  font-size:13.2px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:5px;
+  font-size:14px;
   font-weight:900;
   line-height:1.18;
   margin:2px 0;
 }
 .receipt-total span:first-child{
-  min-width:0;
+  flex:0 0 auto;
   white-space:nowrap;
-  overflow:hidden;
 }
 .receipt-total span:last-child{
+  flex:0 1 auto;
   text-align:right;
   white-space:nowrap;
-  font-size:13.2px;
+  font-size:14px;
 }
 .receipt-total-long{
-  font-size:12px;
-  column-gap:3px;
+  font-size:13px;
+  gap:3px;
 }
 .receipt-total-long span:last-child{
-  font-size:12px;
+  font-size:13px;
 }
 .receipt-item{
   margin:3px 0 1px;
@@ -281,7 +281,7 @@ tr:nth-child(even) td{
   font-size:14px;
 }
 .receipt-money{
-  font-size:13px;
+  font-size:14px;
   line-height:1.25;
 }
 .qr{
@@ -370,12 +370,11 @@ tr:nth-child(even) td{
     break-after:auto!important;
   }
 
-  /* FIX V4: thu nhẹ và đẩy phiếu vào trong để không mất viền phải */
+  /* FIX V5: thu còn 51mm và canh giữa để không mất viền phải trên XPrinter 58mm */
   #receiptPrint .receipt{
-    width:52.5mm!important;
-    max-width:52.5mm!important;
-    margin-left:0!important;
-    margin-right:auto!important;
+    width:51mm!important;
+    max-width:51mm!important;
+    margin:0 auto!important;
   }
 
   #receiptPrint .receipt-spacer{height:3mm!important;}
