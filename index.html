@@ -206,19 +206,21 @@ tr:nth-child(even) td{
    07. HÓA ĐƠN IN 58MM - BẢN ĐẸP CHO MÁY IN NHIỆT
    ========================================================= */
 .receipt{
-  width:54mm;
+  width:56mm;
   min-height:auto;
   background:#fff;
   color:#000;
   margin:0 auto;
-  padding:2.6mm;
+  padding:2.2mm 2.6mm;
   font-family:Tahoma, Arial, sans-serif;
-  font-size:15px;
+  font-size:14.5px;
   font-weight:700;
-  line-height:1.28;
+  line-height:1.26;
   box-sizing:border-box;
-  border:2px solid #000;
-  border-radius:6px;
+  border:none;
+  border-top:2px solid #000;
+  border-bottom:2px solid #000;
+  border-radius:0;
 }
 .receipt *{
   font-family:Tahoma, Arial, sans-serif;
@@ -227,7 +229,7 @@ tr:nth-child(even) td{
 }
 .receipt-title{
   text-align:center;
-  font-size:18px;
+  font-size:17px;
   font-weight:900;
   margin-bottom:3px;
   line-height:1.18;
@@ -238,7 +240,7 @@ tr:nth-child(even) td{
 }
 
 .receipt-info{
-  font-size:14px;
+  font-size:13px;
   line-height:1.23;
   margin:1px 0;
   word-break:break-word;
@@ -253,27 +255,26 @@ tr:nth-child(even) td{
   justify-content:space-between;
   align-items:center;
   gap:5px;
-  font-size:14px;
+  font-size:13.8px;
   font-weight:900;
   line-height:1.18;
   margin:2px 0;
 }
 .receipt-total span:first-child{
-  flex:0 0 auto;
+  min-width:0;
   white-space:nowrap;
 }
 .receipt-total span:last-child{
-  flex:0 1 auto;
   text-align:right;
   white-space:nowrap;
-  font-size:14px;
+  font-size:13.8px;
 }
 .receipt-total-long{
-  font-size:13px;
-  gap:3px;
+  font-size:12px;
+  column-gap:3px;
 }
 .receipt-total-long span:last-child{
-  font-size:13px;
+  font-size:12px;
 }
 .receipt-item{
   margin:3px 0 1px;
@@ -281,7 +282,7 @@ tr:nth-child(even) td{
   font-size:14px;
 }
 .receipt-money{
-  font-size:14px;
+  font-size:13px;
   line-height:1.25;
 }
 .qr{
@@ -362,7 +363,7 @@ tr:nth-child(even) td{
     max-width:58mm!important;
     min-height:auto!important;
     margin:0!important;
-    padding:0.8mm 0 0 0.8mm!important;
+    padding:0.8mm 1mm 0 1mm!important;
     overflow:visible!important;
     page-break-before:auto!important;
     page-break-after:auto!important;
@@ -370,11 +371,16 @@ tr:nth-child(even) td{
     break-after:auto!important;
   }
 
-  /* FIX V5: thu còn 51mm và canh giữa để không mất viền phải trên XPrinter 58mm */
+  /* BỎ KHUNG DỌC: chỉ giữ gạch trên/gạch dưới, tránh lệch và mất viền phải */
   #receiptPrint .receipt{
-    width:51mm!important;
-    max-width:51mm!important;
+    width:56mm!important;
+    max-width:56mm!important;
     margin:0 auto!important;
+    border-left:none!important;
+    border-right:none!important;
+    border-top:2px solid #000!important;
+    border-bottom:2px solid #000!important;
+    border-radius:0!important;
   }
 
   #receiptPrint .receipt-spacer{height:3mm!important;}
@@ -2295,7 +2301,7 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
   </section>
   <section id="money" class="page hidden card"><h2>💵 Thu chi</h2><div class="table-wrap"><table><thead><tr><th>STT</th><th>Ngày</th><th>Loại</th><th>Số tiền</th></tr></thead><tbody id="moneyBody"></tbody></table></div></section>
   <section id="staff" class="page hidden card"><h2>👥 Quản lý nhân viên</h2><div class="grid"><input id="staffName" placeholder="Tên nhân viên"><input id="staffUser" placeholder="Tên đăng nhập"><input id="staffPass" type="password" placeholder="Mật khẩu Firebase Auth (không lưu local)"><select id="staffRole">
-  <option value="cashier">Thu ngân</option>
+  <option value="cashier">Thu Ngân</option>
   <option value="accountant">Kế toán</option>
   <option value="manager">Quản lý</option>
   <option value="admin">Admin</option>
@@ -2847,7 +2853,7 @@ function normalizeRole(role){
 }
 function roleLabel(role){
   const r = normalizeRole(role);
-  return {admin:'Admin', manager:'Quản lý', accountant:'Kế toán', cashier:'Thu ngân'}[r] || 'Thu ngân';
+  return {admin:'Admin', manager:'Quản Lý', accountant:'Kế Toán', cashier:'Thu Ngân'}[r] || 'Thu Ngân';
 }
 function roleCan(page){
   const r = normalizeRole(current?.role);
@@ -4874,7 +4880,7 @@ document.addEventListener('DOMContentLoaded', initReceiptCopiesSetting);
    23. IN HÓA ĐƠN
    ========================================================= */
 function printReceipt(total, paymentText = 'Tiền mặt'){
-  const staffName = escapeHTML(current?.name || 'Admin');
+  const staffName = escapeHTML(String(current?.name || 'Admin').replace(/Thu ngân/g,'Thu Ngân')); 
   const copies = getReceiptCopiesSetting();
   const itemHtml = cart.map(c => `
     <div class="receipt-item">• ${escapeHTML(c.name)}:</div>
@@ -10030,16 +10036,16 @@ window.greenMarketLoadUserProfiles = async function(){
 
   // 3) Đảm bảo danh sách có 2 nhân viên Auth đã tạo, phòng khi Firestore chưa kịp đọc.
   if(!map.has('thungan@greenmarket.com')){
-    map.set('thungan@greenmarket.com', {uid:'thungan@greenmarket.com', name:'Thu Ngân', user:'thungan', email:'thungan@greenmarket.com', role:'cashier'});
+    map.set('thungan@greenmarket.com', {uid:'thungan@greenmarket.com', name:'Thu ngân', user:'thungan', email:'thungan@greenmarket.com', role:'cashier'});
   }
   if(!map.has('hieuthao@greenmarket.com')){
     map.set('hieuthao@greenmarket.com', {uid:'hieuthao@greenmarket.com', name:'Hiếu Thảo', user:'hieuthao', email:'hieuthao@greenmarket.com', role:'cashier'});
   }
   if(!map.has('quanly@greenmarket.com')){
-    map.set('quanly@greenmarket.com', {uid:'quanly@greenmarket.com', name:'Quản Lý', user:'quanly', email:'quanly@greenmarket.com', role:'manager'});
+    map.set('quanly@greenmarket.com', {uid:'quanly@greenmarket.com', name:'Quản lý', user:'quanly', email:'quanly@greenmarket.com', role:'manager'});
   }
   if(!map.has('ketoan@greenmarket.com')){
-    map.set('ketoan@greenmarket.com', {uid:'ketoan@greenmarket.com', name:'Kế Toán', user:'ketoan', email:'ketoan@greenmarket.com', role:'accountant'});
+    map.set('ketoan@greenmarket.com', {uid:'ketoan@greenmarket.com', name:'Kế toán', user:'ketoan', email:'ketoan@greenmarket.com', role:'accountant'});
   }
 
   return Array.from(map.values()).sort((a,b) => (a.name || '').localeCompare(b.name || '', 'vi'));
