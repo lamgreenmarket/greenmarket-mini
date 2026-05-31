@@ -206,7 +206,7 @@ tr:nth-child(even) td{
    07. HÓA ĐƠN IN 58MM - BẢN ĐẸP CHO MÁY IN NHIỆT
    ========================================================= */
 .receipt{
-  width:54mm;
+  width:53.2mm;
   min-height:auto;
   background:#fff;
   color:#000;
@@ -268,7 +268,7 @@ tr:nth-child(even) td{
   text-align:right;
   white-space:nowrap;
   font-size:13.2px;
-  padding-right:2mm;
+  padding-right:0.8mm;
 }
 .receipt-total-long{
   font-size:12px;
@@ -358,26 +358,28 @@ tr:nth-child(even) td{
   #receiptPrint{
     display:block!important;
     position:absolute!important;
-    left:0!important;
+    left:2.4mm!important;
+    right:auto!important;
     top:0!important;
     transform:none!important;
-    width:58mm!important;
-    max-width:58mm!important;
+    width:53.2mm!important;
+    max-width:53.2mm!important;
     min-height:auto!important;
     margin:0!important;
-    padding:0.8mm 1mm 0 1mm!important;
+    padding:1.6mm 1.8mm 0 1.8mm!important;
     overflow:visible!important;
+    box-sizing:border-box!important;
     page-break-before:auto!important;
     page-break-after:auto!important;
     break-before:auto!important;
     break-after:auto!important;
   }
 
-  /* BỎ KHUNG DỌC: chỉ giữ gạch trên/gạch dưới, tránh lệch và mất viền phải */
-  #receiptPrint .receipt{
-    width:54mm!important;
-    max-width:54mm!important;
-    margin:0 auto!important;
+  /* FIX XPRINTER 58MM: căn giữa vùng in thực tế, giữ khung phiếu trả hàng đủ 4 cạnh */
+  #receiptPrint.receipt{
+    width:53.2mm!important;
+    max-width:53.2mm!important;
+    margin:0!important;
     border-left:none!important;
     border-right:none!important;
     border-top:2px solid #000!important;
@@ -392,9 +394,24 @@ tr:nth-child(even) td{
   #receiptPrint .receipt-item,
   #receiptPrint .receipt-money,
   #receiptPrint .receipt-footer{
-    padding-right:1.5mm!important;
+    padding-right:1.0mm!important;
     overflow-wrap:anywhere!important;
   }
+
+  #receiptPrint .receipt-return-stamp{
+    width:calc(100% - 2mm)!important;
+    margin:4px 1mm 6px 1mm!important;
+    padding:4px 2px!important;
+    border:2px solid #000!important;
+    box-sizing:border-box!important;
+    text-align:center!important;
+  }
+
+  #receiptPrint .receipt-total{
+    padding-left:0.6mm!important;
+    padding-right:0.6mm!important;
+  }
+
 }
 
 
