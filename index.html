@@ -2600,6 +2600,10 @@ const KMONEY = 'v2_money';
 const KLOGS = 'v2_logs';
 const KIMPORTS = 'v2_import_history';
 const KLOGIN_SECURITY = 'v2_login_security'; // Bảo mật: lưu số lần đăng nhập sai + thời gian khóa tạm
+const KDEVICE_ID = 'green_market_device_id_v1'; // Bảo mật phiên: nhận diện trình duyệt/thiết bị
+const SESSION_IDLE_LIMIT_MS = 15 * 60 * 1000; // 15 phút không thao tác thì tự đăng xuất
+const SESSION_IDLE_WARNING_MS = 14 * 60 * 1000; // cảnh báo trước 1 phút
+const SESSION_HEARTBEAT_MS = 30 * 1000; // cập nhật phiên đang hoạt động mỗi 30 giây
 
 let users = [];
 try{ localStorage.removeItem(KUSERS); }catch(e){}
@@ -2616,6 +2620,11 @@ let importSaveModalMode = 'confirm';
 let importDraftPrinted = false; // Bắt buộc in phiếu trước khi lưu + cộng kho
 
 let current = null;
+let activeSessionInfo = null;
+let idleWarningTimer = null;
+let idleLogoutTimer = null;
+let sessionHeartbeatTimer = null;
+let sessionWatchStopper = null;
 let cart = [];
 let paymentMethod = 'cash';
 let stockFilter = 'all';
@@ -2804,6 +2813,140 @@ function addLog(action, detail){
 
   localStorage.setItem(KLOGS, JSON.stringify(logs));
 }
+
+
+/* =========================================================
+   BẢO MẬT PHIÊN: 1 TÀI KHOẢN = 1 THIẾT BỊ + TỰ ĐĂNG XUẤT
+   - Thu ngân / Quản lý / Kế toán: bị chặn nếu đăng nhập thiết bị thứ 2.
+   - Admin: được quyền chuyển phiên, nhưng luôn ghi nhật ký.
+   - 15 phút không thao tác: tự đăng xuất và giải phóng phiên.
+   ========================================================= */
+function getDeviceId(){
+  let id = localStorage.getItem(KDEVICE_ID);
+  if(!id){
+    id = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem(KDEVICE_ID, id);
+  }
+  return id;
+}
+
+function getDeviceName(){
+  const ua = navigator.userAgent || '';
+  let device = 'Thiết bị hiện tại';
+  if(/iPhone/i.test(ua)) device = 'iPhone';
+  else if(/iPad/i.test(ua)) device = 'iPad';
+  else if(/Android/i.test(ua)) device = 'Android';
+  else if(/Windows/i.test(ua)) device = 'Máy tính Windows';
+  else if(/Macintosh/i.test(ua)) device = 'Máy tính Mac';
+  return device + ' - ' + (navigator.platform || 'Trình duyệt');
+}
+
+function getSessionIdentity(){
+  return {
+    deviceId: getDeviceId(),
+    deviceName: getDeviceName(),
+    sessionId: 'ses_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10)
+  };
+}
+
+function syncSecurityLog(reason = 'security'){
+  try{ localStorage.setItem(KLOGS, JSON.stringify(logs)); }catch(e){}
+  try{
+    if(typeof save === 'function') save();
+    if(typeof window.greenMarketScheduleFirebaseSave === 'function'){
+      window.greenMarketScheduleFirebaseSave(reason);
+    }
+  }catch(e){}
+}
+
+function stopSessionProtection(){
+  clearTimeout(idleWarningTimer);
+  clearTimeout(idleLogoutTimer);
+  clearInterval(sessionHeartbeatTimer);
+  idleWarningTimer = null;
+  idleLogoutTimer = null;
+  sessionHeartbeatTimer = null;
+  try{
+    if(typeof sessionWatchStopper === 'function') sessionWatchStopper();
+  }catch(e){}
+  sessionWatchStopper = null;
+  const box = document.getElementById('idleWarningBox');
+  if(box) box.remove();
+}
+
+function hideIdleWarning(){
+  const box = document.getElementById('idleWarningBox');
+  if(box) box.remove();
+}
+
+function showIdleWarning(){
+  if(!current) return;
+  hideIdleWarning();
+  const box = document.createElement('div');
+  box.id = 'idleWarningBox';
+  box.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:999999;background:#fff7ed;color:#7c2d12;border:2px solid #fed7aa;border-radius:18px;padding:14px 16px;box-shadow:0 16px 40px #0003;font-weight:800;max-width:calc(100vw - 24px);width:420px;text-align:center;line-height:1.45';
+  box.innerHTML = `
+    <div style="font-size:16px;margin-bottom:8px">⚠️ Sắp tự động đăng xuất</div>
+    <div style="font-size:13px;margin-bottom:10px">Bạn đã không thao tác gần 14 phút. Hệ thống sẽ đăng xuất sau 60 giây để bảo vệ tài khoản.</div>
+    <button class="btn-green" style="width:100%;border-radius:14px" onclick="resetIdleTimers(true)">Tiếp tục làm việc</button>
+  `;
+  document.body.appendChild(box);
+  idleLogoutTimer = setTimeout(() => {
+    addLog('Đăng xuất tự động', 'Tài khoản không hoạt động 15 phút, hệ thống tự đăng xuất và giải phóng thiết bị');
+    syncSecurityLog('auto_logout_15_minutes');
+    logout('auto_idle');
+  }, 60 * 1000);
+}
+
+function resetIdleTimers(fromButton = false){
+  if(!current) return;
+  hideIdleWarning();
+  clearTimeout(idleWarningTimer);
+  clearTimeout(idleLogoutTimer);
+  idleWarningTimer = setTimeout(showIdleWarning, SESSION_IDLE_WARNING_MS);
+  if(fromButton){
+    addLog('Tiếp tục phiên làm việc', 'Người dùng xác nhận tiếp tục sau cảnh báo tự đăng xuất');
+    syncSecurityLog('continue_after_idle_warning');
+  }
+}
+window.resetIdleTimers = resetIdleTimers;
+
+function startSessionProtection(sessionInfo){
+  activeSessionInfo = sessionInfo || activeSessionInfo;
+  stopSessionProtection();
+  resetIdleTimers(false);
+  ['click','keydown','touchstart','mousemove','scroll'].forEach(ev => {
+    window.removeEventListener(ev, window.__greenMarketActivityHandler || (()=>{}));
+  });
+  window.__greenMarketActivityHandler = () => resetIdleTimers(false);
+  ['click','keydown','touchstart','mousemove','scroll'].forEach(ev => {
+    window.addEventListener(ev, window.__greenMarketActivityHandler, {passive:true});
+  });
+
+  const beat = () => {
+    try{
+      if(current && activeSessionInfo && typeof window.greenMarketTouchLoginSession === 'function'){
+        window.greenMarketTouchLoginSession(activeSessionInfo);
+      }
+    }catch(e){}
+  };
+  beat();
+  sessionHeartbeatTimer = setInterval(beat, SESSION_HEARTBEAT_MS);
+
+  try{
+    if(typeof window.greenMarketWatchLoginSession === 'function'){
+      sessionWatchStopper = window.greenMarketWatchLoginSession(activeSessionInfo);
+    }
+  }catch(e){}
+}
+
+window.greenMarketHandleSessionKicked = function(message){
+  if(!current) return;
+  addLog('Phiên bị chuyển', message || 'Phiên đăng nhập đã bị thay thế bởi thiết bị khác');
+  syncSecurityLog('session_kicked');
+  alert(message || 'Tài khoản này đã được đăng nhập ở thiết bị khác. Thiết bị hiện tại sẽ đăng xuất.');
+  logout('session_kicked');
+};
 function renderShift(){
   if(!document.getElementById('shiftBody')) return;
 const list =
@@ -3036,6 +3179,32 @@ async function login(){
     users = await window.greenMarketLoadUserProfiles();
     if(!users.some(x => x.user === current.user)) users.unshift({...current});
 
+    // BẢO MẬT PHIÊN: kiểm tra 1 tài khoản = 1 thiết bị trước khi cho vào hệ thống.
+    let sessionClaim = null;
+    if(typeof window.greenMarketClaimLoginSession === 'function'){
+      sessionClaim = await window.greenMarketClaimLoginSession(current, getSessionIdentity(), false);
+      if(sessionClaim?.needsAdminConfirm){
+        const ok = confirm(sessionClaim.message + '\n\nAdmin có muốn đăng xuất thiết bị cũ và đăng nhập tại thiết bị này không?');
+        if(ok){
+          sessionClaim = await window.greenMarketClaimLoginSession(current, getSessionIdentity(), true);
+          addLog('Admin chuyển thiết bị', sessionClaim?.message || 'Admin đăng xuất thiết bị cũ và đăng nhập tại thiết bị mới');
+          syncSecurityLog('admin_transfer_session');
+        }
+      }
+
+      if(!sessionClaim?.ok){
+        const msg = sessionClaim?.message || 'Tài khoản đang đăng nhập trên thiết bị khác.';
+        addLog('Cảnh báo đăng nhập trùng', msg + ' Kết quả: BỊ TỪ CHỐI');
+        syncSecurityLog('blocked_duplicate_login');
+        loginMsg.textContent = msg;
+        try{ await window.greenMarketAuthSignOut(); }catch(e){}
+        current = null;
+        window.current = null;
+        return;
+      }
+      activeSessionInfo = sessionClaim;
+    }
+
     // Firebase là chính: đăng nhập xong kéo cloud về trước khi render.
     if(typeof window.greenMarketEnsureFirebaseSync === 'function'){
       loginMsg.textContent = 'Đang đồng bộ Firebase...';
@@ -3059,6 +3228,7 @@ async function login(){
     renderAll();
     renderTopProducts();
     if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
+    if(activeSessionInfo) startSessionProtection(activeSessionInfo);
   }catch(err){
     console.error(err);
     const reason = err?.message || 'Sai tài khoản hoặc mật khẩu Firebase';
@@ -3067,10 +3237,14 @@ async function login(){
   }
 }
 
-async function logout(){
+async function logout(reason = 'manual'){
   try{ resetBillDetailForNewSession(); }catch(e){}
 
-  addLog('Đăng xuất', 'Thoát khỏi hệ thống an toàn');
+  if(current){
+    if(reason === 'auto_idle') addLog('Đăng xuất tự động', 'Thoát khỏi hệ thống do không hoạt động 15 phút');
+    else if(reason === 'session_kicked') addLog('Đăng xuất bảo mật', 'Thoát khỏi hệ thống do phiên bị thay thế');
+    else addLog('Đăng xuất', 'Thoát khỏi hệ thống an toàn');
+  }
 
   try{
     if(typeof save === 'function') save();
@@ -3078,11 +3252,20 @@ async function logout(){
 
   try{
     if(typeof window.greenMarketScheduleFirebaseSave === 'function'){
-      window.greenMarketScheduleFirebaseSave('logout_log');
+      window.greenMarketScheduleFirebaseSave(reason === 'manual' ? 'logout_log' : reason);
     }
   }catch(e){}
 
-  await new Promise(r => setTimeout(r, 1500));
+  try{
+    if(activeSessionInfo && typeof window.greenMarketReleaseLoginSession === 'function'){
+      await window.greenMarketReleaseLoginSession(activeSessionInfo, reason);
+    }
+  }catch(e){}
+
+  stopSessionProtection();
+  activeSessionInfo = null;
+
+  await new Promise(r => setTimeout(r, 600));
 
   try{
     if(typeof window.greenMarketAuthSignOut === 'function'){
@@ -10180,6 +10363,8 @@ const CLOUD_DOC = doc(db, "greenmarket", "main_data");
 const BACKUP_COLLECTION = "greenmarket_backups";
 const CLOUD_BACKUP_KEEP = 7;
 const AUTH_USERS_COLLECTION = "greenmarket_auth_users";
+const LOGIN_SESSIONS_COLLECTION = "greenmarket_active_sessions";
+const LOGIN_SESSION_STALE_MS = 20 * 60 * 1000;
 const CLOUD_KEYS = [
   "v2_products",
   "v2_bills",
@@ -10450,6 +10635,107 @@ async function buildGreenMarketSessionFromFirebaseUser(firebaseUser){
     role: normalizeRole(profile.role)
   };
 }
+
+
+function safeSessionDocId(email){
+  return String(email || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '_');
+}
+function sessionNowMs(){ return Date.now(); }
+function sessionTimeText(ms){
+  try{ return new Date(ms || Date.now()).toLocaleString('vi-VN'); }catch(e){ return String(ms || ''); }
+}
+function buildSessionMessage(currentSession, incomingDeviceName, role){
+  const oldDevice = currentSession?.deviceName || 'thiết bị khác';
+  const oldTime = sessionTimeText(currentSession?.loginAtMs || currentSession?.lastSeenMs);
+  return `Tài khoản này đang đăng nhập trên ${oldDevice} từ ${oldTime}. Thiết bị mới (${incomingDeviceName}) không được vào để tránh gian lận và lộn báo cáo.`;
+}
+window.greenMarketClaimLoginSession = async function(profile, identity, forceAdminTransfer = false){
+  const email = String(profile?.email || profile?.user || '').trim().toLowerCase();
+  const role = String(profile?.role || '').trim().toLowerCase();
+  const deviceId = identity?.deviceId || 'unknown-device';
+  const deviceName = identity?.deviceName || 'Thiết bị hiện tại';
+  const sessionId = identity?.sessionId || ('ses_' + Date.now());
+  const ref = doc(db, LOGIN_SESSIONS_COLLECTION, safeSessionDocId(email));
+  const snap = await getDoc(ref);
+  const nowMs = sessionNowMs();
+  const existing = snap.exists() ? (snap.data() || {}) : null;
+  const sameDevice = existing && existing.deviceId === deviceId;
+  const stale = existing && Number(existing.lastSeenMs || 0) && (nowMs - Number(existing.lastSeenMs || 0) > LOGIN_SESSION_STALE_MS);
+
+  if(existing && !sameDevice && !stale){
+    const msg = buildSessionMessage(existing, deviceName, role);
+    if(role === 'admin' && !forceAdminTransfer){
+      return {ok:false, needsAdminConfirm:true, message:msg, existing};
+    }
+    if(role !== 'admin'){
+      return {ok:false, needsAdminConfirm:false, message:msg, existing};
+    }
+  }
+
+  const reason = existing && !sameDevice && role === 'admin' && forceAdminTransfer ? 'admin_transfer' : (stale ? 'stale_replaced' : 'login');
+  await setDoc(ref, {
+    email,
+    user: profile?.user || '',
+    name: profile?.name || '',
+    role,
+    deviceId,
+    deviceName,
+    sessionId,
+    loginAtMs: nowMs,
+    lastSeenMs: nowMs,
+    loginAtLocal: new Date(nowMs).toISOString(),
+    reason,
+    updatedAt: serverTimestamp()
+  }, { merge:false });
+
+  return {ok:true, email, role, deviceId, deviceName, sessionId, message: reason === 'admin_transfer' ? `Admin đã chuyển phiên từ ${existing?.deviceName || 'thiết bị cũ'} sang ${deviceName}.` : 'Đăng nhập hợp lệ.'};
+};
+
+window.greenMarketTouchLoginSession = async function(sessionInfo){
+  if(!sessionInfo?.email || !sessionInfo?.sessionId) return;
+  const ref = doc(db, LOGIN_SESSIONS_COLLECTION, safeSessionDocId(sessionInfo.email));
+  const snap = await getDoc(ref);
+  if(!snap.exists()) return;
+  const x = snap.data() || {};
+  if(x.sessionId !== sessionInfo.sessionId) return;
+  await setDoc(ref, {
+    lastSeenMs: Date.now(),
+    lastSeenLocal: new Date().toISOString(),
+    updatedAt: serverTimestamp()
+  }, { merge:true });
+};
+
+window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'logout'){
+  if(!sessionInfo?.email || !sessionInfo?.sessionId) return;
+  const ref = doc(db, LOGIN_SESSIONS_COLLECTION, safeSessionDocId(sessionInfo.email));
+  const snap = await getDoc(ref);
+  if(!snap.exists()) return;
+  const x = snap.data() || {};
+  if(x.sessionId === sessionInfo.sessionId){
+    await deleteDoc(ref);
+  }else{
+    await setDoc(ref, {
+      lastIgnoredReleaseAt: serverTimestamp(),
+      lastIgnoredReleaseReason: reason
+    }, { merge:true });
+  }
+};
+
+window.greenMarketWatchLoginSession = function(sessionInfo){
+  if(!sessionInfo?.email || !sessionInfo?.sessionId) return null;
+  const ref = doc(db, LOGIN_SESSIONS_COLLECTION, safeSessionDocId(sessionInfo.email));
+  return onSnapshot(ref, snap => {
+    if(!window.current) return;
+    if(!snap.exists()){
+      window.greenMarketHandleSessionKicked?.('Phiên đăng nhập đã được giải phóng ở nơi khác. Thiết bị hiện tại sẽ đăng xuất để bảo vệ dữ liệu.');
+      return;
+    }
+    const x = snap.data() || {};
+    if(x.sessionId && x.sessionId !== sessionInfo.sessionId){
+      window.greenMarketHandleSessionKicked?.('Tài khoản này đã được Admin chuyển sang thiết bị khác. Thiết bị hiện tại sẽ đăng xuất.');
+    }
+  }, err => console.warn('Không theo dõi được phiên đăng nhập:', err));
+};
 
 window.greenMarketAuthSignIn = async function(username, password){
   let lastErr = null;
