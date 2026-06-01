@@ -10304,6 +10304,13 @@ async function getProfileByEmail(email){
     }
   }
 
+  // Dự phòng an toàn: tài khoản Admin mới của chủ shop.
+  // Chỉ chạy sau khi Firebase Auth xác thực email/password thành công.
+  // Lưu ý: role admin giúp Auto Backup Firebase vẫn được phép chạy.
+  if(mail === 'lamnguyenthanh272@gmail.com'){
+    return {email:mail, name:'Admin Lâm', user:'admin', role:'admin', active:true, source:'owner-admin-fallback'};
+  }
+
   // Dự phòng an toàn: 2 tài khoản nhân viên đã tạo trong Firebase Auth.
   // Chỉ chạy sau khi Firebase Auth xác thực email/password thành công.
   if(mail === 'thungan@greenmarket.com'){
@@ -10376,7 +10383,12 @@ window.greenMarketLoadUserProfiles = async function(){
     }
   }
 
-  // 3) Đảm bảo danh sách có 2 nhân viên Auth đã tạo, phòng khi Firestore chưa kịp đọc.
+  // 3) Đảm bảo danh sách có các tài khoản Auth quan trọng, phòng khi Firestore chưa kịp đọc.
+  // Admin mới của chủ shop: giữ quyền Admin để Backup/Restore/Auto Backup hoạt động.
+  if(!map.has('lamnguyenthanh272@gmail.com')){
+    map.set('lamnguyenthanh272@gmail.com', {uid:'lamnguyenthanh272@gmail.com', name:'Admin Lâm', user:'admin', email:'lamnguyenthanh272@gmail.com', role:'admin'});
+  }
+
   if(!map.has('thungan@greenmarket.com')){
     map.set('thungan@greenmarket.com', {uid:'thungan@greenmarket.com', name:'Thu Ngân', user:'thungan', email:'thungan@greenmarket.com', role:'cashier'});
   }
