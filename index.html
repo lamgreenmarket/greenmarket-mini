@@ -3030,6 +3030,9 @@ async function login(){
     const f = await window.greenMarketAuthSignIn(u, p);
 
     current = {...f};
+    // FIX AUTO BACKUP FIREBASE: module Firebase đọc quyền qua window.current
+    // Nếu không gán dòng này, Auto Backup sẽ không nhận ra Admin/Quản lý.
+    window.current = current;
     users = await window.greenMarketLoadUserProfiles();
     if(!users.some(x => x.user === current.user)) users.unshift({...current});
 
@@ -3088,6 +3091,7 @@ async function logout(){
   }catch(e){}
 
   current = null;
+  window.current = null;
   loginUser.value = '';
   loginPass.value = '';
   showLogin();
