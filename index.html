@@ -3213,7 +3213,7 @@ async function login(){
     }
 
     clearLoginFail(u);
-    addLog('Đăng nhập', 'Đăng nhập hệ thống bằng Firebase Auth thành công');
+    addLog('Đăng nhập', 'Đăng nhập hệ thống bằng Firebase Auth thành công - Bảo mật phiên V2 đã kiểm tra');
 
     userName.textContent = current.name;
     userRole.textContent = roleLabel(current.role);
@@ -10328,7 +10328,8 @@ import {
   collection,
   deleteDoc,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 import {
   getAuth,
@@ -10656,39 +10657,60 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
   const deviceName = identity?.deviceName || 'Thiết bị hiện tại';
   const sessionId = identity?.sessionId || ('ses_' + Date.now());
   const ref = doc(db, LOGIN_SESSIONS_COLLECTION, safeSessionDocId(email));
-  const snap = await getDoc(ref);
   const nowMs = sessionNowMs();
-  const existing = snap.exists() ? (snap.data() || {}) : null;
-  const sameDevice = existing && existing.deviceId === deviceId;
-  const stale = existing && Number(existing.lastSeenMs || 0) && (nowMs - Number(existing.lastSeenMs || 0) > LOGIN_SESSION_STALE_MS);
 
-  if(existing && !sameDevice && !stale){
-    const msg = buildSessionMessage(existing, deviceName, role);
-    if(role === 'admin' && !forceAdminTransfer){
-      return {ok:false, needsAdminConfirm:true, message:msg, existing};
-    }
-    if(role !== 'admin'){
-      return {ok:false, needsAdminConfirm:false, message:msg, existing};
-    }
+  if(!email){
+    return {ok:false, needsAdminConfirm:false, message:'Không xác định được email tài khoản để khóa phiên đăng nhập.'};
   }
 
-  const reason = existing && !sameDevice && role === 'admin' && forceAdminTransfer ? 'admin_transfer' : (stale ? 'stale_replaced' : 'login');
-  await setDoc(ref, {
-    email,
-    user: profile?.user || '',
-    name: profile?.name || '',
-    role,
-    deviceId,
-    deviceName,
-    sessionId,
-    loginAtMs: nowMs,
-    lastSeenMs: nowMs,
-    loginAtLocal: new Date(nowMs).toISOString(),
-    reason,
-    updatedAt: serverTimestamp()
-  }, { merge:false });
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const existing = snap.exists() ? (snap.data() || {}) : null;
+    const sameDevice = existing && existing.deviceId === deviceId;
+    const stale = existing && Number(existing.lastSeenMs || 0) && (nowMs - Number(existing.lastSeenMs || 0) > LOGIN_SESSION_STALE_MS);
 
-  return {ok:true, email, role, deviceId, deviceName, sessionId, message: reason === 'admin_transfer' ? `Admin đã chuyển phiên từ ${existing?.deviceName || 'thiết bị cũ'} sang ${deviceName}.` : 'Đăng nhập hợp lệ.'};
+    // Nếu đã có phiên của thiết bị khác và chưa quá hạn: chặn ngay.
+    // Thu ngân / Quản lý / Kế toán đều bị chặn như nhau.
+    if(existing && !sameDevice && !stale){
+      const msg = buildSessionMessage(existing, deviceName, role);
+      if(role === 'admin' && !forceAdminTransfer){
+        return {ok:false, needsAdminConfirm:true, message:msg, existing};
+      }
+      if(role !== 'admin'){
+        return {ok:false, needsAdminConfirm:false, message:msg, existing};
+      }
+    }
+
+    const reason = existing && !sameDevice && role === 'admin' && forceAdminTransfer ? 'admin_transfer' : (stale ? 'stale_replaced' : (sameDevice ? 'same_device_refresh' : 'login'));
+    tx.set(ref, {
+      email,
+      user: profile?.user || '',
+      name: profile?.name || '',
+      role,
+      deviceId,
+      deviceName,
+      sessionId,
+      loginAtMs: nowMs,
+      lastSeenMs: nowMs,
+      loginAtLocal: new Date(nowMs).toISOString(),
+      reason,
+      version: 'session_guard_v2_transaction',
+      updatedAt: serverTimestamp()
+    }, { merge:false });
+
+    return {
+      ok:true,
+      email,
+      role,
+      deviceId,
+      deviceName,
+      sessionId,
+      message: reason === 'admin_transfer'
+        ? `Admin đã chuyển phiên từ ${existing?.deviceName || 'thiết bị cũ'} sang ${deviceName}.`
+        : 'Đăng nhập hợp lệ. Bảo mật 1 tài khoản = 1 thiết bị đã bật.',
+      reason
+    };
+  });
 };
 
 window.greenMarketTouchLoginSession = async function(sessionInfo){
