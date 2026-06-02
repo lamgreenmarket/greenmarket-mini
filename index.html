@@ -36,6 +36,8 @@ button.active{background:#16a34a!important;color:white!important}
 .login-wrap{min-height:100vh;display:flex;justify-content:center;align-items:center;padding:16px}
 .login-card{width:560px;background:white;padding:42px;border-radius:28px;box-shadow:0 25px 55px #0002}
 .logo{text-align:center;font-size:42px;font-weight:900;color:#075b86}.slogan{text-align:center;color:#00796b;font-size:21px;font-weight:700;margin:14px 0 28px}.pass-row{display:flex;gap:10px}.eye{width:64px;background:#dcecff;color:#111}.msg{color:red;font-weight:700}
+#mainLogoutBtn{margin-left:10px;min-width:92px}
+@media(max-width:768px){#mainLogoutBtn{width:100%!important;margin:10px 0 0!important}}
 
 /* =========================================================
    03. HEADER + MENU
@@ -1980,7 +1982,7 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
 <!-- =========================================================
      10. HTML HEADER + MENU
      ========================================================= -->
-  <div class="header"><h1>🛒 SIÊU THỊ MINI GREEN MARKET</h1><div>Xin chào: <b id="userName"></b> - Quyền: <b id="userRole"></b> <span id="firebaseSyncStatus" style="display:inline-block;margin-left:8px;padding:4px 10px;border-radius:999px;background:#eef7ff;color:#075985;font-weight:800;font-size:12px">☁️ Firebase</span> <button class="btn-gray" onclick="logout()">Đăng xuất</button></div></div>
+  <div class="header"><h1>🛒 SIÊU THỊ MINI GREEN MARKET</h1><div>Xin chào: <b id="userName"></b> - Quyền: <b id="userRole"></b> <span id="firebaseSyncStatus" style="display:inline-block;margin-left:8px;padding:4px 10px;border-radius:999px;background:#eef7ff;color:#075985;font-weight:800;font-size:12px">☁️ Firebase</span> <button id="mainLogoutBtn" class="btn-gray" onclick="confirmLogout()">Đăng xuất</button></div></div>
   <div class="menu">
     <button onclick="showPage('home')">🏠 Trang chủ</button>
     <button data-permission="shift" onclick="showPage('shift')">⏱ Ca làm việc</button>
@@ -3240,16 +3242,43 @@ async function login(){
   }
 }
 
+function confirmLogout(){
+  if(confirm('Bạn có chắc muốn đăng xuất không?')) logout('manual');
+}
+window.confirmLogout = confirmLogout;
+
 async function logout(reason = 'manual'){
   window.greenMarketIsLoggingOut = true;
   window.greenMarketSuppressSessionKick = true;
+
+  const oldCurrent = current ? {...current} : null;
+  const releaseInfo = activeSessionInfo || (oldCurrent ? {
+    email: oldCurrent.email || oldCurrent.user || '',
+    user: oldCurrent.user || '',
+    name: oldCurrent.name || '',
+    role: oldCurrent.role || '',
+    deviceId: getDeviceId(),
+    deviceName: getDeviceName(),
+    sessionId: ''
+  } : null);
+
   try{ resetBillDetailForNewSession(); }catch(e){}
 
-  if(current){
+  if(oldCurrent){
     if(reason === 'auto_idle') addLog('Đăng xuất tự động', 'Thoát khỏi hệ thống do không hoạt động 15 phút');
     else if(reason === 'session_kicked') addLog('Đăng xuất bảo mật', 'Thoát khỏi hệ thống do phiên bị thay thế');
     else addLog('Đăng xuất', 'Thoát khỏi hệ thống an toàn');
   }
+
+  // Dừng watcher trước để không báo nhầm khi chính mình đang đăng xuất.
+  stopSessionProtection();
+
+  // V7: giải phóng phiên TRƯỚC khi lưu/đồng bộ, có thông tin dự phòng theo email + deviceId.
+  try{
+    if(releaseInfo && typeof window.greenMarketReleaseLoginSession === 'function'){
+      await window.greenMarketReleaseLoginSession(releaseInfo, reason || 'manual');
+    }
+  }catch(e){ console.warn('Không giải phóng được phiên đăng nhập:', e); }
 
   try{
     if(typeof save === 'function') save();
@@ -3261,18 +3290,7 @@ async function logout(reason = 'manual'){
     }
   }catch(e){}
 
-  // Dừng watcher trước khi giải phóng phiên để không tự hiện cảnh báo sai khi đăng xuất.
-  stopSessionProtection();
-
-  try{
-    if(activeSessionInfo && typeof window.greenMarketReleaseLoginSession === 'function'){
-      await window.greenMarketReleaseLoginSession(activeSessionInfo, reason);
-    }
-  }catch(e){ console.warn('Không giải phóng được phiên đăng nhập:', e); }
-
   activeSessionInfo = null;
-
-  await new Promise(r => setTimeout(r, 600));
 
   try{
     if(typeof window.greenMarketAuthSignOut === 'function'){
@@ -10722,7 +10740,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
     if(existing && !sameDevice && !stale){
       const msg = buildSessionMessage(existing, deviceName, role);
       if(role === 'admin' && !forceAdminTransfer){
-        return {ok:false, needsAdminConfirm:true, message:msg, existing, version:'session_guard_v6_main_doc'};
+        return {ok:false, needsAdminConfirm:true, message:msg, existing, version:'session_guard_v7_main_doc'};
       }
       if(role !== 'admin'){
         // V4: Ghi rõ lần bị chặn vào phiên và vào Nhật ký cloud, để Admin thấy ngay trên máy đang mở.
@@ -10739,7 +10757,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
         cloudLogs.unshift(makeCloudSecurityLog(profile, 'Cảnh báo đăng nhập trùng', msg.replace(/\n/g, ' ') + ' Kết quả: BỊ TỪ CHỐI'));
         putLogsToMainDocPayload(payload, cloudLogs);
         tx.set(CLOUD_DOC, payload, { merge:true });
-        return {ok:false, needsAdminConfirm:false, message:msg, existing, version:'session_guard_v6_main_doc'};
+        return {ok:false, needsAdminConfirm:false, message:msg, existing, version:'session_guard_v7_main_doc'};
       }
     }
 
@@ -10756,7 +10774,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
       lastSeenMs: nowMs,
       loginAtLocal: new Date(nowMs).toISOString(),
       reason,
-      version: 'session_guard_v6_main_doc'
+      version: 'session_guard_v7_main_doc'
     };
 
     tx.set(CLOUD_DOC, {
@@ -10775,7 +10793,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
         ? `Admin đã chuyển phiên từ ${existing?.deviceName || 'thiết bị cũ'} sang ${deviceName}.`
         : 'Đăng nhập hợp lệ. Bảo mật 1 tài khoản = 1 thiết bị đã bật.',
       reason,
-      version:'session_guard_v6_main_doc'
+      version:'session_guard_v7_main_doc'
     };
   });
 };
@@ -10794,15 +10812,19 @@ window.greenMarketTouchLoginSession = async function(sessionInfo){
       ...x,
       lastSeenMs: Date.now(),
       lastSeenLocal: new Date().toISOString(),
-      version: 'session_guard_v6_main_doc'
+      version: 'session_guard_v7_main_doc'
     };
     tx.set(CLOUD_DOC, {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()}, { merge:true });
   });
 };
 
 window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'logout'){
-  if(!sessionInfo?.email) return;
-  const key = safeSessionDocId(sessionInfo.email);
+  const email = String(sessionInfo?.email || sessionInfo?.user || '').trim().toLowerCase();
+  if(!email) return;
+  const key = safeSessionDocId(email);
+  const deviceId = sessionInfo?.deviceId || '';
+  const sessionId = sessionInfo?.sessionId || '';
+
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(CLOUD_DOC);
     if(!snap.exists()) return;
@@ -10811,16 +10833,19 @@ window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'lo
     const x = sessions[key];
     if(!x) return;
 
-    // V6: giải phóng phiên chắc hơn.
-    // Nếu cùng sessionId hoặc cùng deviceId thì xem là chính thiết bị này đang đăng xuất.
-    // Không ghi ngược "ignored release" nữa vì dễ làm Admin bị kẹt phiên cũ.
-    const sameSession = sessionInfo.sessionId && x.sessionId === sessionInfo.sessionId;
-    const sameDevice = sessionInfo.deviceId && x.deviceId === sessionInfo.deviceId;
-    const manualLike = ['logout','manual','auto_idle','session_kicked'].includes(String(reason || ''));
+    const sameSession = sessionId && x.sessionId === sessionId;
+    const sameDevice = deviceId && x.deviceId === deviceId;
+    const manualLike = ['logout','manual','auto_idle','session_kicked','logout_log'].includes(String(reason || ''));
 
+    // V7: khi chính tài khoản bấm Đăng xuất thì luôn giải phóng phiên theo email.
+    // Điều này tránh kẹt phiên Admin/Thu ngân nếu sessionId trong trình duyệt bị mất.
     if(sameSession || sameDevice || manualLike){
       delete sessions[key];
-      tx.set(CLOUD_DOC, {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()}, { merge:true });
+      const cloudLogs = getLogsFromMainDoc(root);
+      cloudLogs.unshift(makeCloudSecurityLog(sessionInfo, reason === 'auto_idle' ? 'Đăng xuất tự động' : 'Đăng xuất', reason === 'auto_idle' ? 'Tự động đăng xuất do không hoạt động 15 phút' : 'Đã giải phóng phiên đăng nhập'));
+      const payload = {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()};
+      putLogsToMainDocPayload(payload, cloudLogs);
+      tx.set(CLOUD_DOC, payload, { merge:true });
     }
   });
 };
