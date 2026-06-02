@@ -2941,10 +2941,13 @@ function startSessionProtection(sessionInfo){
 }
 
 window.greenMarketHandleSessionKicked = function(message){
-  if(!current) return;
-  addLog('Phiên bị chuyển', message || 'Phiên đăng nhập đã bị thay thế bởi thiết bị khác');
+  // V4: không báo sai khi chính người dùng đang đăng xuất hoặc khi phiên đã được giải phóng hợp lệ.
+  if(!current || window.greenMarketIsLoggingOut || window.greenMarketSuppressSessionKick) return;
+  const msg = String(message || 'Tài khoản này đã được đăng nhập ở thiết bị khác. Thiết bị hiện tại sẽ đăng xuất.');
+  if(msg.includes('giải phóng') || msg.includes('được giải phóng')) return;
+  addLog('Phiên bị chuyển', msg);
   syncSecurityLog('session_kicked');
-  alert(message || 'Tài khoản này đã được đăng nhập ở thiết bị khác. Thiết bị hiện tại sẽ đăng xuất.');
+  alert(msg);
   logout('session_kicked');
 };
 function renderShift(){
@@ -3213,7 +3216,7 @@ async function login(){
     }
 
     clearLoginFail(u);
-    addLog('Đăng nhập', 'Đăng nhập hệ thống bằng Firebase Auth thành công - Bảo mật phiên V2 đã kiểm tra');
+    addLog('Đăng nhập', 'Đăng nhập hệ thống bằng Firebase Auth thành công - Bảo mật phiên V4 đã kiểm tra');
 
     userName.textContent = current.name;
     userRole.textContent = roleLabel(current.role);
@@ -3238,6 +3241,8 @@ async function login(){
 }
 
 async function logout(reason = 'manual'){
+  window.greenMarketIsLoggingOut = true;
+  window.greenMarketSuppressSessionKick = true;
   try{ resetBillDetailForNewSession(); }catch(e){}
 
   if(current){
@@ -3256,13 +3261,15 @@ async function logout(reason = 'manual'){
     }
   }catch(e){}
 
+  // Dừng watcher trước khi giải phóng phiên để không tự hiện cảnh báo sai khi đăng xuất.
+  stopSessionProtection();
+
   try{
     if(activeSessionInfo && typeof window.greenMarketReleaseLoginSession === 'function'){
       await window.greenMarketReleaseLoginSession(activeSessionInfo, reason);
     }
-  }catch(e){}
+  }catch(e){ console.warn('Không giải phóng được phiên đăng nhập:', e); }
 
-  stopSessionProtection();
   activeSessionInfo = null;
 
   await new Promise(r => setTimeout(r, 600));
@@ -3275,6 +3282,8 @@ async function logout(reason = 'manual'){
 
   current = null;
   window.current = null;
+  window.greenMarketIsLoggingOut = false;
+  setTimeout(() => { window.greenMarketSuppressSessionKick = false; }, 1200);
   loginUser.value = '';
   loginPass.value = '';
   showLogin();
@@ -10650,13 +10659,48 @@ function buildSessionMessage(currentSession, incomingDeviceName, role){
   const oldTime = sessionTimeText(currentSession?.loginAtMs || currentSession?.lastSeenMs);
   return `Tài khoản này đang đăng nhập trên ${oldDevice} từ ${oldTime}. Thiết bị mới (${incomingDeviceName}) không được vào để tránh gian lận và lộn báo cáo.`;
 }
+
+/* =========================================================
+   BẢO MẬT PHIÊN V4 - DÙNG CHÍNH DOC greenmarket/main_data
+   Lý do: doc này chắc chắn đang được app đọc/ghi ổn định, tránh lỗi rules
+   khi tạo collection phụ. Dữ liệu phiên nằm trong field loginSessionsV3.
+   ========================================================= */
+const LOGIN_SESSION_FIELD = 'loginSessionsV3';
+function normalizeSessionMap(raw){
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? {...raw} : {};
+}
+function getSessionMapFromMainDoc(data){
+  return normalizeSessionMap((data || {})[LOGIN_SESSION_FIELD]);
+}
+function getLogsFromMainDoc(root){
+  try{
+    const raw = root?.data?.v2_logs || '[]';
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+function putLogsToMainDocPayload(payload, logsArr){
+  const data = {...(payload.data || {})};
+  data.v2_logs = JSON.stringify(logsArr.slice(0, 1200));
+  payload.data = data;
+}
+function makeCloudSecurityLog(profile, action, detail){
+  return {
+    time: (typeof now === 'function' ? now() : new Date().toLocaleString('vi-VN')),
+    user: profile?.name || profile?.email || profile?.user || 'Ngoài hệ thống',
+    role: (typeof roleLabel === 'function' ? roleLabel(profile?.role) : (profile?.role || '')),
+    action,
+    detail
+  };
+}
+
 window.greenMarketClaimLoginSession = async function(profile, identity, forceAdminTransfer = false){
   const email = String(profile?.email || profile?.user || '').trim().toLowerCase();
   const role = String(profile?.role || '').trim().toLowerCase();
   const deviceId = identity?.deviceId || 'unknown-device';
   const deviceName = identity?.deviceName || 'Thiết bị hiện tại';
   const sessionId = identity?.sessionId || ('ses_' + Date.now());
-  const ref = doc(db, LOGIN_SESSIONS_COLLECTION, safeSessionDocId(email));
+  const key = safeSessionDocId(email);
   const nowMs = sessionNowMs();
 
   if(!email){
@@ -10664,25 +10708,39 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
   }
 
   return await runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    const existing = snap.exists() ? (snap.data() || {}) : null;
+    const snap = await tx.get(CLOUD_DOC);
+    const root = snap.exists() ? (snap.data() || {}) : {};
+    const sessions = getSessionMapFromMainDoc(root);
+    const existing = sessions[key] || null;
     const sameDevice = existing && existing.deviceId === deviceId;
     const stale = existing && Number(existing.lastSeenMs || 0) && (nowMs - Number(existing.lastSeenMs || 0) > LOGIN_SESSION_STALE_MS);
 
-    // Nếu đã có phiên của thiết bị khác và chưa quá hạn: chặn ngay.
-    // Thu ngân / Quản lý / Kế toán đều bị chặn như nhau.
     if(existing && !sameDevice && !stale){
       const msg = buildSessionMessage(existing, deviceName, role);
       if(role === 'admin' && !forceAdminTransfer){
-        return {ok:false, needsAdminConfirm:true, message:msg, existing};
+        return {ok:false, needsAdminConfirm:true, message:msg, existing, version:'session_guard_v4_main_doc'};
       }
       if(role !== 'admin'){
-        return {ok:false, needsAdminConfirm:false, message:msg, existing};
+        // V4: Ghi rõ lần bị chặn vào phiên và vào Nhật ký cloud, để Admin thấy ngay trên máy đang mở.
+        sessions[key] = {
+          ...existing,
+          lastBlockedAtMs: nowMs,
+          lastBlockedAtLocal: new Date(nowMs).toISOString(),
+          lastBlockedDeviceName: deviceName,
+          lastBlockedDeviceId: deviceId,
+          lastBlockedRole: role
+        };
+        const payload = {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()};
+        const cloudLogs = getLogsFromMainDoc(root);
+        cloudLogs.unshift(makeCloudSecurityLog(profile, 'Cảnh báo đăng nhập trùng', msg + ' Kết quả: BỊ TỪ CHỐI - Bảo mật phiên V4'));
+        putLogsToMainDocPayload(payload, cloudLogs);
+        tx.set(CLOUD_DOC, payload, { merge:true });
+        return {ok:false, needsAdminConfirm:false, message:msg, existing, version:'session_guard_v4_main_doc'};
       }
     }
 
     const reason = existing && !sameDevice && role === 'admin' && forceAdminTransfer ? 'admin_transfer' : (stale ? 'stale_replaced' : (sameDevice ? 'same_device_refresh' : 'login'));
-    tx.set(ref, {
+    sessions[key] = {
       email,
       user: profile?.user || '',
       name: profile?.name || '',
@@ -10694,9 +10752,13 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
       lastSeenMs: nowMs,
       loginAtLocal: new Date(nowMs).toISOString(),
       reason,
-      version: 'session_guard_v2_transaction',
-      updatedAt: serverTimestamp()
-    }, { merge:false });
+      version: 'session_guard_v4_main_doc'
+    };
+
+    tx.set(CLOUD_DOC, {
+      [LOGIN_SESSION_FIELD]: sessions,
+      sessionGuardUpdatedAt: serverTimestamp()
+    }, { merge:true });
 
     return {
       ok:true,
@@ -10708,51 +10770,69 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
       message: reason === 'admin_transfer'
         ? `Admin đã chuyển phiên từ ${existing?.deviceName || 'thiết bị cũ'} sang ${deviceName}.`
         : 'Đăng nhập hợp lệ. Bảo mật 1 tài khoản = 1 thiết bị đã bật.',
-      reason
+      reason,
+      version:'session_guard_v4_main_doc'
     };
   });
 };
 
 window.greenMarketTouchLoginSession = async function(sessionInfo){
   if(!sessionInfo?.email || !sessionInfo?.sessionId) return;
-  const ref = doc(db, LOGIN_SESSIONS_COLLECTION, safeSessionDocId(sessionInfo.email));
-  const snap = await getDoc(ref);
-  if(!snap.exists()) return;
-  const x = snap.data() || {};
-  if(x.sessionId !== sessionInfo.sessionId) return;
-  await setDoc(ref, {
-    lastSeenMs: Date.now(),
-    lastSeenLocal: new Date().toISOString(),
-    updatedAt: serverTimestamp()
-  }, { merge:true });
+  const key = safeSessionDocId(sessionInfo.email);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(CLOUD_DOC);
+    if(!snap.exists()) return;
+    const root = snap.data() || {};
+    const sessions = getSessionMapFromMainDoc(root);
+    const x = sessions[key];
+    if(!x || x.sessionId !== sessionInfo.sessionId) return;
+    sessions[key] = {
+      ...x,
+      lastSeenMs: Date.now(),
+      lastSeenLocal: new Date().toISOString(),
+      version: 'session_guard_v4_main_doc'
+    };
+    tx.set(CLOUD_DOC, {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()}, { merge:true });
+  });
 };
 
 window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'logout'){
   if(!sessionInfo?.email || !sessionInfo?.sessionId) return;
-  const ref = doc(db, LOGIN_SESSIONS_COLLECTION, safeSessionDocId(sessionInfo.email));
-  const snap = await getDoc(ref);
-  if(!snap.exists()) return;
-  const x = snap.data() || {};
-  if(x.sessionId === sessionInfo.sessionId){
-    await deleteDoc(ref);
-  }else{
-    await setDoc(ref, {
-      lastIgnoredReleaseAt: serverTimestamp(),
-      lastIgnoredReleaseReason: reason
-    }, { merge:true });
-  }
+  const key = safeSessionDocId(sessionInfo.email);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(CLOUD_DOC);
+    if(!snap.exists()) return;
+    const root = snap.data() || {};
+    const sessions = getSessionMapFromMainDoc(root);
+    const x = sessions[key];
+    if(!x) return;
+    if(x.sessionId === sessionInfo.sessionId){
+      delete sessions[key];
+      tx.set(CLOUD_DOC, {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()}, { merge:true });
+    }else{
+      sessions[key] = {
+        ...x,
+        lastIgnoredReleaseAtMs: Date.now(),
+        lastIgnoredReleaseLocal: new Date().toISOString(),
+        lastIgnoredReleaseReason: reason
+      };
+      tx.set(CLOUD_DOC, {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()}, { merge:true });
+    }
+  });
 };
 
 window.greenMarketWatchLoginSession = function(sessionInfo){
   if(!sessionInfo?.email || !sessionInfo?.sessionId) return null;
-  const ref = doc(db, LOGIN_SESSIONS_COLLECTION, safeSessionDocId(sessionInfo.email));
-  return onSnapshot(ref, snap => {
-    if(!window.current) return;
-    if(!snap.exists()){
-      window.greenMarketHandleSessionKicked?.('Phiên đăng nhập đã được giải phóng ở nơi khác. Thiết bị hiện tại sẽ đăng xuất để bảo vệ dữ liệu.');
-      return;
-    }
-    const x = snap.data() || {};
+  const key = safeSessionDocId(sessionInfo.email);
+  return onSnapshot(CLOUD_DOC, snap => {
+    if(!window.current || window.greenMarketIsLoggingOut || window.greenMarketSuppressSessionKick) return;
+    const root = snap.exists() ? (snap.data() || {}) : {};
+    const sessions = getSessionMapFromMainDoc(root);
+    const x = sessions[key];
+
+    // Không cảnh báo khi chính mình đăng xuất. Chỉ cảnh báo khi bị Admin chuyển phiên.
+    if(!x) return;
+
     if(x.sessionId && x.sessionId !== sessionInfo.sessionId){
       window.greenMarketHandleSessionKicked?.('Tài khoản này đã được Admin chuyển sang thiết bị khác. Thiết bị hiện tại sẽ đăng xuất.');
     }
