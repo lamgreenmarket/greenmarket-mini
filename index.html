@@ -1970,7 +1970,7 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
   <div class="login-card">
     <div class="logo">🛒 SIÊU THỊ MINI GREEN MARKET</div>
    
-    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" name="gm_login_user_manual_2026" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" placeholder="admin hoặc admin@greenmarket.com" value="">
+    <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" name="gm_login_user_manual_2026" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" placeholder="" value="">
     <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" name="gm_login_pass_manual_2026" type="password" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value=""><button class="eye" onclick="togglePass()">👁️</button></div>
     <button class="btn-blue full" onclick="login()">Đăng nhập</button><p id="loginMsg" class="msg"></p>
   </div>
@@ -2860,11 +2860,6 @@ function syncSecurityLog(reason = 'security'){
 }
 
 function stopSessionProtection(){
-  try{
-    if(window.__greenMarketActivityHandler){
-      ['click','keydown','touchstart','mousemove','scroll'].forEach(ev => window.removeEventListener(ev, window.__greenMarketActivityHandler));
-    }
-  }catch(e){}
   clearTimeout(idleWarningTimer);
   clearTimeout(idleLogoutTimer);
   clearInterval(sessionHeartbeatTimer);
@@ -2892,7 +2887,7 @@ function showIdleWarning(){
   box.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:999999;background:#fff7ed;color:#7c2d12;border:2px solid #fed7aa;border-radius:18px;padding:14px 16px;box-shadow:0 16px 40px #0003;font-weight:800;max-width:calc(100vw - 24px);width:420px;text-align:center;line-height:1.45';
   box.innerHTML = `
     <div style="font-size:16px;margin-bottom:8px">⚠️ Sắp tự động đăng xuất</div>
-    <div style="font-size:13px;margin-bottom:10px">Bạn sẽ tự động đăng xuất sau 60 giây do không hoạt động.</div>
+    <div style="font-size:13px;margin-bottom:10px">Bạn đã không thao tác gần 14 phút. Hệ thống sẽ đăng xuất sau 60 giây để bảo vệ tài khoản.</div>
     <button class="btn-green" style="width:100%;border-radius:14px" onclick="resetIdleTimers(true)">Tiếp tục làm việc</button>
   `;
   document.body.appendChild(box);
@@ -3192,21 +3187,19 @@ async function login(){
     if(typeof window.greenMarketClaimLoginSession === 'function'){
       sessionClaim = await window.greenMarketClaimLoginSession(current, getSessionIdentity(), false);
       if(sessionClaim?.needsAdminConfirm){
-        const ok = confirm(sessionClaim.message);
+        const ok = confirm(sessionClaim.message + '\n\nBạn có muốn chuyển sang thiết bị này không?');
         if(ok){
           sessionClaim = await window.greenMarketClaimLoginSession(current, getSessionIdentity(), true);
-          addLog('Admin chuyển thiết bị', sessionClaim?.logDetail || 'Admin chuyển phiên sang thiết bị mới');
+          addLog('Admin chuyển thiết bị', sessionClaim?.message || 'Admin đăng xuất thiết bị cũ và đăng nhập tại thiết bị mới');
           syncSecurityLog('admin_transfer_session');
         }
       }
 
       if(!sessionClaim?.ok){
-        const msg = sessionClaim?.message || 'Tài khoản đang hoạt động trên thiết bị khác.
-
-Vui lòng đăng xuất thiết bị cũ trước khi đăng nhập.';
-        addLog('Cảnh báo đăng nhập trùng', sessionClaim?.logDetail || 'Kết quả: BỊ TỪ CHỐI');
+        const msg = sessionClaim?.message || 'Tài khoản đang đăng nhập trên thiết bị khác.';
+        addLog('Cảnh báo đăng nhập trùng', msg + ' Kết quả: BỊ TỪ CHỐI');
         syncSecurityLog('blocked_duplicate_login');
-        loginMsg.textContent = msg;
+        loginMsg.innerHTML = String(msg).replace(/\n/g, '<br>');
         try{ await window.greenMarketAuthSignOut(); }catch(e){}
         current = null;
         window.current = null;
@@ -3248,10 +3241,6 @@ Vui lòng đăng xuất thiết bị cũ trước khi đăng nhập.';
 }
 
 async function logout(reason = 'manual'){
-  if(reason === 'manual'){
-    const ok = confirm('Bạn có chắc muốn đăng xuất?');
-    if(!ok) return;
-  }
   window.greenMarketIsLoggingOut = true;
   window.greenMarketSuppressSessionKick = true;
   try{ resetBillDetailForNewSession(); }catch(e){}
@@ -10666,20 +10655,13 @@ function sessionTimeText(ms){
   try{ return new Date(ms || Date.now()).toLocaleString('vi-VN'); }catch(e){ return String(ms || ''); }
 }
 function buildSessionMessage(currentSession, incomingDeviceName, role){
-  const r = String(role || '').toLowerCase();
+  const r = String(role || '').trim().toLowerCase();
+  const label = (typeof roleLabel === 'function') ? roleLabel(r) : (r === 'admin' ? 'Admin' : 'tài khoản');
   if(r === 'admin'){
-    return 'Tài khoản Admin đang hoạt động trên thiết bị khác.
-
-Bạn có muốn chuyển sang thiết bị này không?';
+    return 'Tài khoản Admin đang hoạt động trên thiết bị khác.';
   }
-  return 'Tài khoản đang hoạt động trên thiết bị khác.
-
-Vui lòng đăng xuất thiết bị cũ trước khi đăng nhập.';
-}
-function buildSessionLogDetail(currentSession, incomingDeviceName, resultText){
-  const oldDevice = currentSession?.deviceName || 'Thiết bị cũ';
-  const newDevice = incomingDeviceName || 'Thiết bị mới';
-  return `Thiết bị đang hoạt động: ${oldDevice}. Thiết bị yêu cầu đăng nhập: ${newDevice}. Kết quả: ${resultText || 'BỊ TỪ CHỐI'}`;
+  return `Tài khoản ${label} đang hoạt động trên thiết bị khác.
+Vui lòng đăng xuất thiết bị cũ trước khi đăng nhập.`;
 }
 
 /* =========================================================
@@ -10740,7 +10722,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
     if(existing && !sameDevice && !stale){
       const msg = buildSessionMessage(existing, deviceName, role);
       if(role === 'admin' && !forceAdminTransfer){
-        return {ok:false, needsAdminConfirm:true, message:msg, logDetail: buildSessionLogDetail(existing, deviceName, 'CHỜ ADMIN XÁC NHẬN'), existing, version:'session_guard_v5_clean'};
+        return {ok:false, needsAdminConfirm:true, message:msg, existing, version:'session_guard_v6_main_doc'};
       }
       if(role !== 'admin'){
         // V4: Ghi rõ lần bị chặn vào phiên và vào Nhật ký cloud, để Admin thấy ngay trên máy đang mở.
@@ -10754,11 +10736,10 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
         };
         const payload = {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()};
         const cloudLogs = getLogsFromMainDoc(root);
-        const logDetail = buildSessionLogDetail(existing, deviceName, 'BỊ TỪ CHỐI');
-        cloudLogs.unshift(makeCloudSecurityLog(profile, 'Cảnh báo đăng nhập trùng', logDetail));
+        cloudLogs.unshift(makeCloudSecurityLog(profile, 'Cảnh báo đăng nhập trùng', msg.replace(/\n/g, ' ') + ' Kết quả: BỊ TỪ CHỐI'));
         putLogsToMainDocPayload(payload, cloudLogs);
         tx.set(CLOUD_DOC, payload, { merge:true });
-        return {ok:false, needsAdminConfirm:false, message:msg, logDetail, existing, version:'session_guard_v5_clean'};
+        return {ok:false, needsAdminConfirm:false, message:msg, existing, version:'session_guard_v6_main_doc'};
       }
     }
 
@@ -10775,7 +10756,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
       lastSeenMs: nowMs,
       loginAtLocal: new Date(nowMs).toISOString(),
       reason,
-      version: 'session_guard_v5_clean'
+      version: 'session_guard_v6_main_doc'
     };
 
     tx.set(CLOUD_DOC, {
@@ -10791,13 +10772,10 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
       deviceName,
       sessionId,
       message: reason === 'admin_transfer'
-        ? 'Admin đã chuyển sang thiết bị này.'
-        : 'Đăng nhập hợp lệ.',
-      logDetail: reason === 'admin_transfer'
-        ? buildSessionLogDetail(existing, deviceName, 'ADMIN CHUYỂN THIẾT BỊ')
-        : 'Đăng nhập hợp lệ.',
+        ? `Admin đã chuyển phiên từ ${existing?.deviceName || 'thiết bị cũ'} sang ${deviceName}.`
+        : 'Đăng nhập hợp lệ. Bảo mật 1 tài khoản = 1 thiết bị đã bật.',
       reason,
-      version:'session_guard_v5_clean'
+      version:'session_guard_v6_main_doc'
     };
   });
 };
@@ -10816,7 +10794,7 @@ window.greenMarketTouchLoginSession = async function(sessionInfo){
       ...x,
       lastSeenMs: Date.now(),
       lastSeenLocal: new Date().toISOString(),
-      version: 'session_guard_v5_clean'
+      version: 'session_guard_v6_main_doc'
     };
     tx.set(CLOUD_DOC, {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()}, { merge:true });
   });
@@ -10833,24 +10811,15 @@ window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'lo
     const x = sessions[key];
     if(!x) return;
 
-    // V5: Khi bấm Đăng xuất trên chính thiết bị đang dùng, phải xóa phiên thật.
-    // Cho phép xóa nếu trùng sessionId hoặc trùng deviceId.
-    // Nếu Admin đã chuyển sang thiết bị mới, thiết bị cũ không được xóa nhầm phiên mới.
+    // V6: giải phóng phiên chắc hơn.
+    // Nếu cùng sessionId hoặc cùng deviceId thì xem là chính thiết bị này đang đăng xuất.
+    // Không ghi ngược "ignored release" nữa vì dễ làm Admin bị kẹt phiên cũ.
     const sameSession = sessionInfo.sessionId && x.sessionId === sessionInfo.sessionId;
     const sameDevice = sessionInfo.deviceId && x.deviceId === sessionInfo.deviceId;
-    if(sameSession || sameDevice){
+    const manualLike = ['logout','manual','auto_idle','session_kicked'].includes(String(reason || ''));
+
+    if(sameSession || sameDevice || manualLike){
       delete sessions[key];
-      tx.set(CLOUD_DOC, {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()}, { merge:true });
-    }else{
-      // Không xóa phiên của thiết bị khác, chỉ ghi dấu để dễ kiểm tra nếu cần.
-      sessions[key] = {
-        ...x,
-        lastIgnoredReleaseAtMs: Date.now(),
-        lastIgnoredReleaseLocal: new Date().toISOString(),
-        lastIgnoredReleaseReason: reason,
-        lastIgnoredReleaseDeviceId: sessionInfo.deviceId || '',
-        version: 'session_guard_v5_clean'
-      };
       tx.set(CLOUD_DOC, {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()}, { merge:true });
     }
   });
@@ -10869,7 +10838,7 @@ window.greenMarketWatchLoginSession = function(sessionInfo){
     if(!x) return;
 
     if(x.sessionId && x.sessionId !== sessionInfo.sessionId){
-      window.greenMarketHandleSessionKicked?.('Phiên đăng nhập đã được chuyển sang thiết bị khác. Thiết bị hiện tại sẽ đăng xuất.');
+      window.greenMarketHandleSessionKicked?.('Tài khoản này đã được Admin chuyển sang thiết bị khác. Thiết bị hiện tại sẽ đăng xuất.');
     }
   }, err => console.warn('Không theo dõi được phiên đăng nhập:', err));
 };
