@@ -1974,7 +1974,9 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
    
     <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" name="gm_login_user_manual_2026" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" placeholder="" value="">
     <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" name="gm_login_pass_manual_2026" type="password" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value=""><button class="eye" onclick="togglePass()">👁️</button></div>
-    <button class="btn-blue full" onclick="login()">Đăng nhập</button><p id="loginMsg" class="msg"></p>
+    <button class="btn-blue full" onclick="login()">Đăng nhập</button>
+    <button id="clearOldSessionBtn" class="btn-orange full hidden" onclick="clearOldLoginSession()">Đăng xuất phiên cũ</button>
+    <p id="loginMsg" class="msg"></p>
   </div>
 </section>
 
@@ -2623,6 +2625,7 @@ let importDraftPrinted = false; // Bắt buộc in phiếu trước khi lưu + c
 
 let current = null;
 let activeSessionInfo = null;
+let pendingBlockedLoginSession = null;
 let idleWarningTimer = null;
 let idleLogoutTimer = null;
 let sessionHeartbeatTimer = null;
@@ -3137,6 +3140,9 @@ function clearLoginForm(){
   try{
     loginUser.value = '';
     loginPass.value = '';
+    const btn = document.getElementById('clearOldSessionBtn');
+    if(btn) btn.classList.add('hidden');
+    pendingBlockedLoginSession = null;
   }catch(e){}
 }
 
@@ -3146,6 +3152,70 @@ function showLogin(){
   loginPage.classList.remove('hidden');
   appPage.classList.add('hidden');
 }
+
+
+async function clearOldLoginSession(){
+  const btn = document.getElementById('clearOldSessionBtn');
+  const u = cleanText(loginUser.value);
+  const p = cleanText(loginPass.value);
+
+  if(!u){
+    loginMsg.textContent = 'Nhập tài khoản cần đăng xuất phiên cũ.';
+    return;
+  }
+
+  try{
+    if(btn) btn.disabled = true;
+    loginMsg.textContent = 'Đang đăng xuất phiên cũ...';
+
+    let profile = pendingBlockedLoginSession?.profile || current || null;
+
+    // Nếu chưa còn phiên Firebase hợp lệ, xác thực lại bằng mật khẩu trước khi xóa phiên cũ.
+    if(!profile){
+      if(!p){
+        loginMsg.textContent = 'Nhập mật khẩu rồi bấm Đăng xuất phiên cũ.';
+        return;
+      }
+      if(typeof window.greenMarketAuthSignIn !== 'function'){
+        loginMsg.textContent = 'Firebase Auth chưa sẵn sàng. Bấm Ctrl+F5 rồi thử lại.';
+        return;
+      }
+      profile = await window.greenMarketAuthSignIn(u, p);
+    }
+
+    if(typeof window.greenMarketForceClearLoginSession === 'function'){
+      await window.greenMarketForceClearLoginSession(profile, 'login_screen_force_clear');
+    }else if(typeof window.greenMarketReleaseLoginSession === 'function'){
+      await window.greenMarketReleaseLoginSession({
+        email: profile.email || profile.user || u,
+        user: profile.user || u,
+        name: profile.name || u,
+        role: profile.role || '',
+        deviceId: getDeviceId(),
+        deviceName: getDeviceName(),
+        sessionId: ''
+      }, 'force_clear');
+    }
+
+    try{
+      if(typeof window.greenMarketAuthSignOut === 'function') await window.greenMarketAuthSignOut();
+    }catch(e){}
+
+    current = null;
+    window.current = null;
+    activeSessionInfo = null;
+    pendingBlockedLoginSession = null;
+
+    loginMsg.textContent = 'Đã đăng xuất phiên cũ. Bấm Đăng nhập lại.';
+    if(btn) btn.classList.add('hidden');
+  }catch(err){
+    console.error(err);
+    loginMsg.textContent = 'Chưa đăng xuất được phiên cũ. Kiểm tra mật khẩu rồi thử lại.';
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+window.clearOldLoginSession = clearOldLoginSession;
 
 async function login(){
   const u = cleanText(loginUser.value);
@@ -3202,9 +3272,10 @@ async function login(){
         addLog('Cảnh báo đăng nhập trùng', msg + ' Kết quả: BỊ TỪ CHỐI');
         syncSecurityLog('blocked_duplicate_login');
         loginMsg.innerHTML = String(msg).replace(/\n/g, '<br>');
-        try{ await window.greenMarketAuthSignOut(); }catch(e){}
-        current = null;
-        window.current = null;
+        pendingBlockedLoginSession = { profile: {...current}, claim: sessionClaim };
+        const btn = document.getElementById('clearOldSessionBtn');
+        if(btn) btn.classList.remove('hidden');
+        // Giữ phiên Firebase tạm thời để nút "Đăng xuất phiên cũ" có quyền xóa session cũ.
         return;
       }
       activeSessionInfo = sessionClaim;
@@ -3223,6 +3294,9 @@ async function login(){
     userName.textContent = current.name;
     userRole.textContent = roleLabel(current.role);
     loginMsg.textContent = '';
+    pendingBlockedLoginSession = null;
+    const clearBtn = document.getElementById('clearOldSessionBtn');
+    if(clearBtn) clearBtn.classList.add('hidden');
 
     loginPage.classList.add('hidden');
     appPage.classList.remove('hidden');
@@ -10835,7 +10909,7 @@ window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'lo
 
     const sameSession = sessionId && x.sessionId === sessionId;
     const sameDevice = deviceId && x.deviceId === deviceId;
-    const manualLike = ['logout','manual','auto_idle','session_kicked','logout_log'].includes(String(reason || ''));
+    const manualLike = ['logout','manual','auto_idle','session_kicked','logout_log','force_clear','login_screen_force_clear'].includes(String(reason || ''));
 
     // V7: khi chính tài khoản bấm Đăng xuất thì luôn giải phóng phiên theo email.
     // Điều này tránh kẹt phiên Admin/Thu ngân nếu sessionId trong trình duyệt bị mất.
@@ -10847,6 +10921,31 @@ window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'lo
       putLogsToMainDocPayload(payload, cloudLogs);
       tx.set(CLOUD_DOC, payload, { merge:true });
     }
+  });
+};
+
+
+window.greenMarketForceClearLoginSession = async function(profile, reason = 'force_clear'){
+  const email = String(profile?.email || profile?.user || '').trim().toLowerCase();
+  if(!email) throw new Error('Không xác định được email để xóa phiên cũ.');
+  const key = safeSessionDocId(email);
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(CLOUD_DOC);
+    const root = snap.exists() ? (snap.data() || {}) : {};
+    const sessions = getSessionMapFromMainDoc(root);
+    const existed = !!sessions[key];
+    if(existed) delete sessions[key];
+
+    const cloudLogs = getLogsFromMainDoc(root);
+    cloudLogs.unshift(makeCloudSecurityLog(profile, 'Đăng xuất phiên cũ', existed ? 'Đã đăng xuất phiên cũ từ màn hình đăng nhập' : 'Không còn phiên cũ để xóa'));
+
+    const payload = {
+      [LOGIN_SESSION_FIELD]: sessions,
+      sessionGuardUpdatedAt: serverTimestamp()
+    };
+    putLogsToMainDocPayload(payload, cloudLogs);
+    tx.set(CLOUD_DOC, payload, { merge:true });
   });
 };
 
