@@ -10631,6 +10631,12 @@ async function buildGreenMarketSessionFromFirebaseUser(firebaseUser){
     profile = {name:'Admin', user:'admin', email, role:'admin', active:true, source:'admin-force'};
   }
 
+  // FIX V14: Kế toán tuyệt đối không được rơi vào nhóm Admin/chuyển thiết bị.
+  // Nếu Firestore còn hồ sơ cũ sai quyền thì vẫn ép ketoan@greenmarket.com = accountant.
+  if(email === 'ketoan@greenmarket.com' || userKey === 'ketoan'){
+    profile = {name:'Kế Toán', user:'ketoan', email:'ketoan@greenmarket.com', role:'accountant', active:true, source:'accountant-force'};
+  }
+
   // Ưu tiên 1: hồ sơ theo email để nhân viên tạo tay trong Firestore đăng nhập được ngay.
   if(!profile) profile = await getProfileByEmail(email);
 
@@ -10740,7 +10746,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
     if(existing && !sameDevice && !stale){
       const msg = buildSessionMessage(existing, deviceName, role);
       if(role === 'admin' && !forceAdminTransfer){
-        return {ok:false, needsAdminConfirm:true, message:msg, existing, version:'session_guard_v7_main_doc'};
+        return {ok:false, needsAdminConfirm:true, message:msg, existing, version:'session_guard_v14_accountant_fix'};
       }
       if(role !== 'admin'){
         // V4: Ghi rõ lần bị chặn vào phiên và vào Nhật ký cloud, để Admin thấy ngay trên máy đang mở.
@@ -10757,7 +10763,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
         cloudLogs.unshift(makeCloudSecurityLog(profile, 'Cảnh báo đăng nhập trùng', msg.replace(/\n/g, ' ') + ' Kết quả: BỊ TỪ CHỐI'));
         putLogsToMainDocPayload(payload, cloudLogs);
         tx.set(CLOUD_DOC, payload, { merge:true });
-        return {ok:false, needsAdminConfirm:false, message:msg, existing, version:'session_guard_v7_main_doc'};
+        return {ok:false, needsAdminConfirm:false, message:msg, existing, version:'session_guard_v14_accountant_fix'};
       }
     }
 
@@ -10774,7 +10780,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
       lastSeenMs: nowMs,
       loginAtLocal: new Date(nowMs).toISOString(),
       reason,
-      version: 'session_guard_v7_main_doc'
+      version: 'session_guard_v14_accountant_fix'
     };
 
     tx.set(CLOUD_DOC, {
@@ -10793,7 +10799,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
         ? `Admin đã chuyển phiên từ ${existing?.deviceName || 'thiết bị cũ'} sang ${deviceName}.`
         : 'Đăng nhập hợp lệ. Bảo mật 1 tài khoản = 1 thiết bị đã bật.',
       reason,
-      version:'session_guard_v7_main_doc'
+      version:'session_guard_v14_accountant_fix'
     };
   });
 };
@@ -10812,7 +10818,7 @@ window.greenMarketTouchLoginSession = async function(sessionInfo){
       ...x,
       lastSeenMs: Date.now(),
       lastSeenLocal: new Date().toISOString(),
-      version: 'session_guard_v7_main_doc'
+      version: 'session_guard_v14_accountant_fix'
     };
     tx.set(CLOUD_DOC, {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()}, { merge:true });
   });
