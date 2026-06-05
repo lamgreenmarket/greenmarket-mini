@@ -4858,23 +4858,44 @@ function isSameShiftDate(s){
   return String(s?.date || '') === today;
 }
 
+function getCurrentStaffName(){
+  return current?.name || current?.user || 'Admin';
+}
+
+function isShiftOfCurrentStaff(s){
+  const staff = getCurrentStaffName();
+  return sameName(s?.staff, staff) || sameName(s?.user, current?.user) || sameName(s?.email, current?.email);
+}
+
+function getOpenShiftForCurrentStaff(){
+  return shifts.find(s =>
+    !s.endTime &&
+    isShiftOfCurrentStaff(s) &&
+    isSameShiftDate(s)
+  ) || null;
+}
+
 function getActiveShift(){
-  const staff = current?.name || 'Admin';
   const activeId = sessionStorage.getItem(KACTIVE_SHIFT);
 
-  // CHẶN CHẮC: chỉ ca được mở trong phiên làm việc hiện tại mới được bán.
-  // Không tự lấy ca cũ còn sót trong localStorage nữa.
-  if(!activeId){
-    currentShift = null;
-    return null;
+  // BẢN SỬA: ca đang mở phải được kiểm tra theo dữ liệu chung,
+  // không chỉ theo sessionStorage của từng máy. Nhờ vậy cùng 1 tài khoản
+  // đã mở ca trên máy tính thì qua điện thoại vẫn nhận ra ca đang mở.
+  let open = null;
+
+  if(activeId){
+    open = shifts.find(s =>
+      String(s.id) === String(activeId) &&
+      !s.endTime &&
+      isShiftOfCurrentStaff(s) &&
+      isSameShiftDate(s)
+    ) || null;
   }
 
-  const open = shifts.find(s =>
-    String(s.id) === String(activeId) &&
-    !s.endTime &&
-    s.staff === staff &&
-    isSameShiftDate(s)
-  );
+  if(!open){
+    open = getOpenShiftForCurrentStaff();
+    if(open) sessionStorage.setItem(KACTIVE_SHIFT, open.id);
+  }
 
   if(open){
     currentShift = open;
@@ -9555,7 +9576,7 @@ function selectShift(shiftName){
     return;
   }
 
-  const staff = current?.name || 'Admin';
+  const staff = getCurrentStaffName();
 
   const shift = {
     id: 'S' + Date.now(),
