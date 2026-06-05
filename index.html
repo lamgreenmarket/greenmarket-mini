@@ -10767,7 +10767,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
     if(existing && !sameDevice && !stale){
       const msg = buildSessionMessage(existing, deviceName, role);
       if(role === 'admin' && !forceAdminTransfer){
-        return {ok:false, needsAdminConfirm:true, message:msg, existing, version:'session_guard_v14_accountant_fix'};
+        return {ok:false, needsAdminConfirm:true, message:msg, existing, version:'session_guard_v15_logout_release_fix'};
       }
       if(role !== 'admin'){
         // V4: Ghi rõ lần bị chặn vào phiên và vào Nhật ký cloud, để Admin thấy ngay trên máy đang mở.
@@ -10784,7 +10784,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
         cloudLogs.unshift(makeCloudSecurityLog(profile, 'Cảnh báo đăng nhập trùng', msg.replace(/\n/g, ' ') + ' Kết quả: BỊ TỪ CHỐI'));
         putLogsToMainDocPayload(payload, cloudLogs);
         tx.set(CLOUD_DOC, payload, { merge:true });
-        return {ok:false, needsAdminConfirm:false, message:msg, existing, version:'session_guard_v14_accountant_fix'};
+        return {ok:false, needsAdminConfirm:false, message:msg, existing, version:'session_guard_v15_logout_release_fix'};
       }
     }
 
@@ -10801,7 +10801,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
       lastSeenMs: nowMs,
       loginAtLocal: new Date(nowMs).toISOString(),
       reason,
-      version: 'session_guard_v14_accountant_fix'
+      version: 'session_guard_v15_logout_release_fix'
     };
 
     tx.set(CLOUD_DOC, {
@@ -10820,7 +10820,7 @@ window.greenMarketClaimLoginSession = async function(profile, identity, forceAdm
         ? `Admin đã chuyển phiên từ ${existing?.deviceName || 'thiết bị cũ'} sang ${deviceName}.`
         : 'Đăng nhập hợp lệ. Bảo mật 1 tài khoản = 1 thiết bị đã bật.',
       reason,
-      version:'session_guard_v14_accountant_fix'
+      version:'session_guard_v15_logout_release_fix'
     };
   });
 };
@@ -10839,7 +10839,7 @@ window.greenMarketTouchLoginSession = async function(sessionInfo){
       ...x,
       lastSeenMs: Date.now(),
       lastSeenLocal: new Date().toISOString(),
-      version: 'session_guard_v14_accountant_fix'
+      version: 'session_guard_v15_logout_release_fix'
     };
     tx.set(CLOUD_DOC, {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()}, { merge:true });
   });
@@ -10883,6 +10883,11 @@ window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'lo
 
     Object.keys(sessions).forEach(k => {
       const s = sessions[k] || {};
+      const localPart = (v) => String(v || '').trim().toLowerCase().split('@')[0];
+      const rawEmailLocal = localPart(rawEmail);
+      const rawUserLocal  = localPart(rawUser);
+      const rawNameText   = String(rawName || '').trim().toLowerCase();
+
       const values = [
         k,
         s.email,
@@ -10890,15 +10895,20 @@ window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'lo
         s.name,
         safeSessionDocId(s.email),
         safeSessionDocId(s.user),
-        safeSessionDocId(s.name)
+        safeSessionDocId(s.name),
+        localPart(s.email),
+        localPart(s.user)
       ].map(x => String(x || '').trim().toLowerCase()).filter(Boolean);
 
       const matchByAlias = values.some(v => aliases.has(v));
+      const matchByLocalPart = (rawEmailLocal && values.includes(rawEmailLocal)) || (rawUserLocal && values.includes(rawUserLocal));
+      const matchByNameAndRole = rawNameText && String(s.name || '').trim().toLowerCase() === rawNameText && String(s.role || '') === String(sessionInfo?.role || '');
       const matchByDevice = deviceId && String(s.deviceId || '') === deviceId;
       const matchBySession = sessionId && String(s.sessionId || '') === sessionId;
 
-      // Khi bấm Đăng xuất, chỉ cần trùng tài khoản hoặc đúng thiết bị/phiên là xóa.
-      if(matchByAlias || matchByDevice || matchBySession){
+      // FIX V15: đăng xuất trên máy tính phải giải phóng phiên cho điện thoại thấy ngay.
+      // Xóa nếu trùng email/user/local-part/tên+quyền hoặc đúng device/session.
+      if(matchByAlias || matchByLocalPart || matchByNameAndRole || matchByDevice || matchBySession){
         delete sessions[k];
         changed = true;
       }
