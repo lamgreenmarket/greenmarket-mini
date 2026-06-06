@@ -9534,9 +9534,36 @@ function closeShiftBox(){
   if(box) box.classList.add('hidden');
 }
 
-function openShift(){
-  if(getActiveShift()){
-    alert("⚠️ Ca đang mở, vui lòng kết ca trước khi mở ca mới!");
+// FIX ĐỒNG BỘ CA NHIỀU THIẾT BỊ V17:
+// Trước khi mở/kết ca phải kéo dữ liệu ca mới nhất từ Firebase về,
+// để cùng 1 tài khoản đã mở ca trên máy tính thì điện thoại không mở thêm được.
+async function refreshShiftDataFromCloud(){
+  try{
+    if(typeof window.greenMarketLoadFirebaseNow === 'function'){
+      await window.greenMarketLoadFirebaseNow(false);
+    }
+    if(typeof reloadDataFromLocalStorage === 'function'){
+      reloadDataFromLocalStorage();
+    }
+  }catch(e){
+    console.warn('Không thể tải ca mới nhất từ Firebase trước thao tác ca:', e);
+  }
+}
+
+function getOpenShiftWarningText(active){
+  if(!active) return '⚠️ Ca đang mở, vui lòng kết ca trước khi mở ca mới!';
+  return '⚠️ Tài khoản này đang có ca chưa kết.\n' +
+    'Nhân viên: ' + (active.staff || getCurrentStaffName()) + '\n' +
+    'Ca: ' + (active.shiftName || '-') + '\n' +
+    'Giờ mở ca: ' + (active.startTime || '-') + '\n\n' +
+    'Vui lòng kết ca hiện tại trước khi mở ca mới.';
+}
+
+async function openShift(){
+  await refreshShiftDataFromCloud();
+  const active = getActiveShift();
+  if(active){
+    alert(getOpenShiftWarningText(active));
     return;
   }
 
@@ -9561,10 +9588,12 @@ function openShift(){
   }, 80);
 }
 
-function selectShift(shiftName){
-  if(getActiveShift()){
+async function selectShift(shiftName){
+  await refreshShiftDataFromCloud();
+  const active = getActiveShift();
+  if(active){
     closeShiftBox();
-    alert("⚠️ Ca đang mở, vui lòng kết ca trước khi mở ca mới!");
+    alert(getOpenShiftWarningText(active));
     return;
   }
 
@@ -9606,9 +9635,16 @@ function selectShift(shiftName){
   if(typeof renderCart === 'function') renderCart();
 
   saveShift();
+  addLog('Mở ca', shiftName + ' - Tiền đầu ca: ' + money(startCash));
+  try{
+    if(typeof window.greenMarketSaveFirebaseNow === 'function'){
+      await window.greenMarketSaveFirebaseNow('shift_open_v17_cross_device');
+    }
+  }catch(e){
+    console.warn('Chưa lưu Firebase ngay sau khi mở ca:', e);
+  }
   closeShiftBox();
   renderShift();
-  addLog('Mở ca', shiftName + ' - Tiền đầu ca: ' + money(startCash));
   alert('Đã mở ca ' + shiftName);
 }
 
@@ -9627,7 +9663,8 @@ function addToShift(total){
 }
 
 /* ===== KẾT CA + BÀN GIAO CA ===== */
-function closeShift(){
+async function closeShift(){
+  await refreshShiftDataFromCloud();
   const active = getActiveShift();
   if(!active){
     alert("Chưa mở ca!");
@@ -9718,6 +9755,13 @@ function closeShift(){
 
   renderLogs();
   saveShift();
+  try{
+    if(typeof window.greenMarketSaveFirebaseNow === 'function'){
+      await window.greenMarketSaveFirebaseNow('shift_close_v17_cross_device');
+    }
+  }catch(e){
+    console.warn('Chưa lưu Firebase ngay sau khi kết ca:', e);
+  }
   renderShift();
 }
 function getTodayInputDate(){
@@ -9886,6 +9930,11 @@ const revenueNight = list
 function saveShift(){
   localStorage.setItem('shifts', JSON.stringify(shifts));
   try{ autoBackupDaily(false); }catch(e){}
+  try{
+    if(typeof window.greenMarketScheduleFirebaseSave === 'function'){
+      window.greenMarketScheduleFirebaseSave('shift_save_v17_cross_device');
+    }
+  }catch(e){}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -10740,10 +10789,36 @@ function putLogsToMainDocPayload(payload, logsArr){
   data.v2_logs = JSON.stringify(logsArr.slice(0, 1200));
   payload.data = data;
 }
+function getEmployeeDisplayName(profile){
+  if(!profile) return 'Hệ thống';
+
+  const email = String(profile.email || profile.username || profile.user || '').trim().toLowerCase();
+  const name  = String(profile.name || profile.displayName || '').trim();
+  const role  = String(profile.role || profile.quyen || '').trim().toLowerCase();
+
+  // Nếu đã có tên hiển thị thật thì dùng tên đó, không dùng email.
+  if(name && !name.includes('@')) return name;
+
+  // Ẩn email/account trong nhật ký cho dễ đọc và bảo mật hơn.
+  if(email.includes('lamnguyenthanh272') || email.includes('admin')) return 'Admin Lâm';
+  if(email.includes('quanly')) return 'Quản Lý';
+  if(email.includes('ketoan')) return 'Kế Toán';
+  if(email.includes('hieuthao')) return 'Hiếu Thảo';
+  if(email.includes('thai')) return 'Thái';
+  if(email.includes('thungan')) return 'Thu Ngân';
+
+  if(role.includes('admin')) return 'Admin Lâm';
+  if(role.includes('quản') || role.includes('quan')) return 'Quản Lý';
+  if(role.includes('kế') || role.includes('ke')) return 'Kế Toán';
+  if(role.includes('thu')) return 'Thu Ngân';
+
+  return 'Nhân viên';
+}
+
 function makeCloudSecurityLog(profile, action, detail){
   return {
     time: (typeof now === 'function' ? now() : new Date().toLocaleString('vi-VN')),
-    user: profile?.name || profile?.email || profile?.user || 'Ngoài hệ thống',
+    user: getEmployeeDisplayName(profile),
     role: (typeof roleLabel === 'function' ? roleLabel(profile?.role) : (profile?.role || '')),
     action,
     detail
