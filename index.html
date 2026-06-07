@@ -4842,7 +4842,7 @@ function stockActionButtons(p){
   if(r === 'admin' || r === 'manager'){
     buttons.push(`<button class="btn-orange" onclick="editProductPrice(${p.id})">Sửa thông tin</button>`);
     buttons.push(`<button class="btn-green" onclick="adjustStockProduct(${p.id})">📦 Điều chỉnh kho</button>`);
-    buttons.push(`<button class="btn-blue" onclick="showBarcodePage(${p.id})">In mã</button>`);
+    buttons.push(``);
   }
   if(r === 'admin'){
     buttons.push(`<button class="btn-red" onclick="delProduct(${p.id})">Xóa</button>`);
