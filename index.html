@@ -4608,16 +4608,53 @@ function delProduct(id){
     return;
   }
 
-  if(confirm('Xóa sản phẩm này?')){
-    const p = products.find(x => x.id === id);
-    products = products.filter(p => p.id !== id);
-    addLog('Xóa sản phẩm', p ? p.name : '');
-    save();
-    renderAll();
+  const p = products.find(x => x.id === id);
+  if(!p){
+    alert('Không tìm thấy sản phẩm');
+    return;
   }
+
+  const stockQty = Number(p.qty || 0);
+  const confirmMsg =
+    '⚠️ XÁC NHẬN XÓA SẢN PHẨM\n\n' +
+    'Tên: ' + (p.name || '') + '\n' +
+    'Mã vạch: ' + (p.barcode || '') + '\n' +
+    'Tồn kho hiện tại: ' + stockQty + '\n\n' +
+    (stockQty > 0
+      ? 'Sản phẩm này vẫn còn tồn kho. Nếu là hàng hư/hết hạn/thanh lý, nên điều chỉnh kho về 0 trước khi xóa.\n\n'
+      : '') +
+    'Bạn có chắc chắn muốn xóa sản phẩm này không?';
+
+  if(!confirm(confirmMsg)) return;
+
+  const reason = prompt(
+    'Nhập lý do xóa sản phẩm:\n\n' +
+    'Ví dụ: Tạo nhầm sản phẩm / Hàng hết hạn đã điều chỉnh kho / Ngừng kinh doanh mặt hàng này'
+  );
+
+  if(reason === null) return;
+
+  const cleanReason = String(reason).trim();
+  if(!cleanReason){
+    alert('Bắt buộc nhập lý do xóa sản phẩm. Chưa xóa.');
+    return;
+  }
+
+  products = products.filter(x => x.id !== id);
+
+  addLog(
+    'Xóa sản phẩm',
+    `${p.name || ''} | Mã: ${p.barcode || ''} | Tồn còn: ${stockQty} | Lý do: ${cleanReason}`
+  );
+
+  save();
+  renderAll();
+
+  alert('Đã xóa sản phẩm và ghi nhật ký lý do.');
+
   if(document.getElementById('shiftReportBody')){
-  renderShiftReport();
-}
+    renderShiftReport();
+  }
 }
 
 function editProductPrice(id){
