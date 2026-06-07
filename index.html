@@ -10666,7 +10666,8 @@ import {
   deleteDoc,
   onSnapshot,
   serverTimestamp,
-  runTransaction
+  runTransaction,
+  deleteField
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 import {
   getAuth,
@@ -11166,9 +11167,10 @@ window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'lo
   const rawName  = String(sessionInfo?.name || '').trim().toLowerCase();
   const deviceId = String(sessionInfo?.deviceId || '').trim();
   const sessionId = String(sessionInfo?.sessionId || '').trim();
+  const roleText = String(sessionInfo?.role || '').trim().toLowerCase();
 
   // Tập hợp mọi tên có thể từng được dùng làm khóa phiên:
-  // thungan, thungan@greenmarket.com, thungan_greenmarket.com...
+  // quanly, quanly@greenmarket.com, quanly_greenmarket.com...
   const aliases = new Set();
   const addAlias = (v) => {
     v = String(v || '').trim().toLowerCase();
@@ -11178,6 +11180,8 @@ window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'lo
     if(!v.includes('@')){
       aliases.add(v + '@greenmarket.com');
       aliases.add(safeSessionDocId(v + '@greenmarket.com'));
+      aliases.add(v + '@greenmarket-mini.app');
+      aliases.add(safeSessionDocId(v + '@greenmarket-mini.app'));
     }
   };
 
@@ -11187,6 +11191,36 @@ window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'lo
   try{
     if(rawUser && typeof authUsernameToEmail === 'function') addAlias(authUsernameToEmail(rawUser));
   }catch(e){}
+  try{
+    if(rawEmail && typeof authEmailToUsername === 'function') addAlias(authEmailToUsername(rawEmail));
+  }catch(e){}
+
+  const localPart = (v) => String(v || '').trim().toLowerCase().split('@')[0];
+  const rawEmailLocal = localPart(rawEmail);
+  const rawUserLocal  = localPart(rawUser);
+  const rawNameText   = String(rawName || '').trim().toLowerCase();
+
+  const sessionMatches = (k, s) => {
+    s = s || {};
+    const values = [
+      k,
+      s.email,
+      s.user,
+      s.name,
+      safeSessionDocId(s.email),
+      safeSessionDocId(s.user),
+      safeSessionDocId(s.name),
+      localPart(s.email),
+      localPart(s.user)
+    ].map(x => String(x || '').trim().toLowerCase()).filter(Boolean);
+
+    const matchByAlias = values.some(v => aliases.has(v));
+    const matchByLocalPart = (rawEmailLocal && values.includes(rawEmailLocal)) || (rawUserLocal && values.includes(rawUserLocal));
+    const matchByNameAndRole = rawNameText && String(s.name || '').trim().toLowerCase() === rawNameText && (!roleText || String(s.role || '').trim().toLowerCase() === roleText);
+    const matchByDevice = deviceId && String(s.deviceId || '') === deviceId;
+    const matchBySession = sessionId && String(s.sessionId || '') === sessionId;
+    return !!(matchByAlias || matchByLocalPart || matchByNameAndRole || matchByDevice || matchBySession);
+  };
 
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(CLOUD_DOC);
@@ -11195,44 +11229,38 @@ window.greenMarketReleaseLoginSession = async function(sessionInfo, reason = 'lo
     const root = snap.data() || {};
     const sessions = getSessionMapFromMainDoc(root);
     let changed = false;
+    const payload = {sessionGuardUpdatedAt: serverTimestamp()};
 
+    // 1) Xóa phiên trong loginSessionsV3 (bản mới).
     Object.keys(sessions).forEach(k => {
-      const s = sessions[k] || {};
-      const localPart = (v) => String(v || '').trim().toLowerCase().split('@')[0];
-      const rawEmailLocal = localPart(rawEmail);
-      const rawUserLocal  = localPart(rawUser);
-      const rawNameText   = String(rawName || '').trim().toLowerCase();
-
-      const values = [
-        k,
-        s.email,
-        s.user,
-        s.name,
-        safeSessionDocId(s.email),
-        safeSessionDocId(s.user),
-        safeSessionDocId(s.name),
-        localPart(s.email),
-        localPart(s.user)
-      ].map(x => String(x || '').trim().toLowerCase()).filter(Boolean);
-
-      const matchByAlias = values.some(v => aliases.has(v));
-      const matchByLocalPart = (rawEmailLocal && values.includes(rawEmailLocal)) || (rawUserLocal && values.includes(rawUserLocal));
-      const matchByNameAndRole = rawNameText && String(s.name || '').trim().toLowerCase() === rawNameText && String(s.role || '') === String(sessionInfo?.role || '');
-      const matchByDevice = deviceId && String(s.deviceId || '') === deviceId;
-      const matchBySession = sessionId && String(s.sessionId || '') === sessionId;
-
-      // FIX V16: đăng xuất trên máy tính phải giải phóng phiên cho điện thoại thấy ngay.
-      // Xóa nếu trùng email/user/local-part/tên+quyền hoặc đúng device/session.
-      if(matchByAlias || matchByLocalPart || matchByNameAndRole || matchByDevice || matchBySession){
+      if(sessionMatches(k, sessions[k])){
         delete sessions[k];
         changed = true;
       }
     });
 
+    // 2) Xóa luôn các phiên cũ từng bị lưu nhầm ở cấp ngoài của main_data.
+    // Đây là lỗi khiến Samsung đã đăng xuất nhưng iPhone vẫn bị chặn.
+    Object.keys(root).forEach(k => {
+      if(['data', LOGIN_SESSION_FIELD, 'sessionGuardUpdatedAt', 'sessionGuardCleanupVersion'].includes(k)) return;
+      const v = root[k];
+      if(v && typeof v === 'object' && !Array.isArray(v) && (v.deviceId || v.sessionId || v.loginAtMs || v.lastSeenMs)){
+        if(sessionMatches(k, v)){
+          payload[k] = deleteField();
+          changed = true;
+        }
+      }
+    });
+
     if(changed){
       const cloudLogs = getLogsFromMainDoc(root);
-      cloudLogs.unshift(makeCloudSecurityLog(sessionInfo, reason === 'auto_idle' ? 'Đăng xuất tự động' : 'Đăng xuất', reason === 'auto_idle' ? 'Tự động đăng xuất do không hoạt động 15 phút' : 'Đã giải phóng phiên đăng nhập'));
-      const payload = {[LOGIN_SESSION_FIELD]: sessions, sessionGuardUpdatedAt: serverTimestamp()};
+      cloudLogs.unshift(makeCloudSecurityLog(
+        sessionInfo,
+        reason === 'auto_idle' ? 'Đăng xuất tự động' : 'Đăng xuất',
+        reason === 'auto_idle' ? 'Tự động đăng xuất do không hoạt động 15 phút' : 'Đã giải phóng phiên đăng nhập'
+      ));
+      payload[LOGIN_SESSION_FIELD] = sessions;
+      payload.sessionGuardCleanupVersion = 'v17_cleanup_legacy_top_level_sessions';
       putLogsToMainDocPayload(payload, cloudLogs);
       tx.set(CLOUD_DOC, payload, { merge:true });
     }
