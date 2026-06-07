@@ -4625,6 +4625,12 @@ function editProductPrice(id){
   const p = products.find(x => x.id === id);
   if(!p){ alert('Không tìm thấy sản phẩm'); return; }
 
+  // QUY TẮC KHO AN TOÀN:
+  // - Sửa sản phẩm chỉ được sửa thông tin mô tả / giá bán / cảnh báo.
+  // - KHÔNG cho sửa trực tiếp số lượng tồn và giá nhập lịch sử.
+  // - Muốn tăng/giảm tồn phải dùng nút "Điều chỉnh kho" để có lý do + nhật ký riêng.
+  alert(`Sửa thông tin sản phẩm\n\nTồn hiện tại: ${Number(p.qty || 0)}\nGiá nhập hiện tại: ${money(p.importPrice)}\n\nLưu ý: Không được sửa trực tiếp tồn kho hoặc giá nhập lịch sử. Muốn đổi tồn kho hãy dùng nút "Điều chỉnh kho".`);
+
   const newName = prompt('Tên sản phẩm:', p.name);
   if(newName === null) return;
 
@@ -4648,22 +4654,16 @@ function editProductPrice(id){
     return;
   }
 
-  const newQty = prompt('Số lượng tồn:', p.qty);
-  if(newQty === null) return;
-  const newImport = prompt('Giá nhập:', p.importPrice);
-  if(newImport === null) return;
   const newSell = prompt('Giá bán:', p.sellPrice);
   if(newSell === null) return;
   const newLowLimit = prompt('Mức cảnh báo:', p.lowLimit ?? 5);
   if(newLowLimit === null) return;
 
-  const qty = Number(String(newQty).replace(/\./g,'').replace(/,/g,''));
-  const importPrice = Number(String(newImport).replace(/\./g,'').replace(/,/g,''));
   const sellPrice = Number(String(newSell).replace(/\./g,'').replace(/,/g,''));
   const lowLimit = Number(String(newLowLimit).replace(/\./g,'').replace(/,/g,''));
 
-  if(qty < 0 || importPrice < 0 || sellPrice < 0 || lowLimit < 0){
-    alert('Số lượng, giá và mức cảnh báo không được âm');
+  if(sellPrice < 0 || lowLimit < 0 || isNaN(sellPrice) || isNaN(lowLimit)){
+    alert('Giá bán và mức cảnh báo không hợp lệ');
     return;
   }
 
@@ -4680,8 +4680,9 @@ function editProductPrice(id){
 
   p.name = name;
   p.barcode = barcode;
-  p.qty = qty;
-  p.importPrice = importPrice;
+  // KHÓA TỒN KHO + GIÁ NHẬP: giữ nguyên, không nhận sửa từ màn hình Sửa sản phẩm.
+  p.qty = oldSnapshot.qty;
+  p.importPrice = oldSnapshot.importPrice;
   p.sellPrice = sellPrice;
   p.lowLimit = lowLimit;
 
@@ -4694,13 +4695,79 @@ function editProductPrice(id){
   });
 
   addLog(
-    'Sửa sản phẩm',
-    `${p.name} | Tên: ${oldSnapshot.name} → ${p.name}; Mã: ${oldSnapshot.barcode} → ${p.barcode}; Tồn: ${oldSnapshot.qty} → ${p.qty}; Giá nhập: ${money(oldSnapshot.importPrice)} → ${money(p.importPrice)}; Giá bán: ${money(oldSnapshot.sellPrice)} → ${money(p.sellPrice)}; Cảnh báo: ${oldSnapshot.lowLimit} → ${p.lowLimit}`
+    'Sửa thông tin sản phẩm',
+    `${p.name} | Tên: ${oldSnapshot.name} → ${p.name}; Mã: ${oldSnapshot.barcode} → ${p.barcode}; Tồn kho: giữ nguyên ${oldSnapshot.qty}; Giá nhập: giữ nguyên ${money(oldSnapshot.importPrice)}; Giá bán: ${money(oldSnapshot.sellPrice)} → ${money(p.sellPrice)}; Cảnh báo: ${oldSnapshot.lowLimit} → ${p.lowLimit}`
   );
   save();
   renderAll();
   if(document.getElementById('barcodeProductSelect')) renderBarcodeControls();
-  alert('Đã sửa đầy đủ thông tin sản phẩm');
+  alert('Đã sửa thông tin sản phẩm. Tồn kho và giá nhập lịch sử được giữ nguyên.');
+}
+
+function adjustStockProduct(id){
+  if(!requireAdmin('điều chỉnh kho')) return;
+
+  const r = normalizeRole(current?.role);
+  if(r !== 'admin' && r !== 'manager'){
+    alert('Chỉ Admin hoặc Quản lý được điều chỉnh kho');
+    return;
+  }
+
+  const p = products.find(x => x.id === id);
+  if(!p){ alert('Không tìm thấy sản phẩm'); return; }
+
+  const oldQty = Number(p.qty || 0);
+  const rawDelta = prompt(
+    `ĐIỀU CHỈNH KHO\n\nSản phẩm: ${p.name}\nTồn hiện tại: ${oldQty}\n\nNhập số lượng cần điều chỉnh:\nVí dụ: -1 nếu hàng hư/mất, +5 nếu kiểm kê thừa`,
+    ''
+  );
+  if(rawDelta === null) return;
+
+  const deltaText = String(rawDelta).trim().replace(/\./g,'').replace(/,/g,'');
+  const delta = Number(deltaText);
+
+  if(!deltaText || isNaN(delta) || delta === 0){
+    alert('Số lượng điều chỉnh không hợp lệ. Phải nhập số khác 0, ví dụ -1 hoặc +5.');
+    return;
+  }
+
+  const newQty = oldQty + delta;
+  if(newQty < 0){
+    alert(`Không thể điều chỉnh vì tồn mới sẽ âm.\nTồn hiện tại: ${oldQty}\nĐiều chỉnh: ${delta}\nTồn mới: ${newQty}`);
+    return;
+  }
+
+  const reason = cleanText(prompt(
+    `Bắt buộc nhập lý do điều chỉnh kho:\n\n${p.name}: ${oldQty} → ${newQty}`,
+    ''
+  ));
+  if(!reason){
+    alert('Không được điều chỉnh kho nếu chưa nhập lý do.');
+    return;
+  }
+
+  const type = delta > 0 ? 'Tăng tồn kho' : 'Giảm tồn kho';
+  const confirmMsg = `${type} cho sản phẩm ${p.name}\n\nTồn cũ: ${oldQty}\nĐiều chỉnh: ${delta > 0 ? '+' + delta : delta}\nTồn mới: ${newQty}\nLý do: ${reason}\n\nXác nhận lưu phiếu điều chỉnh kho?`;
+  if(!confirm(confirmMsg)) return;
+
+  p.qty = newQty;
+  p.lastStockAdjust = {
+    time: now(),
+    oldQty,
+    delta,
+    newQty,
+    reason,
+    user: current?.name || 'Hệ thống'
+  };
+
+  addLog(
+    'Điều chỉnh kho',
+    `${p.name} | Tồn: ${oldQty} → ${newQty}; Điều chỉnh: ${delta > 0 ? '+' + delta : delta}; Lý do: ${reason}`
+  );
+
+  save();
+  renderAll();
+  alert(`Đã điều chỉnh kho thành công.\n${p.name}: ${oldQty} → ${newQty}`);
 }
 
 function getLowLimit(p){
@@ -4773,7 +4840,8 @@ function stockActionButtons(p){
   const buttons = [];
 
   if(r === 'admin' || r === 'manager'){
-    buttons.push(`<button class="btn-orange" onclick="editProductPrice(${p.id})">Sửa</button>`);
+    buttons.push(`<button class="btn-orange" onclick="editProductPrice(${p.id})">Sửa thông tin</button>`);
+    buttons.push(`<button class="btn-green" onclick="adjustStockProduct(${p.id})">📦 Điều chỉnh kho</button>`);
     buttons.push(`<button class="btn-blue" onclick="showBarcodePage(${p.id})">In mã</button>`);
   }
   if(r === 'admin'){
@@ -6561,6 +6629,9 @@ function commitImportReceipt(){
       lotPrice: Number(line.lotPrice || 0),
       importPrice: Number(line.unitImportPrice || 0),
       sellPrice: Number(line.sellPrice || 0),
+      status: 'Đã xác nhận',
+      locked: true,
+      confirmedAt: receiptTime,
       supplier,
       supplierInvoice,
       staff,
@@ -6651,7 +6722,8 @@ function renderImportHistory(){
         <td>${escapeHTML(item.staff || '')}</td>
         <td>
           <div class="import-print-toolbar">
-            <button class="btn-orange" onclick="editImportHistory(${index})">Sửa</button>
+            <span class="status-ok" style="display:inline-block;padding:6px 10px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:900">🔒 Đã khóa</span>
+            <button class="btn-orange" type="button" onclick="adjustImportStockFromHistory(${index})">Điều chỉnh kho</button>
             <button class="btn-blue" type="button" onclick="printImportReceipt('${escapeHTML(item.receiptCode || '')}')">In phiếu</button>
           </div>
         </td>
@@ -8579,12 +8651,136 @@ function renderPriceIncreaseAlerts(){
   `).join('') : '<tr><td colspan="7">Chưa phát hiện mặt hàng nào tăng giá nhập</td></tr>';
 }
 
+
+function isImportItemLocked(item){
+  if(!item) return true;
+  // Từ bản này trở đi: phiếu nhập đã có mã phiếu / đã xác nhận thì KHÓA.
+  // Không sửa trực tiếp số lượng, giá nhập, giá bán trong lịch sử nữa.
+  if(item.locked === false) return false;
+  if(item.locked === true) return true;
+  if(String(item.status || '').toLowerCase().includes('xác nhận')) return true;
+  if(String(item.status || '').toLowerCase().includes('xac nhan')) return true;
+  if(item.receiptCode) return true;
+  return true;
+}
+
+function findProductForImportItem(item){
+  if(!item) return null;
+  let p = null;
+  if(item.productId) p = products.find(x => String(x.id) === String(item.productId));
+  if(!p && item.barcode) p = findProductByBarcode(item.barcode);
+  if(!p && item.name) p = findProductByName(item.name);
+  return p || null;
+}
+
+function adjustImportStockFromHistory(index){
+  if(!requireAdmin('điều chỉnh kho')) return;
+
+  const item = importHistory[index];
+  if(!item){
+    alert('Không tìm thấy dòng nhập hàng để điều chỉnh.');
+    return;
+  }
+
+  const p = findProductForImportItem(item);
+  if(!p){
+    alert('Sản phẩm này không còn trong kho. Không thể điều chỉnh trực tiếp.');
+    return;
+  }
+
+  const productName = p.name || item.name || 'Sản phẩm';
+  const saleUnit = p.saleUnit || p.unit || item.saleUnit || 'đơn vị';
+  const currentQty = Number(p.qty || 0);
+  const qtyText = prompt(
+    'Nhập số lượng điều chỉnh cho: ' + productName + '\n' +
+    'Dùng số dương để TĂNG, số âm để GIẢM.\n' +
+    'Ví dụ: 5 hoặc -2\n\n' +
+    'Tồn hiện tại: ' + currentQty + ' ' + saleUnit,
+    '0'
+  );
+  if(qtyText === null) return;
+
+  const diffQty = parseNumberVN(qtyText);
+  if(!diffQty){
+    alert('Số lượng điều chỉnh phải khác 0.');
+    return;
+  }
+
+  const newQty = currentQty + diffQty;
+  if(newQty < 0){
+    alert('Không thể điều chỉnh vì tồn kho sẽ bị âm.');
+    return;
+  }
+
+  const reason = cleanText(prompt('Nhập lý do điều chỉnh kho:', '') || '');
+  if(!reason){
+    alert('Bắt buộc nhập lý do điều chỉnh kho.');
+    return;
+  }
+
+  const confirmText =
+    'Xác nhận điều chỉnh kho?\n\n' +
+    'Mặt hàng: ' + productName + '\n' +
+    'Mã phiếu gốc: ' + (item.receiptCode || '-') + '\n' +
+    'Tồn cũ: ' + currentQty + ' ' + saleUnit + '\n' +
+    'Điều chỉnh: ' + (diffQty > 0 ? '+' : '') + diffQty + ' ' + saleUnit + '\n' +
+    'Tồn mới: ' + newQty + ' ' + saleUnit + '\n' +
+    'Lý do: ' + reason;
+  if(!confirm(confirmText)) return;
+
+  p.qty = newQty;
+
+  importHistory.unshift({
+    receiptCode: 'DC' + makeImportReceiptCode().replace(/^PN/, ''),
+    time: now(),
+    productId: p.id,
+    name: productName,
+    barcode: p.barcode || item.barcode || '',
+    saleUnit,
+    packUnit: 'điều chỉnh',
+    packQty: diffQty,
+    convertQty: 1,
+    unitQty: diffQty,
+    qty: diffQty,
+    lotPrice: 0,
+    importPrice: Number(p.importPrice || item.importPrice || 0),
+    sellPrice: Number(p.sellPrice || item.sellPrice || 0),
+    supplier: 'Điều chỉnh kho',
+    supplierInvoice: item.receiptCode || '-',
+    staff: current?.name || 'Admin',
+    note: 'Điều chỉnh từ phiếu đã khóa. Lý do: ' + reason,
+    status: 'Điều chỉnh kho',
+    locked: true,
+    adjustment: true,
+    adjustmentReason: reason,
+    oldQty: currentQty,
+    newQty,
+    diffQty,
+    originalReceiptCode: item.receiptCode || ''
+  });
+
+  addLog(
+    'Điều chỉnh kho',
+    `Phiếu gốc ${item.receiptCode || '-'} | ${productName} | Tồn ${currentQty} → ${newQty} ${saleUnit} | Điều chỉnh ${(diffQty > 0 ? '+' : '') + diffQty} | Lý do: ${reason}`
+  );
+
+  save();
+  renderAll();
+  renderImportReports();
+  alert('Đã điều chỉnh kho và ghi nhật ký. Phiếu nhập gốc vẫn được khóa để truy vết.');
+}
+
 function editImportHistory(index){
   if(!requireAdmin('sửa lịch sử nhập kho')) return;
   const item = importHistory[index];
 
   if(!item){
     alert('Không tìm thấy dòng nhập hàng');
+    return;
+  }
+
+  if(isImportItemLocked(item)){
+    alert('Phiếu nhập này đã xác nhận nên đã được khóa. Không sửa trực tiếp số lượng, giá nhập, giá bán hoặc xóa lịch sử. Nếu nhập sai, hãy dùng nút “Điều chỉnh kho” và nhập lý do.');
     return;
   }
 
