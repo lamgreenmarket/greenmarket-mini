@@ -2204,6 +2204,19 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 }
 
 
+
+/* CLEAN DASHBOARD: doanh thu gốc nằm trong khung hoàn trả, bỏ chú thích thừa */
+.return-original{
+  border-color:#bfdbfe!important;
+  background:linear-gradient(135deg,#ffffff,#eff6ff)!important;
+}
+.return-original strong{
+  color:#0369a1!important;
+}
+.dashboard-title p,.dashboard-note,.return-base-note{
+  display:none!important;
+}
+
 </style>
 </head>
 <body>
@@ -2258,7 +2271,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   <section id="home" class="page">
     <div class="dashboard-title">
       <h2>📊 Tổng quan vận hành</h2>
-      <p>Theo dõi nhanh doanh thu, đơn bán, tồn kho và hiệu suất bán hàng.</p>
     </div>
     <div class="dashboard-pro-panel">
       <div class="dashboard-pro-card dashboard-pro-wide dashboard-pro-revenue">
@@ -2298,8 +2310,12 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
       </div>
       <div class="dashboard-pro-card dashboard-pro-return-card dashboard-pro-return-smart-card">
         <h3>📊 Tổng quan hoàn trả tháng này</h3>
+        <div class="return-metric return-original">
+          <span>💰 Doanh thu gốc</span>
+          <strong id="proMonthOriginalRevenueMain">0 VNĐ</strong>
+        </div>
         <div class="return-metric return-net">
-          <span>💰 Doanh thu thực nhận</span>
+          <span>💵 Doanh thu thực nhận</span>
           <strong id="proMonthNetRevenueMain">0 VNĐ</strong>
         </div>
         <div class="return-metric return-refund">
@@ -2310,7 +2326,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
           <span>📊 Tỷ lệ hoàn trả</span>
           <strong id="proMonthRefundRateMain">0%</strong>
         </div>
-        <small id="proMonthRefundBase" class="return-base-note">Trên doanh thu gốc: 0 VNĐ</small>
         <div id="proMonthRefundAlert" class="return-alert return-alert-ok">✅ Tỷ lệ hoàn trả trong mức an toàn</div>
       </div>
       <div class="dashboard-pro-card dashboard-pro-top-return-card">
@@ -2319,7 +2334,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         <div id="proTopReturnedSummary" class="return-top-summary">Tổng sản phẩm bị trả: 0 SP • Tổng số lần trả: 0 lần</div>
       </div>
       <div class="dashboard-pro-card profit-real-card" id="profitRealPanel">
-        <h3>💵 Lợi nhuận thực V1</h3>
+        <h3>💰 Lợi nhuận thực</h3>
         <div class="profit-period-tabs" id="profitPeriodTabs">
           <button type="button" class="active" onclick="setProfitPeriod(this,'today')">Hôm nay</button>
           <button type="button" onclick="setProfitPeriod(this,'thisWeek')">Tuần này</button>
@@ -2338,10 +2353,8 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
       </div>
 
     </div>
-    <div id="dashboardUpdated" class="dashboard-note"></div>
     <div class="dashboard-quick-actions admin-only">
       <h3>📘 Báo cáo nhanh kế toán / nhập kho</h3>
-      <p>Đưa 3 nút quan trọng ra Trang chủ để in/xuất file nhanh, không cần vào mục Hàng mới nhập.</p>
       <button class="btn-green" type="button" onclick="printDailyImportReport()">🖨️ In báo cáo nhập kho A4</button>
       <button class="btn-blue" type="button" onclick="exportDailyImportReportExcel()">📊 Xuất Excel nhập kho</button>
       <button class="btn-orange" type="button" onclick="exportAccountingExcel()">📘 Xuất Excel kế toán tổng hợp</button>
@@ -10964,10 +10977,10 @@ function renderDashboardPro(){
   setText('proMonthRevenue', money(monthRevenue));
   setText('proMonthBills', `${monthBills.length} đơn`);
   const monthRefundRateText = `${monthRefundRate.toFixed(2).replace('.', ',')}%`;
+  setText('proMonthOriginalRevenueMain', money(monthOriginalRevenue));
   setText('proMonthNetRevenueMain', money(monthNetRevenue));
   setText('proMonthRefundMain', money(monthRefund));
   setText('proMonthRefundRateMain', monthRefundRateText);
-  setText('proMonthRefundBase', `Trên doanh thu gốc: ${money(monthOriginalRevenue)}`);
 
   const refundAlert = document.getElementById('proMonthRefundAlert');
   if(refundAlert){
@@ -11029,20 +11042,11 @@ function renderAll(){
   if(statBillsEl) statBillsEl.innerHTML = `${visibleBills.length} đơn<small>${['admin','manager','accountant'].includes(normalizeRole(current.role)) ? 'toàn cửa hàng' : 'của tôi'}</small>`;
   const statProductsEl = document.getElementById('statProducts');
   if(statProductsEl) statProductsEl.innerHTML = `${products.length} mặt hàng<small>đang quản lý trong kho</small>`;
-  if(document.getElementById('dashboardUpdated')){
-    dashboardUpdated.textContent = 'Cập nhật lần cuối: ' + now();
-  }
   renderDashboardPro();
 
   const dashboardTitleH2 = document.querySelector('#home .dashboard-title h2');
-  const dashboardTitleP = document.querySelector('#home .dashboard-title p');
   if(dashboardTitleH2){
     dashboardTitleH2.textContent = ['admin','manager','accountant'].includes(normalizeRole(current.role)) ? '📊 Tổng quan vận hành' : '📊 Thống kê bán hàng cá nhân';
-  }
-  if(dashboardTitleP){
-    dashboardTitleP.textContent = ['admin','manager','accountant'].includes(normalizeRole(current.role))
-      ? 'Theo dõi nhanh doanh thu, đơn bán, tồn kho và hiệu suất bán hàng.'
-      : 'Chỉ hiển thị doanh thu, số đơn và biểu đồ của tài khoản đang đăng nhập.';
   }
 
   sellProduct.innerHTML = products.map(p => `
