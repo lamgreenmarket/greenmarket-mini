@@ -9378,6 +9378,52 @@ function exportDailyImportReportExcel(){
   addLog('Xuất Excel', 'Xuất báo cáo nhập kho ngày ' + reportDate);
 }
 
+
+function styleAccountingSummarySheet(ws, returnRate, realProfit){
+  const sectionRows = [4, 10, 16];
+  const greenRows = [7, 14];      // Doanh thu thực nhận, Lợi nhuận thực
+  const redRows = [6, 13];        // Hoàn trả, Chi phí
+  const orangeRows = [8];         // Tỷ lệ hoàn trả
+  const blueRows = [5, 11];       // Doanh thu gốc, Giá vốn hàng bán
+
+  sectionRows.forEach(r => {
+    for(let c = 0; c <= 1; c++){
+      setCellStyle(ws, r, c, {
+        font:{name:'Calibri', sz:11, bold:true, color:{rgb:'FFFFFF'}},
+        fill:{fgColor:{rgb:'0F766E'}},
+        alignment:{horizontal:'center', vertical:'center', wrapText:true}
+      });
+    }
+    ws['!merges'] = ws['!merges'] || [];
+    ws['!merges'].push({s:{r:r,c:0}, e:{r:r,c:1}});
+  });
+
+  blueRows.forEach(r => {
+    setCellStyle(ws, r, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'075985'}}, fill:{fgColor:{rgb:'E0F2FE'}}});
+    setCellStyle(ws, r, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'075985'}}, fill:{fgColor:{rgb:'E0F2FE'}}});
+  });
+  greenRows.forEach(r => {
+    setCellStyle(ws, r, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'047857'}}, fill:{fgColor:{rgb:'DCFCE7'}}});
+    setCellStyle(ws, r, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'047857'}}, fill:{fgColor:{rgb:'DCFCE7'}}});
+  });
+  redRows.forEach(r => {
+    setCellStyle(ws, r, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
+    setCellStyle(ws, r, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
+  });
+  orangeRows.forEach(r => {
+    const strongRed = Number(returnRate || 0) > 20;
+    const color = strongRed ? 'B91C1C' : 'D97706';
+    const fill = strongRed ? 'FEE2E2' : 'FEF3C7';
+    setCellStyle(ws, r, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:color}}, fill:{fgColor:{rgb:fill}}});
+    setCellStyle(ws, r, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:color}}, fill:{fgColor:{rgb:fill}}});
+  });
+
+  if(Number(realProfit || 0) < 0){
+    setCellStyle(ws, 14, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
+    setCellStyle(ws, 14, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
+  }
+}
+
 function buildPriceIncreaseAlertsArray(){
   const asc = [...importHistory].reverse();
   const lastPrice = {};
@@ -9424,14 +9470,19 @@ function exportAccountingExcel(){
 
   const summaryHeaders = ['Chỉ tiêu','Giá trị'];
   const summaryRows = [
-    ['Tổng doanh thu gốc', formatVNDExcel(totalOriginalRevenue)],
-    ['Tổng tiền hoàn trả', formatVNDExcel(totalRefund)],
+    ['NHÓM DOANH THU', ''],
+    ['Doanh thu gốc', formatVNDExcel(totalOriginalRevenue)],
+    ['Hoàn trả', formatVNDExcel(totalRefund)],
     ['Doanh thu thực nhận', formatVNDExcel(totalRevenue)],
+    ['Tỷ lệ hoàn trả', (returnSummaryAll.rate || 0).toFixed(2).replace('.', ',') + '%'],
+    ['', ''],
+    ['NHÓM LỢI NHUẬN', ''],
     ['Giá vốn hàng bán', formatVNDExcel(costOfGoodsSold)],
     ['Lợi nhuận gộp', formatVNDExcel(grossProfit)],
     ['Chi phí', formatVNDExcel(operatingExpenses)],
     ['Lợi nhuận thực', formatVNDExcel(realProfit)],
-    ['Tỷ lệ hoàn trả', (returnSummaryAll.rate || 0).toFixed(2).replace('.', ',') + '%'],
+    ['', ''],
+    ['NHÓM HOẠT ĐỘNG', ''],
     ['Tổng tiền nhập kho', formatVNDExcel(totalImport)],
     ['Số hóa đơn bán', bills.length + ' đơn'],
     ['Số dòng nhập kho', importHistory.length + ' dòng'],
@@ -9445,6 +9496,7 @@ function exportAccountingExcel(){
     [46,24],
     'Tong hop'
   );
+  styleAccountingSummarySheet(wsSummary, returnSummaryAll.rate || 0, realProfit);
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Tong hop');
 
   const billHeaders = ['STT','Thời gian','Nhân viên','Phương thức','Doanh thu gốc','Hoàn trả','Doanh thu thực nhận'];
@@ -9522,7 +9574,7 @@ function exportAccountingExcel(){
   const wsStock = makeMisaSheet('TỒN KHO HIỆN TẠI','Xuất lúc: ' + exportedAt,stockHeaders,stockRows,[6,28,18,14,16,16,14,14],'Ton kho');
   XLSX.utils.book_append_sheet(wb, wsStock, 'Ton kho');
 
-  const profitHeaders = ['STT','Mã phiếu','Sản phẩm','Tồn tăng','Giá nhập/đv','Giá bán','Lãi/đv','Lợi nhuận dự kiến'];
+  const profitHeaders = ['STT','Mã phiếu','Sản phẩm','Tồn tăng','Giá nhập/đv','Giá bán','Lãi/đv','Lợi nhuận theo lô'];
   const profitRows = importHistory.map((x,i) => {
     const unitQty = Number(x.unitQty ?? x.qty ?? 0);
     const importPrice = Number(x.importPrice || 0);
@@ -9530,8 +9582,8 @@ function exportAccountingExcel(){
     const profitUnit = sellPrice - importPrice;
     return [i+1, excelSafe(x.receiptCode || '-'), excelSafe(x.name), excelQty(unitQty, x.saleUnit || 'cái'), formatVNDExcel(importPrice), formatVNDExcel(sellPrice), formatVNDExcel(profitUnit), formatVNDExcel(profitUnit * unitQty)];
   });
-  const wsProfit = makeMisaSheet('LỢI NHUẬN DỰ KIẾN THEO LÔ NHẬP','Xuất lúc: ' + exportedAt,profitHeaders,profitRows,[6,20,28,14,16,16,16,20],'Loi nhuan lo');
-  XLSX.utils.book_append_sheet(wb, wsProfit, 'Loi nhuan lo');
+  const wsProfit = makeMisaSheet('LỢI NHUẬN THEO LÔ NHẬP','Xuất lúc: ' + exportedAt,profitHeaders,profitRows,[6,20,28,14,16,16,16,20],'Loi nhuan');
+  XLSX.utils.book_append_sheet(wb, wsProfit, 'Loi nhuan');
 
   const alerts = buildPriceIncreaseAlertsArray();
   const alertHeaders = ['STT','Sản phẩm','Mã vạch','Giá nhập cũ','Giá nhập mới','Tăng','Thời gian'];
