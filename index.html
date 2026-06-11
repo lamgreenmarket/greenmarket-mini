@@ -1649,6 +1649,14 @@ tr:hover td{background:#f0fdf4!important}
 .dashboard-pro-top-card{grid-column:span 4!important}
 .dashboard-pro-staff-card{grid-column:span 4!important}
 .dashboard-pro-warning{grid-column:span 4!important}
+.dashboard-pro-return-card{grid-column:span 4!important}
+.dashboard-pro-top-return-card{grid-column:span 8!important}
+@media(max-width:1200px){
+  .dashboard-pro-return-card,.dashboard-pro-top-return-card{grid-column:span 6!important}
+}
+@media(max-width:900px){
+  .dashboard-pro-return-card,.dashboard-pro-top-return-card{grid-column:auto!important}
+}
 .dashboard-pro-list{
   padding-left:18px!important;
   margin-top:10px!important;
@@ -2085,6 +2093,16 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
         <h3>⚠️ Tình trạng tồn kho</h3>
         <strong id="statLow">0 sắp hết<br>0 hết hàng</strong>
         <small>bấm để xem chi tiết</small>
+      </div>
+      <div class="dashboard-pro-card dashboard-pro-return-card">
+        <h3>↩️ Hoàn trả tháng này</h3>
+        <strong id="proMonthRefund">0 VNĐ</strong>
+        <small id="proMonthNetRevenue">Doanh thu thực nhận: 0 VNĐ</small>
+        <small id="proMonthRefundRate">Tỷ lệ hoàn trả: 0%</small>
+      </div>
+      <div class="dashboard-pro-card dashboard-pro-top-return-card">
+        <h3>📦 Top mặt hàng bị trả</h3>
+        <ol id="proTopReturnedProducts" class="dashboard-pro-list"><li>Chưa có dữ liệu</li></ol>
       </div>
     </div>
     <div id="dashboardUpdated" class="dashboard-note"></div>
@@ -8550,7 +8568,10 @@ function exportAccountingExcel(){
 
   const wb = XLSX.utils.book_new();
   const exportedAt = now();
-  const totalRevenue = bills.reduce((s,b) => s + Number(b.total || 0), 0);
+  const returnSummaryAll = calcReturnSummaryForBills(bills);
+  const totalRevenue = returnSummaryAll.netRevenue;
+  const totalOriginalRevenue = returnSummaryAll.originalRevenue;
+  const totalRefund = returnSummaryAll.allRefund;
   const totalImport = importHistory.reduce((s,x) => s + Number(x.lotPrice ?? (Number(x.qty||0) * Number(x.importPrice||0))), 0);
   const estimatedProfit = bills.reduce((sum,b) => {
     if(!Array.isArray(b.items)) return sum;
@@ -8562,7 +8583,10 @@ function exportAccountingExcel(){
 
   const summaryHeaders = ['Chỉ tiêu','Giá trị'];
   const summaryRows = [
-    ['Tổng doanh thu bán hàng', formatVNDExcel(totalRevenue)],
+    ['Tổng doanh thu gốc', formatVNDExcel(totalOriginalRevenue)],
+    ['Tổng tiền hoàn trả', formatVNDExcel(totalRefund)],
+    ['Doanh thu thực nhận', formatVNDExcel(totalRevenue)],
+    ['Tỷ lệ hoàn trả', (returnSummaryAll.rate || 0).toFixed(2).replace('.', ',') + '%'],
     ['Tổng tiền nhập kho', formatVNDExcel(totalImport)],
     ['Lợi nhuận ước tính theo giá nhập hiện tại', formatVNDExcel(estimatedProfit)],
     ['Số hóa đơn bán', bills.length + ' đơn'],
@@ -8579,9 +8603,9 @@ function exportAccountingExcel(){
   );
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Tong hop');
 
-  const billHeaders = ['STT','Thời gian','Nhân viên','Phương thức','Tổng tiền'];
-  const billRows = bills.map((b,i) => [i+1, excelDateText(b.time), excelSafe(b.staff), excelSafe(b.paymentMethod || ''), formatVNDExcel(b.total)]);
-  const wsBills = makeMisaSheet('DANH SÁCH HÓA ĐƠN BÁN HÀNG','Xuất lúc: ' + exportedAt,billHeaders,billRows,[6,22,18,18,18],'Hoa don');
+  const billHeaders = ['STT','Thời gian','Nhân viên','Phương thức','Tổng gốc','Đã hoàn','Doanh thu sau trả'];
+  const billRows = bills.map((b,i) => [i+1, excelDateText(b.time), excelSafe(b.staff), excelSafe(b.paymentMethod || ''), formatVNDExcel(getBillOriginalTotal(b)), formatVNDExcel(getBillReturnedAmount(b)), formatVNDExcel(b.total)]);
+  const wsBills = makeMisaSheet('DANH SÁCH HÓA ĐƠN BÁN HÀNG','Xuất lúc: ' + exportedAt,billHeaders,billRows,[6,22,18,18,18,18,20],'Hoa don');
   XLSX.utils.book_append_sheet(wb, wsBills, 'Hoa don');
 
   const saleDetail = [];
@@ -8617,6 +8641,32 @@ function exportAccountingExcel(){
   });
   const wsImport = makeMisaSheet('LỊCH SỬ NHẬP KHO','Xuất lúc: ' + exportedAt,importHeaders,importRows,[6,20,20,24,20,26,18,12,10,10,14,16,16,16,18],'Nhap kho');
   XLSX.utils.book_append_sheet(wb, wsImport, 'Nhap kho');
+
+  const returnHeaders = ['STT','Thời gian trả','Mã phiếu trả','Mã HĐ','Người xử lý','Nhân viên bán','Lý do','Sản phẩm','SL trả','Đơn giá','Thành tiền'];
+  const returnRows = [];
+  bills.forEach((b, bi) => {
+    const billCode = getBillCode(b, bi);
+    getBillReturnHistory(b).forEach(r => {
+      const items = Array.isArray(r.items) && r.items.length ? r.items : [{name:'Trả hàng', qty:'', price:'', total:r.amount}];
+      items.forEach(it => {
+        returnRows.push([
+          returnRows.length + 1,
+          excelDateText(r.time || b.returnTime || ''),
+          excelSafe(r.code || b.returnCode || ''),
+          excelSafe(billCode),
+          excelSafe(r.by || b.returnBy || ''),
+          excelSafe(b.staff || ''),
+          excelSafe(r.reason || b.returnReason || ''),
+          excelSafe(it.name || ''),
+          excelNumber(it.qty || 0),
+          formatVNDExcel(it.price || 0),
+          formatVNDExcel(it.total || (Number(it.qty || 0) * Number(it.price || 0)) || r.amount || 0)
+        ]);
+      });
+    });
+  });
+  const wsReturn = makeMisaSheet('CHI TIẾT HÀNG TRẢ','Xuất lúc: ' + exportedAt,returnHeaders,returnRows,[6,22,20,20,18,18,28,28,10,16,18],'Hang tra');
+  XLSX.utils.book_append_sheet(wb, wsReturn, 'Hang tra');
 
   const stockHeaders = ['STT','Tên hàng','Mã vạch','Tồn','Giá nhập','Giá bán','Mức cảnh báo','Trạng thái'];
   const stockRows = products.map((p,i) => {
@@ -9865,6 +9915,65 @@ function setProTopRange(btn, range){
   renderProTopProducts(range);
 }
 
+
+function getBillReturnEventsForDashboard(list){
+  const events = [];
+  (list || []).forEach((b, billIndex) => {
+    getBillReturnHistory(b).forEach(r => {
+      events.push({
+        bill: b,
+        billIndex,
+        code: r.code || b.returnCode || '',
+        time: r.time || b.returnTime || '',
+        by: r.by || b.returnBy || '',
+        reason: r.reason || b.returnReason || '',
+        amount: Number(r.amount || 0),
+        items: Array.isArray(r.items) ? r.items : []
+      });
+    });
+  });
+  return events;
+}
+
+function filterReturnEventsByDashboardRange(events, range){
+  const today = new Date();
+  return (events || []).filter(e => {
+    const d = parseVNDateTimeForDashboard(e.time || e.bill?.time);
+    if(range === 'month') return isSameMonthForDashboard(d, today);
+    if(range === 'today') return isSameDateForDashboard(d, today);
+    if(range === 'thisWeek') return isSameWeekForDashboard(d, today);
+    return true;
+  });
+}
+
+function renderProTopReturnedProducts(returnEvents){
+  const box = document.getElementById('proTopReturnedProducts');
+  if(!box) return;
+  const map = {};
+  (returnEvents || []).forEach(e => {
+    (e.items || []).forEach(it => {
+      const name = it.name || 'Không rõ';
+      if(!map[name]) map[name] = {qty:0, amount:0, times:0};
+      map[name].qty += Number(it.qty || 0);
+      map[name].amount += Number(it.total || (Number(it.qty || 0) * Number(it.price || 0)) || 0);
+      map[name].times += 1;
+    });
+  });
+  const arr = Object.entries(map).sort((a,b) => b[1].qty - a[1].qty || b[1].amount - a[1].amount).slice(0,5);
+  box.innerHTML = arr.length
+    ? arr.map(([name, data], idx) => `<li>${idx + 1}. ${escapeHTML(name)} — ${data.qty} SP / ${money(data.amount)} <small class="muted">(${data.times} lần)</small></li>`).join('')
+    : '<li>Chưa có dữ liệu hoàn trả</li>';
+}
+
+function calcReturnSummaryForBills(list){
+  const events = getBillReturnEventsForDashboard(list);
+  const allRefund = events.reduce((s,e) => s + Number(e.amount || 0), 0);
+  const originalRevenue = (list || []).reduce((s,b) => s + getBillOriginalTotal(b), 0);
+  const netRevenue = (list || []).reduce((s,b) => s + Number(b.total || 0), 0);
+  const rate = originalRevenue > 0 ? (allRefund / originalRevenue) * 100 : 0;
+  return {events, allRefund, originalRevenue, netRevenue, rate};
+}
+
 function renderDashboardPro(){
   const visibleBills = getVisibleBillsForDashboard();
   const todayBills = filterBillsByDashboardRange(visibleBills, 'today');
@@ -9875,6 +9984,11 @@ function renderDashboardPro(){
   const weekRevenue = weekBills.reduce((s,b) => s + Number(b.total || 0), 0);
   const monthRevenue = monthBills.reduce((s,b) => s + Number(b.total || 0), 0);
   const todayProfit = todayBills.reduce((s,b) => s + estimateBillProfit(b), 0);
+  const monthReturnSummary = calcReturnSummaryForBills(monthBills);
+  const monthRefund = monthReturnSummary.allRefund;
+  const monthOriginalRevenue = monthReturnSummary.originalRevenue;
+  const monthNetRevenue = monthReturnSummary.netRevenue;
+  const monthRefundRate = monthReturnSummary.rate;
 
   const lowCount = products.filter(p => Number(p.qty || 0) > 0 && Number(p.qty || 0) <= Number(p.lowLimit ?? 5)).length;
   const outCount = products.filter(p => Number(p.qty || 0) <= 0).length;
@@ -9890,11 +10004,15 @@ function renderDashboardPro(){
   setText('proWeekBills', `${weekBills.length} đơn`);
   setText('proMonthRevenue', money(monthRevenue));
   setText('proMonthBills', `${monthBills.length} đơn`);
+  setText('proMonthRefund', money(monthRefund));
+  setText('proMonthNetRevenue', `Doanh thu thực nhận: ${money(monthNetRevenue)}`);
+  setText('proMonthRefundRate', `Tỷ lệ hoàn trả: ${monthRefundRate.toFixed(2).replace('.', ',')}% trên doanh thu gốc ${money(monthOriginalRevenue)}`);
   setText('proTodayProfit', money(todayProfit));
   setText('proStockWarning', `${lowCount + outCount} mặt hàng`);
   setText('proStockDetail', `${lowCount} sắp hết • ${outCount} hết hàng`);
 
   renderProTopProducts(proTopRange);
+  renderProTopReturnedProducts(monthReturnSummary.events);
 
   const staffMap = {};
   todayBills.forEach(b => {
