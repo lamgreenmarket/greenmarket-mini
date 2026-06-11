@@ -2282,9 +2282,8 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         </div>
       </div>
       <div class="dashboard-pro-card dashboard-pro-profit">
-        <h3>📈 Lãi tạm tính hôm nay</h3>
+        <h3>📈 Lợi nhuận thực hôm nay</h3>
         <strong id="proTodayProfit">0 VNĐ</strong>
-        <small>Tính theo giá nhập hiện tại trong kho</small>
       </div>
       <div class="dashboard-pro-card dashboard-pro-stock-card">
         <h3>📦 Mặt hàng trong kho</h3>
@@ -9413,22 +9412,27 @@ function exportAccountingExcel(){
   const totalOriginalRevenue = returnSummaryAll.originalRevenue;
   const totalRefund = returnSummaryAll.allRefund;
   const totalImport = importHistory.reduce((s,x) => s + Number(x.lotPrice ?? (Number(x.qty||0) * Number(x.importPrice||0))), 0);
-  const estimatedProfit = bills.reduce((sum,b) => {
-    if(!Array.isArray(b.items)) return sum;
-    return sum + b.items.reduce((s,i) => {
-      const p = products.find(x => String(x.id) === String(i.id)) || {};
-      return s + (Number(i.price || 0) - Number(p.importPrice || 0)) * Number(i.qty || 0);
-    }, 0);
+  const costOfGoodsSold = bills.reduce((sum,b) => sum + estimateBillCostNetAfterReturns(b), 0);
+  const operatingExpenses = (moneyList || []).reduce((sum,m) => {
+    const type = String(m.type || '').toLowerCase();
+    const amount = Number(m.amount || 0);
+    const isExpense = type.includes('chi') && !type.includes('nhập hàng') && !type.includes('nhap hang');
+    return isExpense ? sum + Math.abs(amount) : sum;
   }, 0);
+  const grossProfit = totalRevenue - costOfGoodsSold;
+  const realProfit = grossProfit - operatingExpenses;
 
   const summaryHeaders = ['Chỉ tiêu','Giá trị'];
   const summaryRows = [
     ['Tổng doanh thu gốc', formatVNDExcel(totalOriginalRevenue)],
     ['Tổng tiền hoàn trả', formatVNDExcel(totalRefund)],
     ['Doanh thu thực nhận', formatVNDExcel(totalRevenue)],
+    ['Giá vốn hàng bán', formatVNDExcel(costOfGoodsSold)],
+    ['Lợi nhuận gộp', formatVNDExcel(grossProfit)],
+    ['Chi phí', formatVNDExcel(operatingExpenses)],
+    ['Lợi nhuận thực', formatVNDExcel(realProfit)],
     ['Tỷ lệ hoàn trả', (returnSummaryAll.rate || 0).toFixed(2).replace('.', ',') + '%'],
     ['Tổng tiền nhập kho', formatVNDExcel(totalImport)],
-    ['Lợi nhuận ước tính theo giá nhập hiện tại', formatVNDExcel(estimatedProfit)],
     ['Số hóa đơn bán', bills.length + ' đơn'],
     ['Số dòng nhập kho', importHistory.length + ' dòng'],
     ['Số mặt hàng trong kho', products.length + ' mặt hàng']
@@ -9443,7 +9447,7 @@ function exportAccountingExcel(){
   );
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Tong hop');
 
-  const billHeaders = ['STT','Thời gian','Nhân viên','Phương thức','Tổng gốc','Đã hoàn','Doanh thu sau trả'];
+  const billHeaders = ['STT','Thời gian','Nhân viên','Phương thức','Doanh thu gốc','Hoàn trả','Doanh thu thực nhận'];
   const billRows = bills.map((b,i) => [i+1, excelDateText(b.time), excelSafe(b.staff), excelSafe(b.paymentMethod || ''), formatVNDExcel(getBillOriginalTotal(b)), formatVNDExcel(getBillReturnedAmount(b)), formatVNDExcel(b.total)]);
   const wsBills = makeMisaSheet('DANH SÁCH HÓA ĐƠN BÁN HÀNG','Xuất lúc: ' + exportedAt,billHeaders,billRows,[6,22,18,18,18,18,20],'Hoa don');
   XLSX.utils.book_append_sheet(wb, wsBills, 'Hoa don');
@@ -9974,7 +9978,7 @@ function renderBillHistory(visibleBills){
         <td>${itemCount || (b.items || []).length}</td>
         <td>
           ${isBillReturned(b)
-            ? `<span class="bill-return-list-badge">↩ ${isBillFullyReturned(b) ? 'ĐÃ TRẢ HẾT' : 'TRẢ MỘT PHẦN'}</span><br><small class="muted">Tổng gốc: ${money(getBillOriginalTotal(b))}</small><br><small class="bill-return-money">Đã hoàn: ${money(getBillReturnedAmount(b))}</small><br><small class="muted">Doanh thu sau trả: ${money(b.total)}</small>`
+            ? `<span class="bill-return-list-badge">↩ ${isBillFullyReturned(b) ? 'ĐÃ TRẢ HẾT' : 'TRẢ MỘT PHẦN'}</span><br><small class="muted">Doanh thu gốc: ${money(getBillOriginalTotal(b))}</small><br><small class="bill-return-money">Hoàn trả: ${money(getBillReturnedAmount(b))}</small><br><small class="muted">Doanh thu thực nhận: ${money(b.total)}</small>`
             : `<b>${money(b.total)}</b><br><small class="muted">In lại: ${getBillReprintCount(b)} lần</small>`
           }
         </td>
@@ -10412,7 +10416,7 @@ function viewBillDetail(index){
       ? `<div class="bill-return-summary">
            <div><span>Tổng gốc</span>${money(getBillOriginalTotal(b))}</div>
            <div><span>Đã hoàn</span>${money(getBillReturnedAmount(b))}</div>
-           <div><span>Doanh thu sau trả</span>${money(b.total)}</div>
+           <div><span>Doanh thu thực nhận</span>${money(b.total)}</div>
          </div>`
       : ''
     }
@@ -10931,7 +10935,7 @@ function renderRealProfitDashboard(){
   if(alertBox){
     alertBox.classList.toggle('loss', s.realProfit < 0);
     alertBox.textContent = s.realProfit >= 0
-      ? `✅ Đang có lãi: ${money(s.realProfit)}`
+      ? `✅ Lãi hiện tại: ${money(s.realProfit)}`
       : `⚠️ Đang lỗ: ${money(Math.abs(s.realProfit))}`;
   }
 }
@@ -10955,7 +10959,7 @@ function renderDashboardPro(){
   const todayRevenue = todayBills.reduce((s,b) => s + Number(b.total || 0), 0);
   const weekRevenue = weekBills.reduce((s,b) => s + Number(b.total || 0), 0);
   const monthRevenue = monthBills.reduce((s,b) => s + Number(b.total || 0), 0);
-  const todayProfit = todayBills.reduce((s,b) => s + estimateBillProfit(b), 0);
+  const todayProfit = calcRealProfitSummary('today').realProfit;
   const monthReturnSummary = calcReturnSummaryForBills(monthBills);
   const monthRefund = monthReturnSummary.allRefund;
   const monthOriginalRevenue = monthReturnSummary.originalRevenue;
