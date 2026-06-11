@@ -9383,7 +9383,6 @@ function styleAccountingSummarySheet(ws, returnRate, realProfit){
   const sectionRows = [4, 10, 16];
   const greenRows = [7, 14];      // Doanh thu thực nhận, Lợi nhuận thực
   const redRows = [6, 13];        // Hoàn trả, Chi phí
-  const orangeRows = [8];         // Tỷ lệ hoàn trả
   const blueRows = [5, 11];       // Doanh thu gốc, Giá vốn hàng bán
 
   sectionRows.forEach(r => {
@@ -9410,18 +9409,41 @@ function styleAccountingSummarySheet(ws, returnRate, realProfit){
     setCellStyle(ws, r, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
     setCellStyle(ws, r, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
   });
-  orangeRows.forEach(r => {
-    const strongRed = Number(returnRate || 0) > 20;
-    const color = strongRed ? 'B91C1C' : 'D97706';
-    const fill = strongRed ? 'FEE2E2' : 'FEF3C7';
-    setCellStyle(ws, r, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:color}}, fill:{fgColor:{rgb:fill}}});
-    setCellStyle(ws, r, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:color}}, fill:{fgColor:{rgb:fill}}});
+
+  // Tỷ lệ hoàn trả: <5% xanh, 5-10% cam, >10% đỏ
+  const rate = Number(returnRate || 0);
+  let rateColor = '047857';
+  let rateFill = 'DCFCE7';
+  if(rate > 10){
+    rateColor = 'B91C1C';
+    rateFill = 'FEE2E2';
+  }else if(rate >= 5){
+    rateColor = 'D97706';
+    rateFill = 'FEF3C7';
+  }
+  setCellStyle(ws, 8, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:rateColor}}, fill:{fgColor:{rgb:rateFill}}});
+  setCellStyle(ws, 8, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:rateColor}}, fill:{fgColor:{rgb:rateFill}}});
+
+  // Nhấn mạnh 2 dòng quan trọng nhất trong Excel kế toán
+  [7, 14].forEach(r => {
+    const isNegativeProfit = r === 14 && Number(realProfit || 0) < 0;
+    const color = isNegativeProfit ? 'B91C1C' : '065F46';
+    const fill = isNegativeProfit ? 'FEE2E2' : 'BBF7D0';
+    setCellStyle(ws, r, 0, {
+      font:{name:'Calibri', sz:12, bold:true, color:{rgb:color}},
+      fill:{fgColor:{rgb:fill}},
+      alignment:{vertical:'center'}
+    });
+    setCellStyle(ws, r, 1, {
+      font:{name:'Calibri', sz:13, bold:true, color:{rgb:color}},
+      fill:{fgColor:{rgb:fill}},
+      alignment:{horizontal:'right', vertical:'center'}
+    });
   });
 
-  if(Number(realProfit || 0) < 0){
-    setCellStyle(ws, 14, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
-    setCellStyle(ws, 14, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
-  }
+  ws['!rows'] = ws['!rows'] || [];
+  ws['!rows'][7] = {hpt:22};
+  ws['!rows'][14] = {hpt:22};
 }
 
 function buildPriceIncreaseAlertsArray(){
@@ -9591,8 +9613,9 @@ function exportAccountingExcel(){
   const wsAlert = makeMisaSheet('CẢNH BÁO GIÁ NHẬP TĂNG','Xuất lúc: ' + exportedAt,alertHeaders,alertRows,[6,28,18,16,16,16,22],'Canh bao gia');
   XLSX.utils.book_append_sheet(wb, wsAlert, 'Canh bao gia');
 
-  downloadWorkbook(wb, 'Ke_toan_Green_Market_Tong_hop_PRO_MISA.xlsx');
-  addLog('Xuất Excel', 'Xuất file kế toán tổng hợp PRO MISA');
+  const exportDate = new Date().toISOString().slice(0,10);
+  downloadWorkbook(wb, `GreenMarket_KeToanTongHop_${exportDate}.xlsx`);
+  addLog('Xuất Excel', 'Xuất file kế toán tổng hợp');
 }
 
 function printDailyImportReport(){
