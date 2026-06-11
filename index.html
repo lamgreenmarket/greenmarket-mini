@@ -2318,7 +2318,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         <ol id="proTopReturnedProducts" class="dashboard-pro-list"><li>Chưa có dữ liệu</li></ol>
         <div id="proTopReturnedSummary" class="return-top-summary">Tổng sản phẩm bị trả: 0 SP • Tổng số lần trả: 0 lần</div>
       </div>
-      <div class="dashboard-pro-card profit-real-card">
+      <div class="dashboard-pro-card profit-real-card" id="profitRealPanel">
         <h3>💵 Lợi nhuận thực V1</h3>
         <div class="profit-period-tabs" id="profitPeriodTabs">
           <button type="button" class="active" onclick="setProfitPeriod(this,'today')">Hôm nay</button>
@@ -2334,7 +2334,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
           <div class="profit-real-metric profit-expense"><span>Chi phí</span><strong id="profitExpenses">0 VNĐ</strong></div>
           <div class="profit-real-metric profit-net"><span>Lợi nhuận thực</span><strong id="profitRealProfit">0 VNĐ</strong></div>
         </div>
-        <div class="profit-real-note" id="profitRealNote">Công thức: Doanh thu thực nhận - Giá vốn hàng bán - Chi phí.</div>
         <div class="profit-real-alert" id="profitRealAlert">✅ Đang có lãi</div>
       </div>
 
@@ -10898,6 +10897,11 @@ function profitPeriodLabel(period){
 }
 
 function renderRealProfitDashboard(){
+  const panel = document.getElementById('profitRealPanel');
+  const canViewProfit = ['admin','manager','accountant'].includes(normalizeRole(current?.role));
+  if(panel) panel.style.display = canViewProfit ? '' : 'none';
+  if(!canViewProfit) return;
+
   const box = document.getElementById('profitRealProfit');
   if(!box) return;
 
@@ -10909,10 +10913,6 @@ function renderRealProfitDashboard(){
   setText('profitExpenses', money(s.expenses));
   setText('profitRealProfit', money(s.realProfit));
 
-  const note = document.getElementById('profitRealNote');
-  if(note){
-    note.textContent = `Công thức ${profitPeriodLabel(profitPeriod)}: Doanh thu thực nhận - Giá vốn hàng bán - Chi phí. Giá vốn V1 tính theo giá nhập hiện tại trong kho.`;
-  }
 
   const alertBox = document.getElementById('profitRealAlert');
   if(alertBox){
