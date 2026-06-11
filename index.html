@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Siêu thị mini Green Market - PRO Dashboard</title>
 <!-- Bản phân quyền an toàn: Kế toán chỉ xem, Quản lý sửa có nhật ký, Admin toàn quyền -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style/dist/xlsx.bundle.js"></script>
@@ -2066,6 +2067,42 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
 @media(max-width:768px){
   .return-metric{padding:10px 12px!important}
   .return-metric strong{font-size:20px!important}
+}
+
+
+
+/* =========================================================
+   FONT PREMIUM GREEN MARKET - chỉ làm đẹp chữ, không đụng logic
+   Inter: nội dung rõ ràng | Poppins: số liệu | Montserrat: tiêu đề
+   ========================================================= */
+body, input, select, button, table, th, td, label, .menu, .card, .page{
+  font-family:'Inter', Arial, sans-serif!important;
+}
+.header h1, .logo, .dashboard-title h2{
+  font-family:'Montserrat','Inter',Arial,sans-serif!important;
+  font-weight:900!important;
+  letter-spacing:.4px!important;
+}
+.stat p, .dashboard-pro-card strong, .dashboard-mini-metrics b,
+.pos-total-box .total, .pos-pay-row span:last-child,
+.bill-total-line, #statToday, #statWeek, #statMonth,
+.return-kpi-value, .return-dashboard-value{
+  font-family:'Poppins','Inter',Arial,sans-serif!important;
+  font-weight:800!important;
+  letter-spacing:.2px!important;
+}
+.dashboard-pro-card h3, .stat h3, .chart-row .card h3,
+.card h3, .page h2, .dashboard-quick-actions h3{
+  font-family:'Inter',Arial,sans-serif!important;
+  font-weight:800!important;
+  letter-spacing:.15px!important;
+}
+.dashboard-pro-list, .dashboard-pro-card small, .muted, .bill-detail-meta{
+  font-family:'Inter',Arial,sans-serif!important;
+}
+/* Giữ nguyên font phiếu in nhiệt 58mm để không ảnh hưởng hóa đơn */
+.receipt, .receipt *{
+  font-family:Tahoma, Arial, sans-serif!important;
 }
 
 </style>
