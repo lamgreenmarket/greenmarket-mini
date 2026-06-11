@@ -9052,7 +9052,7 @@ function renderBillHistory(visibleBills){
         <td>${itemCount || (b.items || []).length}</td>
         <td>
           ${isBillReturned(b)
-            ? `<span class="bill-return-list-badge">↩ ĐÃ TRẢ HÀNG</span><br><small class="muted">Tổng gốc: ${money(b.returnOriginalTotal || b.returnAmount || 0)}</small><br><small class="bill-return-money">Hoàn tiền: ${money(b.returnAmount || b.returnOriginalTotal || 0)}</small><br><small class="muted">Doanh thu sau trả: ${money(0)}</small>`
+            ? `<span class="bill-return-list-badge">↩ ${isBillFullyReturned(b) ? 'ĐÃ TRẢ HẾT' : 'TRẢ MỘT PHẦN'}</span><br><small class="muted">Tổng gốc: ${money(getBillOriginalTotal(b))}</small><br><small class="bill-return-money">Đã hoàn: ${money(getBillReturnedAmount(b))}</small><br><small class="muted">Doanh thu sau trả: ${money(b.total)}</small>`
             : `<b>${money(b.total)}</b><br><small class="muted">In lại: ${getBillReprintCount(b)} lần</small>`
           }
         </td>
@@ -9073,18 +9073,66 @@ function getBillReprintCount(bill){
   return Math.max(Number(bill?.reprintCount || 0), logs);
 }
 
+function getBillReturnHistory(bill){
+  if(!bill) return [];
+  if(Array.isArray(bill.returnHistory)) return bill.returnHistory;
+
+  // Tương thích với các hóa đơn trả toàn bộ ở bản cũ.
+  if(bill.returned){
+    return [{
+      code: bill.returnCode || '',
+      time: bill.returnTime || '',
+      by: bill.returnBy || '',
+      reason: bill.returnReason || '',
+      amount: Number(bill.returnAmount || bill.returnOriginalTotal || 0),
+      items: Array.isArray(bill.returnItems) ? bill.returnItems : [],
+      mode: 'full'
+    }];
+  }
+  return [];
+}
+
 function getBillOriginalTotal(bill){
   return Number(bill?.returnOriginalTotal ?? bill?.originalTotal ?? bill?.total ?? 0);
 }
 
+function getBillReturnedAmount(bill){
+  if(!bill) return 0;
+  if(Array.isArray(bill.returnHistory)){
+    return bill.returnHistory.reduce((s, r) => s + Number(r.amount || 0), 0);
+  }
+  return Number(bill.returnAmount || 0);
+}
+
 function isBillReturned(bill){
-  return !!(bill && bill.returned);
+  return getBillReturnedAmount(bill) > 0 || !!(bill && bill.returned);
+}
+
+function isBillFullyReturned(bill){
+  if(!isBillReturned(bill)) return false;
+  return Number(bill?.total || 0) <= 0 || bill?.returnMode === 'full';
+}
+
+function getReturnedQtyForItem(bill, itemIndex, item){
+  return getBillReturnHistory(bill).reduce((sum, r) => {
+    const found = (r.items || []).filter(x => {
+      if(x.itemIndex !== undefined) return Number(x.itemIndex) === Number(itemIndex);
+      return String(x.id || '') === String(item?.id || '') && sameName(x.name, item?.name);
+    });
+    return sum + found.reduce((s, x) => s + Number(x.qty || 0), 0);
+  }, 0);
 }
 
 function getReturnCode(bill, index = 0){
   if(bill?.returnCode) return bill.returnCode;
   const raw = String(bill?.time || '').replace(/\D/g, '').slice(-10) || String(index + 1).padStart(4, '0');
   return 'TH-CU-' + raw;
+}
+
+function makeReturnCode(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return 'TH' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
 }
 
 function returnFullBill(index){
@@ -9099,13 +9147,13 @@ function returnFullBill(index){
     return;
   }
 
-  if(isBillReturned(b)){
-    alert('Hóa đơn này đã được trả hàng trước đó. Không thể trả lần 2.');
+  if(isBillFullyReturned(b)){
+    alert('Hóa đơn này đã trả hết trước đó. Không thể trả lần 2.');
     return;
   }
 
   const billCode = getBillCode(b, index);
-  const returnAmount = Number(b.total || b.returnOriginalTotal || 0);
+  const returnAmount = Number(b.total || 0);
 
   if(returnAmount <= 0){
     alert('Hóa đơn này không còn số tiền để trả.');
@@ -9135,7 +9183,21 @@ function returnFullBill(index){
 
   if(!ok) return;
 
-  (b.items || []).forEach(it => {
+  const remainingReturnItems = (b.items || []).map((it, itemIndex) => {
+    const soldQty = Number(it.qty || 0);
+    const returnedQty = getReturnedQtyForItem(b, itemIndex, it);
+    const qty = Math.max(0, soldQty - returnedQty);
+    return {
+      itemIndex,
+      id: it.id,
+      name: it.name,
+      qty,
+      price: Number(it.price || 0),
+      total: qty * Number(it.price || 0)
+    };
+  }).filter(x => x.qty > 0);
+
+  remainingReturnItems.forEach(it => {
     const p = products.find(x => String(x.id) === String(it.id)) ||
               products.find(x => sameName(x.name, it.name));
 
@@ -9151,20 +9213,28 @@ function returnFullBill(index){
     String(new Date().getMinutes()).padStart(2, '0') +
     String(new Date().getSeconds()).padStart(2, '0');
 
+  const originalTotalBeforeFullReturn = getBillOriginalTotal(b);
   b.returned = true;
   b.returnCode = returnCode;
   b.returnTime = now();
   b.returnBy = current?.name || 'Admin';
   b.returnReason = cleanReason;
-  b.returnOriginalTotal = returnAmount;
+  b.returnOriginalTotal = originalTotalBeforeFullReturn;
   b.returnAmount = returnAmount;
-  b.returnItems = (b.items || []).map(it => ({
-    id: it.id,
-    name: it.name,
-    qty: Number(it.qty || 0),
-    price: Number(it.price || 0),
-    total: Number(it.total || (Number(it.qty || 0) * Number(it.price || 0)))
-  }));
+  b.returnItems = remainingReturnItems;
+  if(!Array.isArray(b.returnHistory)) b.returnHistory = getBillReturnHistory(b);
+  b.returnHistory.push({
+    code: returnCode,
+    time: b.returnTime,
+    by: b.returnBy,
+    reason: cleanReason,
+    amount: returnAmount,
+    items: remainingReturnItems,
+    mode: 'full'
+  });
+  b.originalTotal = b.returnOriginalTotal;
+  b.returnAmount = getBillReturnedAmount(b);
+  b.returnMode = 'full';
 
   // Đưa tổng hóa đơn về 0 để các báo cáo/doanh thu dựa trên bills tự giảm.
   b.total = 0;
@@ -9207,6 +9277,134 @@ function returnFullBill(index){
   }
 }
 
+
+function returnSelectedBillItems(index){
+  const b = bills[index];
+  if(!b){ alert('Không tìm thấy hóa đơn để trả hàng'); return; }
+  if(!canAccessBill(b)){ alert('Bạn chỉ được trả hàng hóa đơn của chính mình.'); return; }
+  if(isBillFullyReturned(b)){ alert('Hóa đơn này đã trả hết, không thể trả thêm.'); return; }
+
+  const billCode = getBillCode(b, index);
+  const selected = [];
+  (b.items || []).forEach((it, itemIndex) => {
+    const input = document.getElementById(`returnQty_${index}_${itemIndex}`);
+    const qty = Number(input?.value || 0);
+    const soldQty = Number(it.qty || 0);
+    const returnedQty = getReturnedQtyForItem(b, itemIndex, it);
+    const remainQty = Math.max(0, soldQty - returnedQty);
+
+    if(qty > 0){
+      if(qty > remainQty){
+        selected.push({ error: true, name: it.name, remainQty, qty });
+      }else{
+        const price = Number(it.price || 0);
+        selected.push({
+          itemIndex,
+          id: it.id,
+          name: it.name,
+          qty,
+          price,
+          total: qty * price,
+          soldQty,
+          returnedBefore: returnedQty
+        });
+      }
+    }
+  });
+
+  const invalid = selected.find(x => x.error);
+  if(invalid){
+    alert(`Số lượng trả của ${invalid.name} không hợp lệ. Chỉ còn được trả ${invalid.remainQty}.`);
+    return;
+  }
+  if(selected.length === 0){
+    alert('Nhập số lượng trả cho ít nhất 1 món.');
+    return;
+  }
+
+  const returnAmount = selected.reduce((s, x) => s + Number(x.total || 0), 0);
+  const reason = prompt(
+    `Nhập lý do trả một vài món trong hóa đơn ${billCode}:\nVí dụ: Khách trả 1 món / hàng lỗi / tính nhầm số lượng`,
+    'Khách trả một vài món'
+  );
+  if(reason === null) return;
+  const cleanReason = cleanText(reason);
+  if(!cleanReason){ alert('Bắt buộc nhập lý do trả hàng.'); return; }
+
+  const itemText = selected.map(x => `- ${x.name}: ${x.qty} x ${money(x.price)} = ${money(x.total)}`).join('\n');
+  if(!confirm(
+    `XÁC NHẬN TRẢ MỘT VÀI MÓN HÓA ĐƠN ${billCode}?\n\n${itemText}\n\n` +
+    `Số tiền hoàn: ${money(returnAmount)}\n\nKho sẽ được cộng lại đúng số lượng món trả và doanh thu sẽ giảm tương ứng.`
+  )) return;
+
+  selected.forEach(it => {
+    const p = products.find(x => String(x.id) === String(it.id)) || products.find(x => sameName(x.name, it.name));
+    if(p) p.qty = Number(p.qty || 0) + Number(it.qty || 0);
+  });
+
+  if(!Array.isArray(b.returnHistory)) b.returnHistory = getBillReturnHistory(b);
+  if(!b.originalTotal && !b.returnOriginalTotal) b.originalTotal = Number(b.total || 0);
+
+  const originalTotal = getBillOriginalTotal(b);
+  const returnCode = makeReturnCode();
+  const event = {
+    code: returnCode,
+    time: now(),
+    by: current?.name || 'Admin',
+    reason: cleanReason,
+    amount: returnAmount,
+    items: selected,
+    mode: 'partial'
+  };
+  b.returnHistory.push(event);
+
+  const totalReturned = getBillReturnedAmount(b);
+  b.returned = true;
+  b.returnMode = totalReturned >= originalTotal ? 'full' : 'partial';
+  b.returnCode = returnCode;
+  b.returnTime = event.time;
+  b.returnBy = event.by;
+  b.returnReason = cleanReason;
+  b.returnOriginalTotal = originalTotal;
+  b.returnAmount = totalReturned;
+  b.returnItems = selected;
+  b.total = Math.max(0, originalTotal - totalReturned);
+
+  moneyList.push({
+    time: now(),
+    type: 'Trả hàng',
+    amount: -returnAmount,
+    staff: current?.name || 'Admin',
+    paymentMethod: b.paymentMethod || 'Hoàn tiền',
+    billCode,
+    returnCode,
+    reason: cleanReason
+  });
+
+  try{
+    const active = typeof getActiveShift === 'function' ? getActiveShift() : null;
+    if(active){
+      active.returns = Number(active.returns || 0) + returnAmount;
+      active.returnOrders = Number(active.returnOrders || 0) + 1;
+      active.revenue = Math.max(0, Number(active.revenue || 0) - returnAmount);
+      active.expectedCash = Number(active.startCash || 0) + Number(active.revenue || 0);
+      if(typeof saveShift === 'function') saveShift();
+    }
+  }catch(e){}
+
+  addLog('Trả hàng từng món', `${returnCode} - Hóa đơn ${billCode} - Hoàn ${money(returnAmount)} - ${selected.map(x => x.name + ' x' + x.qty).join(', ')} - Lý do: ${cleanReason}`);
+
+  save();
+  renderAll();
+  viewBillDetail(index);
+
+  alert(`Đã trả hàng từng món cho hóa đơn ${billCode}.\nMã phiếu trả: ${returnCode}\nHoàn tiền: ${money(returnAmount)}`);
+
+  if(confirm('Bạn có muốn in phiếu trả hàng vừa tạo không?')){
+    printReturnReceiptByIndex(index);
+  }
+}
+
 function ensureBillReprintFields(bill){
   if(!bill) return;
   if(!Array.isArray(bill.reprintLogs)) bill.reprintLogs = [];
@@ -9233,15 +9431,32 @@ function viewBillDetail(index){
     return;
   }
 
-  const rows = (b.items || []).map((it, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${escapeHTML(it.name || '')}</td>
-      <td>${Number(it.qty || 0)}</td>
-      <td>${money(it.price)}</td>
-      <td>${money(Number(it.total || (it.qty || 0) * (it.price || 0)))}</td>
-    </tr>
-  `).join('');
+  const fullReturned = isBillFullyReturned(b);
+  const rows = (b.items || []).map((it, i) => {
+    const soldQty = Number(it.qty || 0);
+    const returnedQty = getReturnedQtyForItem(b, i, it);
+    const remainQty = Math.max(0, soldQty - returnedQty);
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${escapeHTML(it.name || '')}</td>
+        <td>${soldQty}</td>
+        <td>${returnedQty}</td>
+        <td><b>${remainQty}</b></td>
+        <td>${money(it.price)}</td>
+        <td>${money(Number(it.total || soldQty * (it.price || 0)))}</td>
+        <td>${(!fullReturned && remainQty > 0) ? `<input id="returnQty_${index}_${i}" type="number" min="0" max="${remainQty}" value="0" style="width:90px;text-align:center">` : '-'}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const history = getBillReturnHistory(b);
+  const historyHtml = history.length ? `
+    <div class="bill-return-note">
+      <b>Lịch sử trả hàng:</b><br>
+      ${history.map((r, i) => `${i + 1}. ${escapeHTML(r.time || '')} - ${escapeHTML(r.code || '')} - ${money(r.amount || 0)} - ${escapeHTML(r.reason || '')}`).join('<br>')}
+    </div>
+  ` : '';
 
   box.classList.remove('hidden');
   box.innerHTML = `
@@ -9253,35 +9468,33 @@ function viewBillDetail(index){
           Nhân viên: ${escapeHTML(b.staff || '')}<br>
           Thanh toán: ${escapeHTML(b.paymentMethod || 'Tiền mặt')}<br>
           Số lần in lại: ${getBillReprintCount(b)} lần<br>
-          Trạng thái: ${isBillReturned(b) ? '<span class="bill-return-badge">ĐÃ TRẢ HÀNG</span>' : '<b style="color:#16a34a">Đã bán</b>'}
-          ${isBillReturned(b) ? `<br>Mã phiếu trả: <b>${escapeHTML(b.returnCode || getReturnCode(b, index))}</b><br>Ngày trả: ${escapeHTML(b.returnTime || '')}<br>Người xử lý: ${escapeHTML(b.returnBy || '')}<br>Lý do: ${escapeHTML(b.returnReason || '')}` : ''}
+          Trạng thái: ${isBillReturned(b) ? `<span class="bill-return-badge">${fullReturned ? 'ĐÃ TRẢ HẾT' : 'ĐÃ TRẢ MỘT PHẦN'}</span>` : '<b style="color:#16a34a">Đã bán</b>'}
+          ${isBillReturned(b) ? `<br>Mã phiếu trả gần nhất: <b>${escapeHTML(b.returnCode || getReturnCode(b, index))}</b><br>Ngày trả gần nhất: ${escapeHTML(b.returnTime || '')}<br>Người xử lý: ${escapeHTML(b.returnBy || '')}<br>Lý do gần nhất: ${escapeHTML(b.returnReason || '')}` : ''}
         </div>
       </div>
       <div class="bill-action-group">
-        ${isBillReturned(b)
-          ? `<button class="btn-orange" onclick="printReturnReceiptByIndex(${index})">🖨️ In hóa đơn hoàn trả</button>`
-          : `<button class="btn-green" onclick="printBillReceiptByIndex(${index})">🖨️ In lại hóa đơn</button>`
-        }
-        ${canAccessBill(b) && !isBillReturned(b) ? `<button class="btn-red" onclick="returnFullBill(${index})">🔄 Trả hàng / Hoàn trả</button>` : ''}
+        ${isBillReturned(b) ? `<button class="btn-orange" onclick="printReturnReceiptByIndex(${index})">🖨️ In phiếu trả gần nhất</button>` : ''}
+        ${!fullReturned ? `<button class="btn-green" onclick="printBillReceiptByIndex(${index})">🖨️ In lại hóa đơn</button>` : ''}
+        ${canAccessBill(b) && !fullReturned ? `<button class="btn-red" onclick="returnSelectedBillItems(${index})">↩ Trả các món đã nhập SL</button><button class="btn-orange" onclick="returnFullBill(${index})">🔄 Trả toàn bộ phần còn lại</button>` : ''}
         <button class="btn-gray" onclick="closeBillDetail()">Đóng</button>
       </div>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>STT</th><th>Tên hàng</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5" style="text-align:center">Hóa đơn cũ chưa có dữ liệu chi tiết món</td></tr>'}</tbody>
+        <thead><tr><th>STT</th><th>Tên hàng</th><th>SL bán</th><th>Đã trả</th><th>Còn được trả</th><th>Đơn giá</th><th>Thành tiền gốc</th><th>SL trả lần này</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="8" style="text-align:center">Hóa đơn cũ chưa có dữ liệu chi tiết món</td></tr>'}</tbody>
       </table>
     </div>
+    ${historyHtml}
     ${isBillReturned(b)
-      ? `<div class="bill-return-note">Hóa đơn này đã được trả hàng toàn bộ. Kho đã được cộng lại và doanh thu đã được trừ. Hóa đơn gốc được giữ để đối chiếu, không xóa.</div>
-         <div class="bill-return-summary">
-           <div><span>Tổng gốc</span>${money(b.returnOriginalTotal || b.returnAmount || 0)}</div>
-           <div><span>Hoàn tiền</span>${money(b.returnAmount || b.returnOriginalTotal || 0)}</div>
-           <div><span>Doanh thu sau trả</span>${money(0)}</div>
+      ? `<div class="bill-return-summary">
+           <div><span>Tổng gốc</span>${money(getBillOriginalTotal(b))}</div>
+           <div><span>Đã hoàn</span>${money(getBillReturnedAmount(b))}</div>
+           <div><span>Doanh thu sau trả</span>${money(b.total)}</div>
          </div>`
       : ''
     }
-    ${!isBillReturned(b) ? `<div class="bill-total-line"><span>Tổng cộng:</span><span>${money(b.total)}</span></div>` : ''}
+    <div class="bill-total-line"><span>Tổng còn tính doanh thu:</span><span>${money(b.total)}</span></div>
   `;
   box.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
@@ -9317,9 +9530,12 @@ function printReturnReceiptByIndex(index){
   }
 
   const billCode = getBillCode(b, index);
-  const returnCode = b.returnCode || getReturnCode(b, index);
-  const returnAmount = Number(b.returnAmount || b.returnOriginalTotal || 0);
-  const itemHtml = (b.returnItems || b.items || []).map(c => `
+  const history = getBillReturnHistory(b);
+  const latest = history[history.length - 1] || {};
+  const returnCode = latest.code || b.returnCode || getReturnCode(b, index);
+  const returnAmount = Number(latest.amount || b.returnAmount || b.returnOriginalTotal || 0);
+  const returnItems = Array.isArray(latest.items) && latest.items.length ? latest.items : (b.returnItems || b.items || []);
+  const itemHtml = returnItems.map(c => `
     <div class="receipt-item">• ${escapeHTML(c.name)}:</div>
     <div class="receipt-money">
       Trả ${Number(c.qty || 0)} x ${money(c.price)} = ${money(Number(c.total || c.qty * c.price))}
@@ -9328,7 +9544,7 @@ function printReturnReceiptByIndex(index){
  
   addLog(
     'In hóa đơn hoàn trả',
-    `${returnCode} - In hóa đơn hoàn trả cho hóa đơn ${billCode} - Số tiền hoàn ${money(returnAmount)}`
+    `${returnCode} - In phiếu trả hàng cho hóa đơn ${billCode} - Số tiền hoàn ${money(returnAmount)}`
   );
   save();
   renderAll();
@@ -9342,10 +9558,10 @@ function printReturnReceiptByIndex(index){
     <div class="receipt-info">Mã phiếu trả: ${escapeHTML(returnCode)}</div>
     <div class="receipt-info">Hóa đơn gốc: ${escapeHTML(billCode)}</div>
     <div class="receipt-info">Ngày bán: ${escapeHTML(b.time || '')}</div>
-    <div class="receipt-info">Ngày trả: ${escapeHTML(b.returnTime || '')}</div>
-    <div class="receipt-info">Người xử lý: ${escapeHTML(b.returnBy || current?.name || '')}</div>
+    <div class="receipt-info">Ngày trả: ${escapeHTML(latest.time || b.returnTime || '')}</div>
+    <div class="receipt-info">Người xử lý: ${escapeHTML(latest.by || b.returnBy || current?.name || '')}</div>
     <div class="receipt-info">Nhân viên bán: ${escapeHTML(b.staff || '')}</div>
-    <div class="receipt-info">Lý do: ${escapeHTML(b.returnReason || '')}</div>
+    <div class="receipt-info">Lý do: ${escapeHTML(latest.reason || b.returnReason || '')}</div>
     <div class="receipt-line"></div>
 
     ${itemHtml}
@@ -9354,15 +9570,19 @@ function printReturnReceiptByIndex(index){
     <div class="receipt-return-money-block">
       <div class="receipt-return-money-row">
         <div class="receipt-return-money-label">TỔNG GỐC:</div>
-        <div class="receipt-return-money-value">${money(b.returnOriginalTotal || returnAmount)}</div>
+        <div class="receipt-return-money-value">${money(getBillOriginalTotal(b))}</div>
       </div>
       <div class="receipt-return-money-row">
-        <div class="receipt-return-money-label">HOÀN TIỀN:</div>
+        <div class="receipt-return-money-label">HOÀN LẦN NÀY:</div>
         <div class="receipt-return-money-value">${money(returnAmount)}</div>
       </div>
       <div class="receipt-return-money-row">
+        <div class="receipt-return-money-label">ĐÃ HOÀN:</div>
+        <div class="receipt-return-money-value">${money(getBillReturnedAmount(b))}</div>
+      </div>
+      <div class="receipt-return-money-row">
         <div class="receipt-return-money-label">DOANH THU SAU TRẢ:</div>
-        <div class="receipt-return-money-value">${money(0)}</div>
+        <div class="receipt-return-money-value">${money(b.total)}</div>
       </div>
     </div>
 
