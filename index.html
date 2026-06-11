@@ -9380,9 +9380,10 @@ function exportDailyImportReportExcel(){
 
 
 function styleAccountingSummarySheet(ws, returnRate, realProfit){
-  const sectionRows = [4, 10, 16];
+  const sectionRows = [4, 10, 17];
   const greenRows = [7, 14];      // Doanh thu thực nhận, Lợi nhuận thực
   const redRows = [6, 13];        // Hoàn trả, Chi phí
+  const orangeRows = [8, 15];      // Tỷ lệ hoàn trả, Tỷ suất lợi nhuận
   const blueRows = [5, 11];       // Doanh thu gốc, Giá vốn hàng bán
 
   sectionRows.forEach(r => {
@@ -9409,41 +9410,30 @@ function styleAccountingSummarySheet(ws, returnRate, realProfit){
     setCellStyle(ws, r, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
     setCellStyle(ws, r, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
   });
-
-  // Tỷ lệ hoàn trả: <5% xanh, 5-10% cam, >10% đỏ
-  const rate = Number(returnRate || 0);
-  let rateColor = '047857';
-  let rateFill = 'DCFCE7';
-  if(rate > 10){
-    rateColor = 'B91C1C';
-    rateFill = 'FEE2E2';
-  }else if(rate >= 5){
-    rateColor = 'D97706';
-    rateFill = 'FEF3C7';
-  }
-  setCellStyle(ws, 8, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:rateColor}}, fill:{fgColor:{rgb:rateFill}}});
-  setCellStyle(ws, 8, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:rateColor}}, fill:{fgColor:{rgb:rateFill}}});
-
-  // Nhấn mạnh 2 dòng quan trọng nhất trong Excel kế toán
-  [7, 14].forEach(r => {
-    const isNegativeProfit = r === 14 && Number(realProfit || 0) < 0;
-    const color = isNegativeProfit ? 'B91C1C' : '065F46';
-    const fill = isNegativeProfit ? 'FEE2E2' : 'BBF7D0';
-    setCellStyle(ws, r, 0, {
-      font:{name:'Calibri', sz:12, bold:true, color:{rgb:color}},
-      fill:{fgColor:{rgb:fill}},
-      alignment:{vertical:'center'}
-    });
-    setCellStyle(ws, r, 1, {
-      font:{name:'Calibri', sz:13, bold:true, color:{rgb:color}},
-      fill:{fgColor:{rgb:fill}},
-      alignment:{horizontal:'right', vertical:'center'}
-    });
+  orangeRows.forEach(r => {
+    let color = 'D97706';
+    let fill = 'FEF3C7';
+    if(r === 8){
+      const strongRed = Number(returnRate || 0) > 20;
+      color = strongRed ? 'B91C1C' : 'D97706';
+      fill = strongRed ? 'FEE2E2' : 'FEF3C7';
+    }
+    if(r === 15 && Number(realProfit || 0) >= 0){
+      color = '047857';
+      fill = 'DCFCE7';
+    }
+    if(r === 15 && Number(realProfit || 0) < 0){
+      color = 'B91C1C';
+      fill = 'FEE2E2';
+    }
+    setCellStyle(ws, r, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:color}}, fill:{fgColor:{rgb:fill}}});
+    setCellStyle(ws, r, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:color}}, fill:{fgColor:{rgb:fill}}});
   });
 
-  ws['!rows'] = ws['!rows'] || [];
-  ws['!rows'][7] = {hpt:22};
-  ws['!rows'][14] = {hpt:22};
+  if(Number(realProfit || 0) < 0){
+    setCellStyle(ws, 14, 0, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
+    setCellStyle(ws, 14, 1, {font:{name:'Calibri', sz:11, bold:true, color:{rgb:'B91C1C'}}, fill:{fgColor:{rgb:'FEE2E2'}}});
+  }
 }
 
 function buildPriceIncreaseAlertsArray(){
@@ -9489,6 +9479,7 @@ function exportAccountingExcel(){
   }, 0);
   const grossProfit = totalRevenue - costOfGoodsSold;
   const realProfit = grossProfit - operatingExpenses;
+  const profitMargin = totalRevenue > 0 ? (realProfit / totalRevenue) * 100 : 0;
 
   const summaryHeaders = ['Chỉ tiêu','Giá trị'];
   const summaryRows = [
@@ -9503,6 +9494,7 @@ function exportAccountingExcel(){
     ['Lợi nhuận gộp', formatVNDExcel(grossProfit)],
     ['Chi phí', formatVNDExcel(operatingExpenses)],
     ['Lợi nhuận thực', formatVNDExcel(realProfit)],
+    ['Tỷ suất lợi nhuận', profitMargin.toFixed(2).replace('.', ',') + '%'],
     ['', ''],
     ['NHÓM HOẠT ĐỘNG', ''],
     ['Tổng tiền nhập kho', formatVNDExcel(totalImport)],
@@ -9512,7 +9504,7 @@ function exportAccountingExcel(){
   ];
   const wsSummary = makeMisaSheet(
     'SIÊU THỊ MINI GREEN MARKET - FILE KẾ TOÁN TỔNG HỢP',
-    'Xuất lúc: ' + exportedAt,
+    'Xuất lúc: ' + exportedAt + ' | Thống kê đến ngày: ' + new Date().toLocaleDateString('vi-VN'),
     summaryHeaders,
     summaryRows,
     [46,24],
@@ -9613,9 +9605,8 @@ function exportAccountingExcel(){
   const wsAlert = makeMisaSheet('CẢNH BÁO GIÁ NHẬP TĂNG','Xuất lúc: ' + exportedAt,alertHeaders,alertRows,[6,28,18,16,16,16,22],'Canh bao gia');
   XLSX.utils.book_append_sheet(wb, wsAlert, 'Canh bao gia');
 
-  const exportDate = new Date().toISOString().slice(0,10);
-  downloadWorkbook(wb, `GreenMarket_KeToanTongHop_${exportDate}.xlsx`);
-  addLog('Xuất Excel', 'Xuất file kế toán tổng hợp');
+  downloadWorkbook(wb, `GreenMarket_KeToanTongHop_${new Date().toISOString().slice(0,10)}.xlsx`);
+  addLog('Xuất Excel', 'Xuất file kế toán tổng hợp PRO MISA');
 }
 
 function printDailyImportReport(){
