@@ -2002,6 +2002,72 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
   }
 }
 
+
+
+/* =========================================================
+   DASHBOARD HOÀN TRẢ - BẢN GỌN DỄ ĐỌC
+   ========================================================= */
+.dashboard-pro-return-smart-card{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.return-metric{
+  border-radius:16px;
+  padding:12px 14px;
+  border:1px solid rgba(15,76,129,.12);
+  background:#fff;
+}
+.return-metric span{
+  display:block;
+  font-size:13px;
+  font-weight:900;
+  color:#475569;
+  margin-bottom:5px;
+  text-transform:uppercase;
+  letter-spacing:.2px;
+}
+.return-metric strong{
+  font-size:22px!important;
+  line-height:1.15!important;
+}
+.return-net{background:linear-gradient(135deg,#ffffff,#ecfdf5)!important;border-color:#bbf7d0!important}
+.return-net strong{color:#047857!important}
+.return-refund{background:linear-gradient(135deg,#ffffff,#fef2f2)!important;border-color:#fecaca!important}
+.return-refund strong{color:#dc2626!important}
+.return-rate{background:linear-gradient(135deg,#ffffff,#fff7ed)!important;border-color:#fed7aa!important}
+.return-rate strong{color:#f59e0b!important}
+.return-base-note{
+  display:block;
+  color:#64748b;
+  font-weight:800;
+  line-height:1.35;
+}
+.return-alert{
+  border-radius:14px;
+  padding:10px 12px;
+  font-weight:900;
+  line-height:1.35;
+  border:1px solid transparent;
+}
+.return-alert-ok{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+.return-alert-warn{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+.return-alert-danger{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+.return-top-summary{
+  margin-top:12px;
+  padding:11px 12px;
+  border-radius:14px;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  color:#334155;
+  font-weight:900;
+  line-height:1.45;
+}
+@media(max-width:768px){
+  .return-metric{padding:10px 12px!important}
+  .return-metric strong{font-size:20px!important}
+}
+
 </style>
 </head>
 <body>
@@ -2094,15 +2160,27 @@ body.accountant-mode #home .chart-row .card:nth-child(3){
         <strong id="statLow">0 sắp hết<br>0 hết hàng</strong>
         <small>bấm để xem chi tiết</small>
       </div>
-      <div class="dashboard-pro-card dashboard-pro-return-card">
-        <h3>↩️ Hoàn trả tháng này</h3>
-        <strong id="proMonthRefund">0 VNĐ</strong>
-        <small id="proMonthNetRevenue">Doanh thu thực nhận: 0 VNĐ</small>
-        <small id="proMonthRefundRate">Tỷ lệ hoàn trả: 0%</small>
+      <div class="dashboard-pro-card dashboard-pro-return-card dashboard-pro-return-smart-card">
+        <h3>📊 Tổng quan hoàn trả tháng này</h3>
+        <div class="return-metric return-net">
+          <span>💰 Doanh thu thực nhận</span>
+          <strong id="proMonthNetRevenueMain">0 VNĐ</strong>
+        </div>
+        <div class="return-metric return-refund">
+          <span>↩️ Hoàn trả tháng này</span>
+          <strong id="proMonthRefundMain">0 VNĐ</strong>
+        </div>
+        <div class="return-metric return-rate">
+          <span>📊 Tỷ lệ hoàn trả</span>
+          <strong id="proMonthRefundRateMain">0%</strong>
+        </div>
+        <small id="proMonthRefundBase" class="return-base-note">Trên doanh thu gốc: 0 VNĐ</small>
+        <div id="proMonthRefundAlert" class="return-alert return-alert-ok">✅ Tỷ lệ hoàn trả trong mức an toàn</div>
       </div>
       <div class="dashboard-pro-card dashboard-pro-top-return-card">
         <h3>📦 Top mặt hàng bị trả</h3>
         <ol id="proTopReturnedProducts" class="dashboard-pro-list"><li>Chưa có dữ liệu</li></ol>
+        <div id="proTopReturnedSummary" class="return-top-summary">Tổng sản phẩm bị trả: 0 SP • Tổng số lần trả: 0 lần</div>
       </div>
     </div>
     <div id="dashboardUpdated" class="dashboard-note"></div>
@@ -9948,21 +10026,35 @@ function filterReturnEventsByDashboardRange(events, range){
 
 function renderProTopReturnedProducts(returnEvents){
   const box = document.getElementById('proTopReturnedProducts');
+  const summaryBox = document.getElementById('proTopReturnedSummary');
   if(!box) return;
+
   const map = {};
+  let totalQty = 0;
+  let totalReturnTimes = (returnEvents || []).length;
+
   (returnEvents || []).forEach(e => {
     (e.items || []).forEach(it => {
       const name = it.name || 'Không rõ';
+      const qty = Number(it.qty || 0);
+      const amount = Number(it.total || (qty * Number(it.price || 0)) || 0);
+
       if(!map[name]) map[name] = {qty:0, amount:0, times:0};
-      map[name].qty += Number(it.qty || 0);
-      map[name].amount += Number(it.total || (Number(it.qty || 0) * Number(it.price || 0)) || 0);
+      map[name].qty += qty;
+      map[name].amount += amount;
       map[name].times += 1;
+      totalQty += qty;
     });
   });
+
   const arr = Object.entries(map).sort((a,b) => b[1].qty - a[1].qty || b[1].amount - a[1].amount).slice(0,5);
   box.innerHTML = arr.length
     ? arr.map(([name, data], idx) => `<li>${idx + 1}. ${escapeHTML(name)} — ${data.qty} SP / ${money(data.amount)} <small class="muted">(${data.times} lần)</small></li>`).join('')
     : '<li>Chưa có dữ liệu hoàn trả</li>';
+
+  if(summaryBox){
+    summaryBox.textContent = `Tổng sản phẩm bị trả: ${totalQty} SP • Tổng số lần trả: ${totalReturnTimes} lần`;
+  }
 }
 
 function calcReturnSummaryForBills(list){
@@ -10004,9 +10096,26 @@ function renderDashboardPro(){
   setText('proWeekBills', `${weekBills.length} đơn`);
   setText('proMonthRevenue', money(monthRevenue));
   setText('proMonthBills', `${monthBills.length} đơn`);
-  setText('proMonthRefund', money(monthRefund));
-  setText('proMonthNetRevenue', `Doanh thu thực nhận: ${money(monthNetRevenue)}`);
-  setText('proMonthRefundRate', `Tỷ lệ hoàn trả: ${monthRefundRate.toFixed(2).replace('.', ',')}% trên doanh thu gốc ${money(monthOriginalRevenue)}`);
+  const monthRefundRateText = `${monthRefundRate.toFixed(2).replace('.', ',')}%`;
+  setText('proMonthNetRevenueMain', money(monthNetRevenue));
+  setText('proMonthRefundMain', money(monthRefund));
+  setText('proMonthRefundRateMain', monthRefundRateText);
+  setText('proMonthRefundBase', `Trên doanh thu gốc: ${money(monthOriginalRevenue)}`);
+
+  const refundAlert = document.getElementById('proMonthRefundAlert');
+  if(refundAlert){
+    refundAlert.classList.remove('return-alert-ok', 'return-alert-warn', 'return-alert-danger');
+    if(monthRefundRate > 10){
+      refundAlert.textContent = '⚠️ Cảnh báo: Tỷ lệ hoàn trả đang cao';
+      refundAlert.classList.add('return-alert-danger');
+    }else if(monthRefundRate > 5){
+      refundAlert.textContent = '⚠️ Lưu ý: Tỷ lệ hoàn trả hơi cao';
+      refundAlert.classList.add('return-alert-warn');
+    }else{
+      refundAlert.textContent = '✅ Tỷ lệ hoàn trả trong mức an toàn';
+      refundAlert.classList.add('return-alert-ok');
+    }
+  }
   setText('proTodayProfit', money(todayProfit));
   setText('proStockWarning', `${lowCount + outCount} mặt hàng`);
   setText('proStockDetail', `${lowCount} sắp hết • ${outCount} hết hàng`);
