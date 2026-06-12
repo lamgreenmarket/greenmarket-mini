@@ -2800,7 +2800,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
 <section id="barcodeA4" class="page hidden card">
   <h2>🏷️ In tem mã vạch A4</h2>
-  
 
   <div class="barcode-a4-controls">
     <div>
@@ -2822,7 +2821,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
     <button class="btn-green" onclick="printBarcodeA4()">🖨️ In A4</button>
   </div>
 
-  
 
   <div id="barcodePrintArea"></div>
 </section>
@@ -2862,9 +2860,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
      ========================================================= -->
   <section id="imports" class="page hidden card">
     <h2>📥 Hàng mới nhập / Phiếu nhập kho</h2>
-    <p class="muted">
-      Bản nhập kho khoa học: quét mã hàng → nhập theo thùng/lốc/lố → tự quy đổi ra đơn vị bán nhỏ nhất → tự tính giá nhập 1 đơn vị → tự cộng tổng tiền phiếu.
-    </p>
 
     <div class="import-science-box">
       <h3>🧾 Thông tin phiếu nhập</h3>
@@ -2906,7 +2901,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         </div>
         <div>
           <label>Tên hàng</label>
-          <input id="importName" placeholder="Tự hiện nếu mã đã có; hàng mới thì nhập tên">
+          <input id="importName" placeholder="Nhập tên hàng">
         </div>
         <div>
           <label>Đơn vị bán</label>
@@ -2961,7 +2956,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         </div>
         <div>
           <label>Giá bán 1 đơn vị</label>
-          <input id="importSellPrice" type="number" min="0" placeholder="Hàng cũ có thể để trống giữ giá cũ">
+          <input id="importSellPrice" type="number" min="0" placeholder="Để trống để giữ giá cũ">
         </div>
         <div>
           <label>Mức cảnh báo</label>
@@ -3086,7 +3081,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
     <h3>💹 Lợi nhuận theo lô nhập</h3>
     <div class="import-science-box">
-      
       <div class="table-wrap">
         <table>
           <thead><tr><th>STT</th><th>Mã phiếu</th><th>Sản phẩm</th><th>Tồn tăng</th><th>Giá nhập/đv</th><th>Giá bán</th><th>Lãi/đv</th><th>Lợi nhuận dự kiến</th></tr></thead>
@@ -3108,7 +3102,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
   <section id="bills" class="page hidden card">
     <h2>🧾 Lịch sử hóa đơn PRO</h2>
-    <p class="muted">Xem lại hóa đơn đã bán, xem chi tiết từng món và in lại hóa đơn khi khách cần.</p>
 
     <div class="bill-filter-row">
       <div>
