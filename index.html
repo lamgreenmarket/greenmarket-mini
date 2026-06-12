@@ -3009,8 +3009,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 </select></div><button class="btn-blue full" onclick="addStaff()">Thêm nhân viên</button><div class="table-wrap"><table><thead><tr><th>STT</th><th>Tên</th><th>Tài khoản</th><th>Quyền</th><th>Thao tác</th></tr></thead><tbody id="staffBody"></tbody></table></div></section>
   <section id="logs" class="page hidden card">
     <h2>📋 Nhật ký hoạt động</h2>
-    <p class="muted">Dữ liệu nhật ký vẫn được giữ đầy đủ. Các nút bên dưới chỉ lọc để tra cứu nhanh hơn.</p>
-
     <div class="log-quick-tabs">
       <button type="button" data-log-range="today" onclick="setLogRangeQuick('today')">Hôm nay</button>
       <button type="button" data-log-range="week" onclick="setLogRangeQuick('week')">Tuần này</button>
@@ -3058,7 +3056,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         <input id="logSearch" placeholder="Tên hàng, nhân viên, hóa đơn..." oninput="renderLogs()">
       </div>
     </div>
-    <div id="logSummary" class="log-summary-box">Đang tải nhật ký...</div>
     <div class="table-wrap"><table><thead><tr><th>STT</th><th>Thời gian</th><th>Nhân viên</th><th>Quyền</th><th>Hoạt động</th><th>Chi tiết</th></tr></thead><tbody id="logBody"></tbody></table></div>
   </section>
 
@@ -6597,8 +6594,24 @@ async function delStaff(user){
 
 function parseLogDate(value){
   const s = String(value || '').trim();
-  const m = s.match(/(\\d{1,2})\/(\\d{1,2})\/(\\d{4})/);
-  if(m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+
+  // Hỗ trợ các dạng thời gian cũ trong nhật ký:
+  // "19:05:54 31/5/2026", "31/05/2026 19:05:54", ISO...
+  const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m){
+    const day = Number(m[1]);
+    const month = Number(m[2]) - 1;
+    const year = Number(m[3]);
+
+    const tm = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    const hh = tm ? Number(tm[1]) : 0;
+    const mi = tm ? Number(tm[2]) : 0;
+    const ss = tm && tm[3] ? Number(tm[3]) : 0;
+
+    const d = new Date(year, month, day, hh, mi, ss);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
   const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -6694,9 +6707,8 @@ function updateLogStatsAndTabs(range){
 }
 
 function formatLogDayLabel(d){
-  if(!d) return 'Không rõ ngày';
-  const weekdays = ['Chủ nhật','Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'];
-  return `${weekdays[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  if(!d) return 'Chưa xác định ngày';
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 }
 
 function getLogDayKey(l){
@@ -6758,11 +6770,6 @@ function renderLogs(){
     return true;
   });
 
-  const summary = document.getElementById('logSummary');
-  if(summary){
-    const label = {today:'hôm nay', week:'tuần này', month:'tháng này', year:'năm nay', all:'toàn bộ nhật ký', custom:'khoảng ngày đã chọn'}[range] || 'nhật ký';
-    summary.innerHTML = `Đang hiển thị <b>${filtered.length}</b> / <b>${(logs || []).length}</b> dòng trong <b>${label}</b>. Dữ liệu không bị xóa, chỉ lọc và gom theo ngày để tra cứu gọn hơn.`;
-  }
 
   if(!filtered.length){
     body.innerHTML = '<tr><td colspan="6">Không có nhật ký phù hợp với bộ lọc hiện tại.</td></tr>';
@@ -13738,3 +13745,4 @@ setSyncStatus("ℹ️ Đăng nhập để đồng bộ Firebase", true);
 
 </body>
 </html>
+<!-- GREEN MARKET CLEAN LOGS PATCH: bỏ chú thích nhật ký, tự động lọc, sửa ngày nhóm -->
