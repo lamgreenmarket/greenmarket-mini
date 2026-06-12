@@ -2435,6 +2435,40 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   .qr-settings-actions button{width:100%!important}
 }
 
+
+
+/* =========================================================
+   QR THANH TOÁN TỐI GIẢN - CHỈ HIỆN MÃ QR
+   ========================================================= */
+.payment-qr-panel{
+  display:none;
+  margin:8px 0 10px!important;
+  padding:6px!important;
+  border:none!important;
+  border-radius:16px!important;
+  background:transparent!important;
+  text-align:center!important;
+  box-shadow:none!important;
+}
+.payment-qr-panel.show{display:block!important;}
+.payment-qr-panel img{
+  width:220px!important;
+  height:220px!important;
+  max-width:100%!important;
+  max-height:none!important;
+  object-fit:contain!important;
+  background:#fff!important;
+  border:1px solid #dce3ec!important;
+  border-radius:14px!important;
+  padding:6px!important;
+  box-shadow:0 8px 20px rgba(15,76,129,.10)!important;
+}
+#paymentQrEmpty{margin-top:6px!important;font-size:13px!important;line-height:1.4!important;}
+.payment-qr-meta,.payment-qr-amount,#paymentQrNote{display:none!important;}
+@media(max-width:768px){
+  .payment-qr-panel img{width:200px!important;height:200px!important;}
+}
+
 </style>
 </head>
 <body>
@@ -2731,12 +2765,8 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         </div>
         <div id="paymentStatus" class="pos-status">💵 Đang chọn thanh toán tiền mặt. Hệ thống sẽ tính tiền thối lại.</div>
         <div id="paymentQrPanel" class="payment-qr-panel">
-          <b>📱 QR thanh toán</b>
-          <div id="paymentQrMeta" class="payment-qr-meta"></div>
-          <div id="paymentQrAmount" class="payment-qr-amount">0 VNĐ</div>
-          <div id="paymentQrImageBox" style="margin-top:8px"></div>
-          <div id="paymentQrEmpty" class="muted" style="margin-top:8px">Chưa cài QR thanh toán. Vào Dữ liệu → QR thanh toán để cài ảnh QR của cửa hàng.</div>
-          <div id="paymentQrNote" class="muted" style="font-size:13px;margin-top:8px">Khách quét QR xong, thu ngân kiểm tra tiền vào tài khoản rồi mới hoàn tất hóa đơn.</div>
+          <div id="paymentQrImageBox"></div>
+          <div id="paymentQrEmpty" class="muted">Chưa cài QR thanh toán. Vào Dữ liệu → QR thanh toán để cài ảnh QR của cửa hàng.</div>
         </div>
         <div class="mobile-print-note">📵 Điện thoại chỉ dùng để xem/quản lý. In hóa đơn vui lòng thực hiện trên máy tính hoặc máy POS tại quầy.</div>
         <div class="pos-pay-row"><span>Tổng hóa đơn</span><span id="posPayTotal">0 VNĐ</span></div>
