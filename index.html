@@ -2367,6 +2367,36 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 }
 .payment-qr-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
 .payment-qr-actions button{width:auto;min-width:130px}
+.payment-qr-config{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:8px;
+  margin:10px 0;
+  text-align:left;
+}
+.payment-qr-config label{
+  font-size:12px!important;
+  margin:4px 0 4px!important;
+  color:#0f4c81;
+}
+.payment-qr-config input,.payment-qr-config select{
+  height:38px!important;
+  padding:7px 10px!important;
+  border-radius:12px!important;
+  font-size:13px!important;
+}
+.payment-qr-info{
+  margin:8px 0 10px;
+  padding:10px 12px;
+  border-radius:14px;
+  background:#fff;
+  border:1px solid #bbf7d0;
+  color:#064e3b;
+  font-weight:800;
+  line-height:1.45;
+  text-align:left;
+}
+.payment-qr-info div{overflow-wrap:anywhere}
 .mobile-print-note{
   display:none;
   margin:10px 0;
@@ -2628,10 +2658,42 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         <div id="paymentStatus" class="pos-status">💵 Đang chọn thanh toán tiền mặt. Hệ thống sẽ tính tiền thối lại.</div>
         <div id="paymentQrPanel" class="payment-qr-panel">
           <b>📱 QR thanh toán của cửa hàng</b>
+          <div class="payment-qr-config">
+            <div>
+              <label>Ngân hàng / ví</label>
+              <select id="paymentQrBank" onchange="savePaymentQrInfo(false)">
+                <option value="Vietcombank">Vietcombank</option>
+                <option value="BIDV">BIDV</option>
+                <option value="Agribank">Agribank</option>
+                <option value="MB Bank">MB Bank</option>
+                <option value="ACB">ACB</option>
+                <option value="ZaloPay QR">ZaloPay QR</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+            <div>
+              <label>Tên hiển thị</label>
+              <input id="paymentQrLabel" placeholder="VD: Tài khoản Green Market" onblur="savePaymentQrInfo(false)">
+            </div>
+            <div>
+              <label>Chủ tài khoản</label>
+              <input id="paymentQrOwner" placeholder="VD: NGUYEN THANH LAM" onblur="savePaymentQrInfo(false)">
+            </div>
+            <div>
+              <label>Số tài khoản / số ví</label>
+              <input id="paymentQrAccount" placeholder="Nhập số tài khoản" onblur="savePaymentQrInfo(false)">
+            </div>
+            <div style="grid-column:1/-1">
+              <label>Ghi chú hiển thị</label>
+              <input id="paymentQrNote" placeholder="Quét mã để thanh toán" onblur="savePaymentQrInfo(false)">
+            </div>
+          </div>
+          <div id="paymentQrInfo" class="payment-qr-info"></div>
           <div id="paymentQrImageBox" style="margin-top:8px"></div>
-          <div id="paymentQrEmpty" class="muted" style="margin-top:8px">Chưa cài ảnh QR. Admin/Quản lý có thể tải ảnh QR của cửa hàng lên tại đây.</div>
+          <div id="paymentQrEmpty" class="muted" style="margin-top:8px">Chưa cài ảnh QR. Admin/Quản lý chọn ngân hàng/ví, nhập thông tin rồi tải ảnh QR của cửa hàng lên.</div>
           <div class="payment-qr-actions">
             <button class="btn-blue" type="button" onclick="document.getElementById('paymentQrFile').click()">Tải ảnh QR</button>
+            <button class="btn-green" type="button" onclick="savePaymentQrInfo(true)">Lưu thông tin QR</button>
             <button class="btn-gray" type="button" onclick="clearPaymentQr()">Xóa QR</button>
           </div>
           <input id="paymentQrFile" class="hidden" type="file" accept="image/*" onchange="uploadPaymentQr(event)">
@@ -3216,11 +3278,72 @@ function getPaymentQrData(){
   return getStoreSettings().paymentQr || '';
 }
 
+function getPaymentQrInfo(){
+  const settings = getStoreSettings();
+  return {
+    bank: settings.paymentQrBank || 'Vietcombank',
+    label: settings.paymentQrLabel || 'QR thanh toán Green Market',
+    owner: settings.paymentQrOwner || '',
+    account: settings.paymentQrAccount || '',
+    note: settings.paymentQrNote || 'Quét mã để thanh toán'
+  };
+}
+
+function setFieldValue(id, value){
+  const el = document.getElementById(id);
+  if(el && el.value !== String(value || '')) el.value = value || '';
+}
+
+function loadPaymentQrFields(){
+  const info = getPaymentQrInfo();
+  setFieldValue('paymentQrBank', info.bank);
+  setFieldValue('paymentQrLabel', info.label);
+  setFieldValue('paymentQrOwner', info.owner);
+  setFieldValue('paymentQrAccount', info.account);
+  setFieldValue('paymentQrNote', info.note);
+}
+
+function savePaymentQrInfo(showAlert = false){
+  const settings = getStoreSettings();
+  settings.paymentQrBank = document.getElementById('paymentQrBank')?.value || settings.paymentQrBank || 'Vietcombank';
+  settings.paymentQrLabel = document.getElementById('paymentQrLabel')?.value || settings.paymentQrLabel || 'QR thanh toán Green Market';
+  settings.paymentQrOwner = document.getElementById('paymentQrOwner')?.value || settings.paymentQrOwner || '';
+  settings.paymentQrAccount = document.getElementById('paymentQrAccount')?.value || settings.paymentQrAccount || '';
+  settings.paymentQrNote = document.getElementById('paymentQrNote')?.value || settings.paymentQrNote || 'Quét mã để thanh toán';
+  settings.paymentQrInfoUpdatedAt = now();
+  settings.paymentQrInfoUpdatedBy = current?.name || 'Hệ thống';
+  saveStoreSettings(settings);
+  try{ save(); }catch(err){}
+  renderPaymentQr();
+  if(showAlert){
+    try{ addLog('Cài QR thanh toán', `Lưu thông tin QR: ${settings.paymentQrBank || ''} - ${settings.paymentQrOwner || ''}`); }catch(err){}
+    alert('Đã lưu thông tin QR thanh toán.');
+  }
+}
+
 function renderPaymentQr(){
   const panel = document.getElementById('paymentQrPanel');
   if(panel) panel.classList.toggle('show', paymentMethod === 'qr');
+  loadPaymentQrFields();
+
   const box = document.getElementById('paymentQrImageBox');
   const empty = document.getElementById('paymentQrEmpty');
+  const infoBox = document.getElementById('paymentQrInfo');
+  const total = (typeof getCartTotal === 'function') ? getCartTotal() : 0;
+  const info = getPaymentQrInfo();
+
+  if(infoBox){
+    const parts = [];
+    parts.push(`<div><b>${escapeHTML(info.label)}</b></div>`);
+    parts.push(`<div>Ngân hàng/Ví: ${escapeHTML(info.bank)}</div>`);
+    if(info.owner) parts.push(`<div>Chủ TK: ${escapeHTML(info.owner)}</div>`);
+    if(info.account) parts.push(`<div>Số TK/Ví: ${escapeHTML(info.account)}</div>`);
+    parts.push(`<div>Số tiền: <b>${money(total)}</b></div>`);
+    parts.push(`<div>Nội dung: Mã hóa đơn sẽ ghi trên phiếu sau khi thanh toán</div>`);
+    if(info.note) parts.push(`<div>${escapeHTML(info.note)}</div>`);
+    infoBox.innerHTML = parts.join('');
+  }
+
   if(!box) return;
   const qr = getPaymentQrData();
   if(qr){
@@ -3240,6 +3363,7 @@ function uploadPaymentQr(event){
     event.target.value = '';
     return;
   }
+  savePaymentQrInfo(false);
   const reader = new FileReader();
   reader.onload = e => {
     const settings = getStoreSettings();
@@ -3247,7 +3371,7 @@ function uploadPaymentQr(event){
     settings.paymentQrUpdatedAt = now();
     settings.paymentQrUpdatedBy = current?.name || 'Hệ thống';
     saveStoreSettings(settings);
-    try{ addLog('Cài QR thanh toán', 'Cập nhật ảnh QR thanh toán của cửa hàng'); }catch(err){}
+    try{ addLog('Cài QR thanh toán', `Cập nhật ảnh QR thanh toán: ${settings.paymentQrBank || ''} - ${settings.paymentQrOwner || ''}`); }catch(err){}
     try{ save(); }catch(err){}
     renderPaymentQr();
     alert('Đã lưu QR thanh toán cho cửa hàng.');
@@ -3257,7 +3381,7 @@ function uploadPaymentQr(event){
 }
 
 function clearPaymentQr(){
-  if(!confirm('Xóa ảnh QR thanh toán hiện tại?')) return;
+  if(!confirm('Xóa ảnh QR thanh toán hiện tại? Thông tin ngân hàng/ví vẫn được giữ lại.')) return;
   const settings = getStoreSettings();
   delete settings.paymentQr;
   settings.paymentQrUpdatedAt = now();
@@ -3270,10 +3394,12 @@ function clearPaymentQr(){
 
 function buildReceiptQrBlock(){
   const qr = getPaymentQrData();
+  const info = getPaymentQrInfo();
+  const meta = `${escapeHTML(info.bank || '')}${info.account ? ' - ' + escapeHTML(info.account) : ''}`;
   if(qr){
-    return `<div style="text-align:center;margin-top:4px"><img src="${qr}" style="width:76px;height:76px;object-fit:contain;border:2px solid #000;padding:2px"><div>QR thanh toán</div></div>`;
+    return `<div style="text-align:center;margin-top:4px"><img src="${qr}" style="width:76px;height:76px;object-fit:contain;border:2px solid #000;padding:2px"><div>QR thanh toán</div><div style="font-size:10.5px;line-height:1.15">${meta}</div></div>`;
   }
-  return `<div style="text-align:center;margin-top:4px"><div class="qr"></div><div>QR thanh toán</div></div>`;
+  return `<div style="text-align:center;margin-top:4px"><div class="qr"></div><div>QR thanh toán</div><div style="font-size:10.5px;line-height:1.15">${meta}</div></div>`;
 }
 
 function makeBillCode(){
@@ -6002,6 +6128,7 @@ function setPaymentMethod(method){
   }
 
   updatePaymentBox();
+  renderPaymentQr();
 }
 
 function getPaymentText(){
@@ -6033,6 +6160,7 @@ function updatePaymentBox(){
       posChange.style.color = '#16a34a';
     }
   }
+  renderPaymentQr();
 }
 
 function findProductByKeyword(keyword){
@@ -11687,6 +11815,7 @@ function renderAll(){
   renderImportTrace();
   renderPosProducts();
   updatePaymentBox();
+  renderPaymentQr();
 
   
 
