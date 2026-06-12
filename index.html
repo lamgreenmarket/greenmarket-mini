@@ -2470,6 +2470,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 }
 
 </style>
+<script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
 </head>
 <body>
 <!-- =========================================================
@@ -3324,10 +3325,129 @@ function ensureDesktopPrint(actionLabel = 'in'){
   return true;
 }
 
-function gmPrint(){
-  if(!ensureDesktopPrint('in hóa đơn')) return false;
-  window.print();
+/* =========================================================
+   QZ TRAY PRINT - GREEN MARKET
+   In thẳng qua QZ Tray. Nếu QZ lỗi vẫn có thể quay về Preview.
+   Mặc định tìm máy in tên: XP-58 (Copy 4)
+   Có thể đổi nhanh trong Console:
+   localStorage.setItem('greenmarket_qz_printer_name','Tên máy in thật trong Windows')
+   ========================================================= */
+const GM_QZ_PRINTER_KEY = 'greenmarket_qz_printer_name';
+const GM_QZ_DEFAULT_PRINTER = 'XP-58 (Copy 4)';
+
+function gmGetQzPrinterName(){
+  return localStorage.getItem(GM_QZ_PRINTER_KEY) || GM_QZ_DEFAULT_PRINTER;
+}
+
+function gmSetQzPrinterName(name){
+  const clean = String(name || '').trim();
+  if(!clean){
+    alert('Tên máy in không hợp lệ.');
+    return false;
+  }
+  localStorage.setItem(GM_QZ_PRINTER_KEY, clean);
+  alert('Đã lưu máy in QZ: ' + clean);
   return true;
+}
+
+async function gmQzConnect(){
+  if(!window.qz) throw new Error('Chưa tải được thư viện QZ Tray. Kiểm tra Internet hoặc file qz-tray.js.');
+  if(qz.websocket.isActive()) return true;
+  await qz.websocket.connect({ retries: 2, delay: 1 });
+  return true;
+}
+
+function gmBuildQzReceiptHtml(receiptHtml){
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @page{size:58mm auto;margin:0;}
+  html,body{margin:0;padding:0;width:58mm;background:#fff;color:#000;}
+  .receipt{
+    width:53.2mm;max-width:53.2mm;margin:0;padding:2.2mm 2.6mm;
+    font-family:Tahoma,Arial,sans-serif;font-size:14.5px;font-weight:700;line-height:1.26;
+    box-sizing:border-box;border:none;border-top:2px solid #000;border-bottom:2px solid #000;border-radius:0;
+  }
+  .receipt *{font-family:Tahoma,Arial,sans-serif;font-weight:700;box-sizing:border-box;}
+  .receipt-title{text-align:center;font-size:17px;font-weight:900;margin-bottom:3px;line-height:1.18;}
+  .receipt-line{border-top:1px dashed #000;margin:6px 0;}
+  .receipt-info{font-size:13px;line-height:1.23;margin:1px 0;word-break:break-word;}
+  .receipt-info::before{content:"• ";font-weight:900;}
+  .receipt-total{display:flex;justify-content:space-between;align-items:center;gap:5px;font-size:13.8px;font-weight:900;line-height:1.18;margin:2px 0;padding-left:.6mm;padding-right:.6mm;}
+  .receipt-total span:first-child{min-width:0;white-space:nowrap;}
+  .receipt-total span:last-child{text-align:right;white-space:nowrap;font-size:13.2px;padding-right:.8mm;}
+  .receipt-total-long{font-size:12px;column-gap:3px;}
+  .receipt-total-long span:last-child{font-size:11.8px;padding-right:2mm;}
+  .receipt-item{margin:3px 0 1px;word-break:break-word;font-size:14px;padding-right:1mm;overflow-wrap:anywhere;}
+  .receipt-money{font-size:13px;line-height:1.25;padding-right:1mm;overflow-wrap:anywhere;}
+  .receipt-footer{text-align:center;margin-top:6px;font-size:14px;opacity:.9;padding-right:1mm;overflow-wrap:anywhere;}
+  .receipt-spacer{height:3mm;}
+  .receipt-reprint-stamp,.receipt-return-stamp{border:2px solid #000;padding:4px 3px;margin:5px 0 7px;text-align:center;font-size:15px;font-weight:900;line-height:1.15;}
+  .qr{width:76px;height:76px;border:2px solid #000;margin:8px auto 2px;}
+</style>
+</head>
+<body><div class="receipt">${receiptHtml}</div></body>
+</html>`;
+}
+
+async function gmQzPrintCurrentReceipt(){
+  if(!ensureDesktopPrint('in hóa đơn')) return false;
+  const box = document.getElementById('receiptPrint');
+  const receipt = box ? box.querySelector('.receipt') : null;
+  const html = receipt ? receipt.innerHTML : (box ? box.innerHTML : '');
+  if(!html.trim()) throw new Error('Không có nội dung hóa đơn để in.');
+
+  await gmQzConnect();
+  const printerName = gmGetQzPrinterName();
+  const printer = await qz.printers.find(printerName);
+  const config = qz.configs.create(printer, {
+    jobName: 'Green Market Receipt',
+    copies: 1,
+    units: 'mm',
+    size: { width: 58 }
+  });
+  const data = [{
+    type: 'html',
+    format: 'plain',
+    data: gmBuildQzReceiptHtml(html)
+  }];
+  await qz.print(config, data);
+  return true;
+}
+
+async function gmPrint(){
+  if(!ensureDesktopPrint('in hóa đơn')) return false;
+
+  // Ưu tiên QZ Tray. Nếu lỗi, cho phép quay về Preview để không kẹt bán hàng.
+  try{
+    await gmQzPrintCurrentReceipt();
+    return true;
+  }catch(err){
+    console.error('QZ print error:', err);
+    const msg = err?.message || String(err || 'Không rõ lỗi');
+    const fallback = confirm('QZ chưa in được:\n' + msg + '\n\nBấm OK để in bằng Preview trình duyệt tạm thời.');
+    if(fallback){
+      window.print();
+      return true;
+    }
+    return false;
+  }
+}
+
+async function gmTestQz(){
+  try{
+    await gmQzConnect();
+    const printerName = gmGetQzPrinterName();
+    const printer = await qz.printers.find(printerName);
+    alert('✅ QZ đã kết nối và tìm thấy máy in: ' + printer);
+    return true;
+  }catch(err){
+    console.error(err);
+    alert('❌ QZ chưa được: ' + (err?.message || err));
+    return false;
+  }
 }
 
 function getStoreSettings(){
