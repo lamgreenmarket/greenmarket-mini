@@ -2712,9 +2712,11 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
      ========================================================= -->
   <section id="sell" class="page hidden card pos-page">
     <h2>🧾 POS bán hàng</h2>
+    <p class="muted">Giao diện thu ngân: quét mã để thêm nhanh, hoặc chọn sản phẩm rồi bấm “Thêm vào hóa đơn”.</p>
+
     <div class="pos-shell">
       <div class="pos-panel">
-        <div class="pos-title"><h3>🔎 Tìm / quét sản phẩm</h3></div>
+        <div class="pos-title"><h3>🔎 Tìm / quét sản phẩm</h3><span class="muted">click để chọn • nút + để thêm nhanh</span></div>
         <div class="pos-search">
           <input id="posSearch" placeholder="Quét mã tự động hoặc gõ đúng tên sản phẩm..." autocomplete="off" oninput="handleScannerInput(event)" onkeydown="posSearchEnter(event)" autofocus>
         </div>
@@ -2798,9 +2800,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
 <section id="barcodeA4" class="page hidden card">
   <h2>🏷️ In tem mã vạch A4</h2>
-  <div class="barcode-a4-note">
-    Chuẩn tem: <b>40mm × 20mm</b> • 1 trang A4 in <b>60 tem</b> (5 cột × 12 hàng) • Không in giá bán để sau này đổi giá không ảnh hưởng tem.
-  </div>
+  
 
   <div class="barcode-a4-controls">
     <div>
@@ -2822,9 +2822,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
     <button class="btn-green" onclick="printBarcodeA4()">🖨️ In A4</button>
   </div>
 
-  <p class="muted">
-    Ví dụ muốn in 50 tem mã 893001: chọn sản phẩm có mã 893001, nhập số tem 50, bấm “Tạo tem xem trước”, rồi bấm “In A4”. Mỗi sản phẩm chỉ dùng 1 mã vạch riêng.
-  </p>
+  
 
   <div id="barcodePrintArea"></div>
 </section>
@@ -2864,6 +2862,10 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
      ========================================================= -->
   <section id="imports" class="page hidden card">
     <h2>📥 Hàng mới nhập / Phiếu nhập kho</h2>
+    <p class="muted">
+      Bản nhập kho khoa học: quét mã hàng → nhập theo thùng/lốc/lố → tự quy đổi ra đơn vị bán nhỏ nhất → tự tính giá nhập 1 đơn vị → tự cộng tổng tiền phiếu.
+    </p>
+
     <div class="import-science-box">
       <h3>🧾 Thông tin phiếu nhập</h3>
       <div class="import-mini-grid">
@@ -3084,7 +3086,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
     <h3>💹 Lợi nhuận theo lô nhập</h3>
     <div class="import-science-box">
-      <p class="muted">Lợi nhuận dự kiến = (Giá bán 1 đơn vị - Giá nhập 1 đơn vị) × Tồn tăng của lô nhập.</p>
+      
       <div class="table-wrap">
         <table>
           <thead><tr><th>STT</th><th>Mã phiếu</th><th>Sản phẩm</th><th>Tồn tăng</th><th>Giá nhập/đv</th><th>Giá bán</th><th>Lãi/đv</th><th>Lợi nhuận dự kiến</th></tr></thead>
@@ -3106,6 +3108,8 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
   <section id="bills" class="page hidden card">
     <h2>🧾 Lịch sử hóa đơn PRO</h2>
+    <p class="muted">Xem lại hóa đơn đã bán, xem chi tiết từng món và in lại hóa đơn khi khách cần.</p>
+
     <div class="bill-filter-row">
       <div>
         <label>Tìm hóa đơn</label>
