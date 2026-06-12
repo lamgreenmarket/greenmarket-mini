@@ -3432,7 +3432,7 @@ function gmQzSetupSecurity(){
   if(gmQzSecurityReady || !window.qz) return;
 
   try{
-    if(qz.security.setSignatureAlgorithm) qz.security.setSignatureAlgorithm('SHA256');
+    if(qz.security.setSignatureAlgorithm) qz.security.setSignatureAlgorithm('SHA256withRSA');
 
     qz.security.setCertificatePromise(function(resolve, reject){
       resolve(GM_QZ_CERTIFICATE);
