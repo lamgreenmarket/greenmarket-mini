@@ -3376,8 +3376,10 @@ async function findThermalPrinter(){
   }catch(e){
     const printers = await qz.printers.find();
     const list = Array.isArray(printers) ? printers : [printers];
-    const matched = list.find(name => String(name).toLowerCase().includes('xprinter'))
-                 || list.find(name => String(name).toLowerCase().includes('printer001'));
+    const matched =
+  list.find(name => String(name).trim() === QZ_THERMAL_PRINTER_NAME) ||
+  list.find(name => String(name).toLowerCase().includes('xp-58') && String(name).toLowerCase().includes('copy 4')) ||
+  list.find(name => String(name).toLowerCase().includes('xp-58'));
     if(!matched){
       throw new Error('Không tìm thấy máy in nhiệt: ' + QZ_THERMAL_PRINTER_NAME);
     }
