@@ -2222,12 +2222,34 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 /* =========================================================
    HOÀN THIỆN V1.0: QR THANH TOÁN + NHẬT KÝ GỌN + CHẶN IN MOBILE
    ========================================================= */
+.log-quick-tabs{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:12px 0 10px;
+}
+.log-quick-tabs button{
+  width:auto;
+  min-height:38px;
+  padding:8px 14px;
+  border-radius:999px;
+  background:#eef7ff!important;
+  color:#0f4c81!important;
+  border:1px solid #d7e7f5;
+  box-shadow:none!important;
+}
+.log-quick-tabs button.log-tab-active{
+  background:linear-gradient(135deg,#0ea5e9,#059669)!important;
+  color:#fff!important;
+  border-color:transparent!important;
+  box-shadow:0 8px 18px rgba(14,165,233,.22)!important;
+}
 .log-filter-panel{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
   gap:10px;
   align-items:end;
-  margin:12px 0 14px;
+  margin:10px 0 14px;
   padding:14px;
   background:linear-gradient(135deg,#ffffff,#f0fdf4);
   border:1px solid rgba(14,165,233,.16);
@@ -2235,14 +2257,75 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   box-shadow:0 10px 25px rgba(15,76,129,.06);
 }
 .log-filter-panel button{height:44px}
+.log-stats-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin:10px 0 12px;
+}
+.log-stat-card{
+  padding:12px 14px;
+  border-radius:18px;
+  background:linear-gradient(135deg,#ffffff,#f8fcff);
+  border:1px solid rgba(14,165,233,.16);
+  box-shadow:0 8px 20px rgba(15,76,129,.06);
+}
+.log-stat-card span{
+  display:block;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+  margin-bottom:4px;
+}
+.log-stat-card b{
+  color:#059669;
+  font-size:22px;
+  font-weight:900;
+}
 .log-summary-box{
   margin:8px 0 12px;
-  padding:10px 12px;
+  padding:11px 14px;
   border-radius:16px;
   background:#eef7ff;
   color:#0f4c81;
   font-weight:900;
   line-height:1.45;
+}
+.log-day-row td{
+  background:linear-gradient(135deg,#dff7ee,#e0f2fe)!important;
+  color:#064e3b!important;
+  font-weight:900!important;
+  font-size:15px!important;
+  padding:13px 14px!important;
+}
+.log-action-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 10px;
+  border-radius:999px;
+  font-weight:900;
+  border:1px solid #dce3ec;
+  background:#f8fafc;
+  color:#334155;
+  white-space:nowrap;
+}
+.log-badge-sale{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+.log-badge-login{background:#e0f2fe;color:#075985;border-color:#bae6fd}
+.log-badge-shift{background:#fef3c7;color:#92400e;border-color:#fde68a}
+.log-badge-return{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+.log-badge-backup{background:#ede9fe;color:#5b21b6;border-color:#ddd6fe}
+.log-badge-edit{background:#fff7ed;color:#9a3412;border-color:#fed7aa}
+.log-detail-cell{
+  white-space:normal!important;
+  word-break:break-word;
+  max-width:650px;
+  line-height:1.5;
+}
+@media(max-width:768px){
+  .log-quick-tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:3px}
+  .log-quick-tabs button{flex:0 0 auto!important;width:auto!important}
+  .log-stats-grid{grid-template-columns:1fr 1fr!important}
 }
 .payment-qr-panel{
   display:none;
@@ -2927,9 +3010,27 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 </select></div><button class="btn-blue full" onclick="addStaff()">Thêm nhân viên</button><div class="table-wrap"><table><thead><tr><th>STT</th><th>Tên</th><th>Tài khoản</th><th>Quyền</th><th>Thao tác</th></tr></thead><tbody id="staffBody"></tbody></table></div></section>
   <section id="logs" class="page hidden card">
     <h2>📋 Nhật ký hoạt động</h2>
+    <p class="muted">Dữ liệu nhật ký vẫn được giữ đầy đủ. Các nút bên dưới chỉ lọc để tra cứu nhanh hơn.</p>
+
+    <div class="log-quick-tabs">
+      <button type="button" data-log-range="today" onclick="setLogRangeQuick('today')">Hôm nay</button>
+      <button type="button" data-log-range="week" onclick="setLogRangeQuick('week')">Tuần này</button>
+      <button type="button" data-log-range="month" onclick="setLogRangeQuick('month')">Tháng này</button>
+      <button type="button" data-log-range="year" onclick="setLogRangeQuick('year')">Năm nay</button>
+      <button type="button" data-log-range="all" onclick="setLogRangeQuick('all')">Tất cả</button>
+      <button type="button" data-log-range="custom" onclick="setLogRangeQuick('custom')">Tùy chọn</button>
+    </div>
+
+    <div class="log-stats-grid">
+      <div class="log-stat-card"><span>Hôm nay</span><b id="logStatToday">0</b></div>
+      <div class="log-stat-card"><span>Tuần này</span><b id="logStatWeek">0</b></div>
+      <div class="log-stat-card"><span>Tháng này</span><b id="logStatMonth">0</b></div>
+      <div class="log-stat-card"><span>Tổng lưu trữ</span><b id="logStatAll">0</b></div>
+    </div>
+
     <div class="log-filter-panel">
       <div>
-        <label>Xem theo thời gian</label>
+        <label>Khoảng thời gian</label>
         <select id="logRange" onchange="renderLogs()">
           <option value="today">Hôm nay</option>
           <option value="week" selected>Tuần này</option>
@@ -2941,11 +3042,11 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
       </div>
       <div>
         <label>Từ ngày</label>
-        <input id="logFromDate" type="date" onchange="renderLogs()">
+        <input id="logFromDate" type="date" onchange="setLogRangeQuick('custom')">
       </div>
       <div>
         <label>Đến ngày</label>
-        <input id="logToDate" type="date" onchange="renderLogs()">
+        <input id="logToDate" type="date" onchange="setLogRangeQuick('custom')">
       </div>
       <div>
         <label>Loại hoạt động</label>
@@ -6560,16 +6661,90 @@ function resetLogFilters(){
   renderLogs();
 }
 
+function setLogRangeQuick(rangeValue){
+  const range = document.getElementById('logRange');
+  if(range) range.value = rangeValue || 'week';
+  renderLogs();
+}
+
+function logRangeCount(rangeValue){
+  const old = document.getElementById('logRange')?.value;
+  const range = document.getElementById('logRange');
+  if(range) range.value = rangeValue;
+  const {from, to} = getLogRangeDates();
+  if(range) range.value = old || 'week';
+  return (logs || []).filter(l => {
+    const d = parseLogDate(l.time);
+    if(from && d && d < from) return false;
+    if(to && d && d > to) return false;
+    return true;
+  }).length;
+}
+
+function updateLogStatsAndTabs(range){
+  const todayEl = document.getElementById('logStatToday');
+  const weekEl = document.getElementById('logStatWeek');
+  const monthEl = document.getElementById('logStatMonth');
+  const allEl = document.getElementById('logStatAll');
+  if(todayEl) todayEl.textContent = logRangeCount('today');
+  if(weekEl) weekEl.textContent = logRangeCount('week');
+  if(monthEl) monthEl.textContent = logRangeCount('month');
+  if(allEl) allEl.textContent = (logs || []).length;
+  document.querySelectorAll('[data-log-range]').forEach(btn => {
+    btn.classList.toggle('log-tab-active', btn.getAttribute('data-log-range') === range);
+  });
+}
+
+function formatLogDayLabel(d){
+  if(!d) return 'Không rõ ngày';
+  const weekdays = ['Chủ nhật','Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'];
+  return `${weekdays[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+
+function getLogDayKey(l){
+  const d = parseLogDate(l.time);
+  if(!d) return 'unknown';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function getLogBadgeClass(action){
+  const a = String(action || '').toLowerCase();
+  if(a.includes('bán') || a.includes('thanh toán')) return 'log-badge-sale';
+  if(a.includes('đăng nhập') || a.includes('đăng xuất')) return 'log-badge-login';
+  if(a.includes('ca') || a.includes('bàn giao')) return 'log-badge-shift';
+  if(a.includes('hoàn') || a.includes('trả')) return 'log-badge-return';
+  if(a.includes('backup') || a.includes('sao lưu') || a.includes('restore') || a.includes('phục hồi')) return 'log-badge-backup';
+  if(a.includes('sửa') || a.includes('xóa') || a.includes('quyền') || a.includes('nhập kho')) return 'log-badge-edit';
+  return '';
+}
+
+function getLogIcon(action){
+  const a = String(action || '').toLowerCase();
+  if(a.includes('bán') || a.includes('thanh toán')) return '🛒';
+  if(a.includes('đăng nhập')) return '🔐';
+  if(a.includes('đăng xuất')) return '🚪';
+  if(a.includes('mở ca')) return '🟢';
+  if(a.includes('kết ca')) return '🔴';
+  if(a.includes('hoàn') || a.includes('trả')) return '↩️';
+  if(a.includes('backup') || a.includes('sao lưu')) return '☁️';
+  if(a.includes('restore') || a.includes('phục hồi')) return '♻️';
+  if(a.includes('nhập kho')) return '📦';
+  if(a.includes('sửa')) return '✏️';
+  return '📌';
+}
+
 function renderLogs(){
   if(!['admin','manager'].includes(normalizeRole(current?.role))){
     const el = document.getElementById('logBody');
     if(el) el.innerHTML = '<tr><td colspan="6">Tài khoản này không có quyền xem nhật ký</td></tr>';
     return;
   }
-  if(!document.getElementById('logBody')) return;
+  const body = document.getElementById('logBody');
+  if(!body) return;
   initLogActionFilter();
 
   const {from, to, range} = getLogRangeDates();
+  updateLogStatsAndTabs(range);
   const action = document.getElementById('logActionFilter')?.value || 'all';
   const q = cleanText(document.getElementById('logSearch')?.value || '').toLowerCase();
 
@@ -6587,27 +6762,44 @@ function renderLogs(){
 
   const summary = document.getElementById('logSummary');
   if(summary){
-    const label = {today:'hôm nay', week:'tuần này', month:'tháng này', year:'năm nay', all:'tất cả nhật ký', custom:'khoảng ngày đã chọn'}[range] || 'nhật ký';
-    summary.innerHTML = `Đang hiển thị <b>${filtered.length}</b> / ${logs.length} dòng trong ${label}. Dữ liệu không bị xóa, chỉ lọc để tra cứu gọn hơn.`;
+    const label = {today:'hôm nay', week:'tuần này', month:'tháng này', year:'năm nay', all:'toàn bộ nhật ký', custom:'khoảng ngày đã chọn'}[range] || 'nhật ký';
+    summary.innerHTML = `Đang hiển thị <b>${filtered.length}</b> / <b>${(logs || []).length}</b> dòng trong <b>${label}</b>. Dữ liệu không bị xóa, chỉ lọc và gom theo ngày để tra cứu gọn hơn.`;
   }
 
   if(!filtered.length){
-    logBody.innerHTML = '<tr><td colspan="6">Không có nhật ký phù hợp với bộ lọc hiện tại.</td></tr>';
+    body.innerHTML = '<tr><td colspan="6">Không có nhật ký phù hợp với bộ lọc hiện tại.</td></tr>';
     return;
   }
 
- logBody.innerHTML = filtered.map((l, i) => `
-  <tr>
-    <td>${i + 1}</td>
-    <td>${escapeHTML(l.time)}</td>
-    <td>${escapeHTML(l.user)}</td>
-    <td>${escapeHTML(l.role)}</td>
-    <td>${escapeHTML(l.action)}</td>
-    <td style="white-space:normal;word-break:break-word;max-width:650px;line-height:1.5;">
-      ${escapeHTML(l.detail)}
-    </td>
-  </tr>
-`).join('');
+  const dayCounts = filtered.reduce((acc,l)=>{
+    const key = getLogDayKey(l);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  },{});
+  let lastDay = '';
+  let stt = 0;
+  const rows = [];
+  filtered.forEach(l => {
+    const d = parseLogDate(l.time);
+    const dayKey = getLogDayKey(l);
+    if(dayKey !== lastDay){
+      rows.push(`<tr class="log-day-row"><td colspan="6">▼ ${escapeHTML(formatLogDayLabel(d))} <span style="color:#0f4c81">(${dayCounts[dayKey]} hoạt động)</span></td></tr>`);
+      lastDay = dayKey;
+    }
+    stt++;
+    const badgeClass = getLogBadgeClass(l.action);
+    rows.push(`
+      <tr>
+        <td>${stt}</td>
+        <td>${escapeHTML(l.time)}</td>
+        <td>${escapeHTML(l.user)}</td>
+        <td>${escapeHTML(l.role)}</td>
+        <td><span class="log-action-badge ${badgeClass}">${getLogIcon(l.action)} ${escapeHTML(l.action)}</span></td>
+        <td class="log-detail-cell">${escapeHTML(l.detail)}</td>
+      </tr>
+    `);
+  });
+  body.innerHTML = rows.join('');
 }
 
 /* =========================================================
