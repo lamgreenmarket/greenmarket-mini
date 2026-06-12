@@ -2220,7 +2220,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
 
 /* =========================================================
-   HOÀN THIỆN V1.0: QR THANH TOÁN + NHẬT KÝ GỌN + CHẶN IN MOBILE
+   HOÀN THIỆN V1.0: QR THANH TOÁN + NHẬT KÝ TỰ ĐỘNG LỌC + CHẶN IN MOBILE
    ========================================================= */
 .log-quick-tabs{
   display:flex;
@@ -2256,7 +2256,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   border-radius:20px;
   box-shadow:0 10px 25px rgba(15,76,129,.06);
 }
-.log-filter-panel button{height:44px}
 .log-stats-grid{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
@@ -3031,7 +3030,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
     <div class="log-filter-panel">
       <div>
         <label>Khoảng thời gian</label>
-        <select id="logRange" onchange="renderLogs()">
+        <select id="logRange" onchange="setLogRangeQuick(this.value)">
           <option value="today">Hôm nay</option>
           <option value="week" selected>Tuần này</option>
           <option value="month">Tháng này</option>
@@ -3058,7 +3057,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         <label>Tìm kiếm</label>
         <input id="logSearch" placeholder="Tên hàng, nhân viên, hóa đơn..." oninput="renderLogs()">
       </div>
-      <button class="btn-blue" type="button" onclick="resetLogFilters()">Làm mới lọc</button>
     </div>
     <div id="logSummary" class="log-summary-box">Đang tải nhật ký...</div>
     <div class="table-wrap"><table><thead><tr><th>STT</th><th>Thời gian</th><th>Nhân viên</th><th>Quyền</th><th>Hoạt động</th><th>Chi tiết</th></tr></thead><tbody id="logBody"></tbody></table></div>
