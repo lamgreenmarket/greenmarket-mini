@@ -3350,8 +3350,123 @@ function gmSetQzPrinterName(name){
   return true;
 }
 
+
+/* =========================================================
+   QZ SECURITY SIGNATURE - GREEN MARKET
+   Mục tiêu: QZ nhận diện website, giảm/bỏ hỏi Allow lặp lại.
+   Lưu ý: đây là bản ký trực tiếp trong HTML cho máy bán hàng riêng.
+   ========================================================= */
+const GM_QZ_CERTIFICATE = `-----BEGIN CERTIFICATE-----
+MIID4zCCAsugAwIBAgIUcoXE5Ma5Ig57ckfHTU5UjI/xTF4wDQYJKoZIhvcNAQEL
+BQAwgYAxCzAJBgNVBAYTAlZOMRIwEAYDVQQIDAlLaGFuaCBIb2ExEjAQBgNVBAcM
+CU5oYSBUcmFuZzEVMBMGA1UECgwMR3JlZW4gTWFya2V0MQwwCgYDVQQLDANQT1Mx
+JDAiBgNVBAMMG2dyZWVubWFya2V0LW1pbmkudmVyY2VsLmFwcDAeFw0yNjA2MTIx
+MDQyMDNaFw0zNjA2MDkxMDQyMDNaMIGAMQswCQYDVQQGEwJWTjESMBAGA1UECAwJ
+S2hhbmggSG9hMRIwEAYDVQQHDAlOaGEgVHJhbmcxFTATBgNVBAoMDEdyZWVuIE1h
+cmtldDEMMAoGA1UECwwDUE9TMSQwIgYDVQQDDBtncmVlbm1hcmtldC1taW5pLnZl
+cmNlbC5hcHAwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDNHYvTfskL
+r9kM7g8BGoOg+65xXk24Hij/jPWsH+jKxtmsv5b49v2smHwU/mA5STRJFm7oVXxE
+HJjx4R5NqvKKJuD0kq+EqrWGMZXRNvHzUY1wwo5uAwwMXq7YImUmFYyuSKThSy+R
+am+LW016ii9vLiz6Qd5fFLjvZmLyeJw+7HEq/xTw1r2Mb4TpHXxPbMFuLSn04Jg0
+QMNLEKl3p6Pz39RaWe6XcwE+TynmsqOcCRZ7k/tjmbaBOWuTlie2fDwg7+9l4mKt
+P+f4k4ZvCMWlk7NkeDF+eHYfiaHNP+ftFozffG9WwLGa5fCzel2jPA/9ZXjfSc2J
+8ncCEVh4SKLVAgMBAAGjUzBRMB0GA1UdDgQWBBTOhGjIh1C/w55HCLqPW1yTnmNC
+bDAfBgNVHSMEGDAWgBTOhGjIh1C/w55HCLqPW1yTnmNCbDAPBgNVHRMBAf8EBTAD
+AQH/MA0GCSqGSIb3DQEBCwUAA4IBAQBPj2nSu5GfJZ/6AWQpWhFf4mfUQK5Jgpsv
+qMg677YyF5PDVp05sQce1A9F9rbcod3taPKY1/mQC+R8aFzQ5/umkdVZGBpRYYwC
+eLldrxr7o5oZvRKuXLaFkjhs9dMhfiw1gsIayssCQS2r4qPMle+D7tZADxrKE53L
+p2dNj1wjwQ9UfOO7b5t+AnhpGl/A4JS0fF1z0bFdb4skhGUVnr/zo8o79NxPxcJY
+Qo0a8yH3u/EPl2lR9qLw8lvNBx0ffCrDdFfB66SDE6T+REPZjbWS8KtWDweH1+wu
+c/dINR8Yp4TlWdqDQt9qHxklAAzSCdzmtjxdWevDvaKeWQrDfsJy
+-----END CERTIFICATE-----
+`;
+const GM_QZ_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDNHYvTfskLr9kM
+7g8BGoOg+65xXk24Hij/jPWsH+jKxtmsv5b49v2smHwU/mA5STRJFm7oVXxEHJjx
+4R5NqvKKJuD0kq+EqrWGMZXRNvHzUY1wwo5uAwwMXq7YImUmFYyuSKThSy+Ram+L
+W016ii9vLiz6Qd5fFLjvZmLyeJw+7HEq/xTw1r2Mb4TpHXxPbMFuLSn04Jg0QMNL
+EKl3p6Pz39RaWe6XcwE+TynmsqOcCRZ7k/tjmbaBOWuTlie2fDwg7+9l4mKtP+f4
+k4ZvCMWlk7NkeDF+eHYfiaHNP+ftFozffG9WwLGa5fCzel2jPA/9ZXjfSc2J8ncC
+EVh4SKLVAgMBAAECggEAD6u1NhhWpdTugUVi0hPDgLYZ0sGAsJNlUHjlgBwD/hIJ
+KWCN2UGNifUwba4tjdLg8sCLAqcdUlrY+InZddecph9oSmc2j603JyR8rLpE6/EM
+HFRQ62jCL+O/+fVOwwUcdWhJaIkE/lgiY4Q7PCR4kUb22rvTkHIV2vx4jMvYLBpj
+TqkKEt+RAcGHFnY/hkpFZhTiiQH+Hdc13Vtqrf8wgo1zBJNthoYovJOmw4IfeVjE
+wkFwfOzmQSuMzZNtSDzZxqKubYsoW/2zhkhlBfemyvs+DdSkTVACocgovGVvLDQr
+WfELTTNT/E7cJIbrqsUmyX01gtBe5W47trGolbW6IQKBgQDxqUOeu6RwDKTIXWKm
+EPVas7Gb6myiCQIfbamq6Bv1/0RDeZDhjL62XMCeIMFND2R45j8rWoSE6EF8MuU3
+q7wQL4dVzLJfICvk8Lis5K3g1iYCilyVBa5zEfggmopZENPK87ZTWsGU+iSIHF9S
+rsqcEvpsnLoaUuyzhRKNak9FzQKBgQDZSSqg540Cu6LQLf6IF56Hyl57fJiDFl4Z
+YUycODmXrTwHZHgpHSBqcNmVyUWZP3pTs5bVITISdO7V6MiD3xSIaNI6YsHJNLmk
+PUnIZNfqP6dPjQWRbjCG+ZZ9IWtKXeerXiC/YNc43pPhl2i/gU+t9v72YDjL64zj
+f5V0UmtJKQKBgD8w5JawOFp4Y+pkyPPlwVKbZFkB3rAsLNrtAQ3Ire8QddgzBJiG
+BiSHcnKm3AT7fmlCw8fhXn+mf+ErKdb52C5fT0M3SHkpX3D5JUFIdtMxDDVj2ru5
+BZnfXAOihYSuqsMKIWYAeFgtZLoWuTJUtHRFXihifyN9BZoXtPc3kk0NAoGAcm4X
+5xlKp8/NVLmEPIPD11t6GqppX0/eSpt1TyhFHF39KR9+MJjIQ4Ye8MVIxAYsE/yW
+SLPsvM+cIEcxolFPbO9XF6x+xcngomAshT6mfxT6tehcsFRJdivnVwrMiCOgKB2w
+PVlwvuBpHPsyDPi6z7EuYO4XuzzXu8+rE9F78tECgYEAj52XmBhmkiltoeoXPBtd
+V8LXu00cvrwvjvUW1F9skzuUavvpcFAoGIzdab30fq5a/V9+Jk3RFPa/lckDSnC9
+Z8Q1RQkQhqAOa96/7Wc/Si/+KBu4ql7wPOAPf5x+21sHSY0jMGbThvL+ldeU6jmv
+j5dUw2nSTwO7n4peA5FTIj0=
+-----END PRIVATE KEY-----
+`;
+let gmQzSecurityReady = false;
+
+function gmPemToArrayBuffer(pem){
+  const b64 = pem.replace(/-----BEGIN [^-]+-----/g, '')
+                 .replace(/-----END [^-]+-----/g, '')
+                 .replace(/\s+/g, '');
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function gmArrayBufferToBase64(buffer){
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for(let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function gmQzSetupSecurity(){
+  if(gmQzSecurityReady || !window.qz) return;
+
+  try{
+    if(qz.security.setSignatureAlgorithm) qz.security.setSignatureAlgorithm('SHA256');
+
+    qz.security.setCertificatePromise(function(resolve, reject){
+      resolve(GM_QZ_CERTIFICATE);
+    });
+
+    qz.security.setSignaturePromise(function(toSign){
+      return async function(resolve, reject){
+        try{
+          const keyBuffer = gmPemToArrayBuffer(GM_QZ_PRIVATE_KEY);
+          const privateKey = await crypto.subtle.importKey(
+            'pkcs8',
+            keyBuffer,
+            { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+            false,
+            ['sign']
+          );
+          const data = new TextEncoder().encode(toSign);
+          const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', privateKey, data);
+          resolve(gmArrayBufferToBase64(signature));
+        }catch(err){
+          reject(err);
+        }
+      };
+    });
+
+    gmQzSecurityReady = true;
+  }catch(err){
+    console.error('Không thiết lập được QZ security:', err);
+  }
+}
+
 async function gmQzConnect(){
   if(!window.qz) throw new Error('Chưa tải được thư viện QZ Tray. Kiểm tra Internet hoặc file qz-tray.js.');
+  gmQzSetupSecurity();
   if(qz.websocket.isActive()) return true;
   await qz.websocket.connect({ retries: 2, delay: 1 });
   return true;
