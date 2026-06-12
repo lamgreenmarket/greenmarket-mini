@@ -2296,38 +2296,25 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   font-weight:900!important;
   font-size:15px!important;
   padding:13px 14px!important;
+  cursor:pointer!important;
+  user-select:none!important;
 }
-.log-day-toggle{
-  width:100%;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  cursor:pointer;
-  user-select:none;
+.log-day-row td:hover{
+  background:linear-gradient(135deg,#c9f7e6,#d7efff)!important;
 }
 .log-day-title{
   display:flex;
   align-items:center;
+  justify-content:center;
   gap:8px;
+  width:100%;
 }
 .log-day-count{
+  margin-left:auto;
   color:#0f4c81;
   font-size:13px;
-  white-space:nowrap;
 }
-.log-day-arrow{
-  display:inline-block;
-  width:22px;
-  height:22px;
-  line-height:22px;
-  text-align:center;
-  border-radius:999px;
-  background:#ffffffbb;
-  color:#047857;
-  box-shadow:0 2px 8px rgba(15,76,129,.10);
-}
-.log-row-collapsed{display:none!important;}
+.log-entry-row.log-hidden-day{display:none!important;}
 .log-action-badge{
   display:inline-flex;
   align-items:center;
@@ -3060,8 +3047,8 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
       <div>
         <label>Khoảng thời gian</label>
         <select id="logRange" onchange="setLogRangeQuick(this.value)">
-          <option value="today">Hôm nay</option>
-          <option value="week" selected>Tuần này</option>
+          <option value="today" selected>Hôm nay</option>
+          <option value="week">Tuần này</option>
           <option value="month">Tháng này</option>
           <option value="year">Năm nay</option>
           <option value="all">Tất cả</option>
@@ -3854,6 +3841,7 @@ async function login(){
 
     try{ resetBillDetailForNewSession(); }catch(e){}
     applyPermission();
+    window.greenMarketResetLogFilterOnNextOpen = true;
     showPage('home');
     renderAll();
     renderTopProducts();
@@ -3946,6 +3934,7 @@ async function logout(reason = 'manual'){
   }, 3200);
   loginUser.value = '';
   loginPass.value = '';
+  window.greenMarketResetLogFilterOnNextOpen = true;
   showLogin();
 }
 
@@ -4099,6 +4088,10 @@ function showPage(id){
   if(!pageEl) return;
   pageEl.classList.remove('hidden');
   setActiveMainMenu(id);
+  if(id === 'logs' && window.greenMarketResetLogFilterOnNextOpen){
+    resetLogFilters(false);
+    window.greenMarketResetLogFilterOnNextOpen = false;
+  }
   renderAll();
   if(id === 'shift'){
   renderShift();
@@ -6659,8 +6652,10 @@ function toInputDateValue(d){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
+window.greenMarketResetLogFilterOnNextOpen = true;
+
 function getLogRangeDates(){
-  const range = document.getElementById('logRange')?.value || 'week';
+  const range = document.getElementById('logRange')?.value || 'today';
   const today = new Date();
   let from = null, to = null;
   if(range === 'today'){
@@ -6689,9 +6684,9 @@ function initLogActionFilter(){
   sel.value = actions.includes(currentValue) ? currentValue : 'all';
 }
 
-function resetLogFilters(){
+function resetLogFilters(renderNow = true){
   const range = document.getElementById('logRange');
-  if(range) range.value = 'week';
+  if(range) range.value = 'today';
   const f = document.getElementById('logFromDate');
   const t = document.getElementById('logToDate');
   if(f) f.value = '';
@@ -6700,13 +6695,21 @@ function resetLogFilters(){
   if(a) a.value = 'all';
   const q = document.getElementById('logSearch');
   if(q) q.value = '';
-  renderLogs();
+  window.greenMarketLogOpenDays = new Set();
+  if(renderNow) renderLogs();
 }
 
 function setLogRangeQuick(rangeValue){
+  const val = rangeValue || 'today';
   const range = document.getElementById('logRange');
-  if(range) range.value = rangeValue || 'week';
-  collapsedLogDays = {};
+  if(range) range.value = val;
+  if(val !== 'custom'){
+    const f = document.getElementById('logFromDate');
+    const t = document.getElementById('logToDate');
+    if(f) f.value = '';
+    if(t) t.value = '';
+  }
+  window.greenMarketLogOpenDays = new Set();
   renderLogs();
 }
 
@@ -6715,7 +6718,7 @@ function logRangeCount(rangeValue){
   const range = document.getElementById('logRange');
   if(range) range.value = rangeValue;
   const {from, to} = getLogRangeDates();
-  if(range) range.value = old || 'week';
+  if(range) range.value = old || 'today';
   return (logs || []).filter(l => {
     const d = parseLogDate(l.time);
     if(from && d && d < from) return false;
@@ -6775,15 +6778,19 @@ function getLogIcon(action){
   return '📌';
 }
 
-let collapsedLogDays = {};
+
+function ensureLogOpenSet(){
+  if(!(window.greenMarketLogOpenDays instanceof Set)){
+    window.greenMarketLogOpenDays = new Set();
+  }
+  return window.greenMarketLogOpenDays;
+}
 
 function toggleLogDay(dayKey){
-  collapsedLogDays[dayKey] = !collapsedLogDays[dayKey];
-  document.querySelectorAll(`[data-log-day-row="${dayKey}"]`).forEach(row => {
-    row.classList.toggle('log-row-collapsed', !!collapsedLogDays[dayKey]);
-  });
-  const arrow = document.querySelector(`[data-log-day-arrow="${dayKey}"]`);
-  if(arrow) arrow.textContent = collapsedLogDays[dayKey] ? '▶' : '▼';
+  const openSet = ensureLogOpenSet();
+  if(openSet.has(dayKey)) openSet.delete(dayKey);
+  else openSet.add(dayKey);
+  renderLogs();
 }
 
 function renderLogs(){
@@ -6824,13 +6831,15 @@ function renderLogs(){
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   },{});
-
   const dayOrder = [];
   filtered.forEach(l => {
     const key = getLogDayKey(l);
     if(!dayOrder.includes(key)) dayOrder.push(key);
   });
-  const newestDayKey = dayOrder[0] || '';
+  const openSet = ensureLogOpenSet();
+  if(openSet.size === 0 && dayOrder.length){
+    openSet.add(dayOrder[0]);
+  }
 
   let lastDay = '';
   let stt = 0;
@@ -6838,29 +6847,15 @@ function renderLogs(){
   filtered.forEach(l => {
     const d = parseLogDate(l.time);
     const dayKey = getLogDayKey(l);
+    const isOpen = openSet.has(dayKey);
     if(dayKey !== lastDay){
-      if(collapsedLogDays[dayKey] === undefined){
-        collapsedLogDays[dayKey] = dayKey !== newestDayKey;
-      }
-      const isCollapsed = !!collapsedLogDays[dayKey];
-      const arrow = isCollapsed ? '▶' : '▼';
-      rows.push(`
-        <tr class="log-day-row">
-          <td colspan="6">
-            <div class="log-day-toggle" onclick="toggleLogDay('${escapeHTML(dayKey)}')" title="Bấm để thu gọn / mở rộng">
-              <span class="log-day-title"><span class="log-day-arrow" data-log-day-arrow="${escapeHTML(dayKey)}">${arrow}</span> ${escapeHTML(formatLogDayLabel(d))}</span>
-              <span class="log-day-count">${dayCounts[dayKey]} hoạt động</span>
-            </div>
-          </td>
-        </tr>
-      `);
+      rows.push(`<tr class="log-day-row" onclick="toggleLogDay('${escapeHTML(dayKey)}')"><td colspan="6"><div class="log-day-title"><span>${isOpen ? '▼' : '▶'} ${escapeHTML(formatLogDayLabel(d))}</span><span class="log-day-count">${dayCounts[dayKey]} hoạt động</span></div></td></tr>`);
       lastDay = dayKey;
     }
     stt++;
     const badgeClass = getLogBadgeClass(l.action);
-    const collapsedClass = collapsedLogDays[dayKey] ? 'log-row-collapsed' : '';
     rows.push(`
-      <tr class="${collapsedClass}" data-log-day-row="${escapeHTML(dayKey)}">
+      <tr class="log-entry-row ${isOpen ? '' : 'log-hidden-day'}" data-log-day="${escapeHTML(dayKey)}">
         <td>${stt}</td>
         <td>${escapeHTML(l.time)}</td>
         <td>${escapeHTML(l.user)}</td>
