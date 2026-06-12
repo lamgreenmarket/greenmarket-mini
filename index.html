@@ -3516,8 +3516,11 @@ async function gmQzPrintCurrentReceipt(){
 
   await gmQzConnect();
   const printerName = gmGetQzPrinterName();
-  const printer = await qz.printers.find(printerName);
-  const config = qz.configs.create(printer, {
+
+  // FIX QZ: không gọi qz.printers.find() mỗi lần in,
+  // vì lệnh find() làm QZ hiện bảng "access connected printers".
+  // Dùng trực tiếp đúng tên máy in Windows để giảm/bỏ một hộp Allow.
+  const config = qz.configs.create(printerName, {
     jobName: 'Green Market Receipt',
     copies: 1,
     units: 'mm',
