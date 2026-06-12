@@ -2217,6 +2217,73 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   display:none!important;
 }
 
+
+
+/* =========================================================
+   HOÀN THIỆN V1.0: QR THANH TOÁN + NHẬT KÝ GỌN + CHẶN IN MOBILE
+   ========================================================= */
+.log-filter-panel{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;
+  align-items:end;
+  margin:12px 0 14px;
+  padding:14px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1px solid rgba(14,165,233,.16);
+  border-radius:20px;
+  box-shadow:0 10px 25px rgba(15,76,129,.06);
+}
+.log-filter-panel button{height:44px}
+.log-summary-box{
+  margin:8px 0 12px;
+  padding:10px 12px;
+  border-radius:16px;
+  background:#eef7ff;
+  color:#0f4c81;
+  font-weight:900;
+  line-height:1.45;
+}
+.payment-qr-panel{
+  display:none;
+  margin:10px 0;
+  padding:12px;
+  border:1px dashed #86efac;
+  border-radius:18px;
+  background:#f0fdf4;
+  text-align:center;
+}
+.payment-qr-panel.show{display:block}
+.payment-qr-panel img{
+  max-width:210px;
+  max-height:210px;
+  width:100%;
+  object-fit:contain;
+  background:#fff;
+  border:1px solid #dce3ec;
+  border-radius:16px;
+  padding:8px;
+  box-shadow:0 10px 24px rgba(15,76,129,.08);
+}
+.payment-qr-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+.payment-qr-actions button{width:auto;min-width:130px}
+.mobile-print-note{
+  display:none;
+  margin:10px 0;
+  padding:10px 12px;
+  border-radius:16px;
+  background:#fff7ed;
+  color:#9a3412;
+  border:1px solid #fed7aa;
+  font-weight:900;
+  line-height:1.45;
+}
+@media(max-width:768px){
+  .payment-qr-actions{flex-direction:column}
+  .payment-qr-actions button{width:100%!important}
+  .mobile-print-note{display:block}
+  .print-desktop-only{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -2459,11 +2526,23 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
           <input id="customerCash" type="number" placeholder="Nhập số tiền khách đưa" oninput="updatePaymentBox()" onkeydown="if(event.key==='Enter'){event.preventDefault(); checkout();}">
         </div>
         <div id="paymentStatus" class="pos-status">💵 Đang chọn thanh toán tiền mặt. Hệ thống sẽ tính tiền thối lại.</div>
+        <div id="paymentQrPanel" class="payment-qr-panel">
+          <b>📱 QR thanh toán của cửa hàng</b>
+          <div id="paymentQrImageBox" style="margin-top:8px"></div>
+          <div id="paymentQrEmpty" class="muted" style="margin-top:8px">Chưa cài ảnh QR. Admin/Quản lý có thể tải ảnh QR của cửa hàng lên tại đây.</div>
+          <div class="payment-qr-actions">
+            <button class="btn-blue" type="button" onclick="document.getElementById('paymentQrFile').click()">Tải ảnh QR</button>
+            <button class="btn-gray" type="button" onclick="clearPaymentQr()">Xóa QR</button>
+          </div>
+          <input id="paymentQrFile" class="hidden" type="file" accept="image/*" onchange="uploadPaymentQr(event)">
+          <div class="muted" style="font-size:13px;margin-top:8px">Khách quét QR xong, thu ngân kiểm tra tiền vào tài khoản rồi mới hoàn tất hóa đơn.</div>
+        </div>
+        <div class="mobile-print-note">📵 Điện thoại chỉ dùng để xem/quản lý. In hóa đơn vui lòng thực hiện trên máy tính hoặc máy POS tại quầy.</div>
         <div class="pos-pay-row"><span>Tổng hóa đơn</span><span id="posPayTotal">0 VNĐ</span></div>
         <div class="pos-pay-row" id="cashTextRow"><span>Tiền khách đưa</span><span id="posCashText">0 VNĐ</span></div>
         <div class="pos-pay-row"><span id="changeLabel">Tiền thối lại</span><span id="posChange" class="pos-change">0 VNĐ</span></div>
         <div class="actions">
-          <button class="btn-green full" onclick="checkout()">✅ Hoàn tất thanh toán / In hóa đơn</button>
+          <button class="btn-green full print-desktop-only" onclick="checkout()">✅ Hoàn tất thanh toán / In hóa đơn</button>
           <button class="btn-red full" onclick="clearCart();updatePaymentBox()">🗑 Xóa giỏ hàng</button>
         </div>
       </div>
@@ -2846,7 +2925,43 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   <option value="manager">Quản lý</option>
   <option value="admin">Admin</option>
 </select></div><button class="btn-blue full" onclick="addStaff()">Thêm nhân viên</button><div class="table-wrap"><table><thead><tr><th>STT</th><th>Tên</th><th>Tài khoản</th><th>Quyền</th><th>Thao tác</th></tr></thead><tbody id="staffBody"></tbody></table></div></section>
-  <section id="logs" class="page hidden card"><h2>📋 Nhật ký hoạt động</h2><div class="table-wrap"><table><thead><tr><th>STT</th><th>Thời gian</th><th>Nhân viên</th><th>Quyền</th><th>Hoạt động</th><th>Chi tiết</th></tr></thead><tbody id="logBody"></tbody></table></div></section>
+  <section id="logs" class="page hidden card">
+    <h2>📋 Nhật ký hoạt động</h2>
+    <div class="log-filter-panel">
+      <div>
+        <label>Xem theo thời gian</label>
+        <select id="logRange" onchange="renderLogs()">
+          <option value="today">Hôm nay</option>
+          <option value="week" selected>Tuần này</option>
+          <option value="month">Tháng này</option>
+          <option value="year">Năm nay</option>
+          <option value="all">Tất cả</option>
+          <option value="custom">Tùy chọn ngày</option>
+        </select>
+      </div>
+      <div>
+        <label>Từ ngày</label>
+        <input id="logFromDate" type="date" onchange="renderLogs()">
+      </div>
+      <div>
+        <label>Đến ngày</label>
+        <input id="logToDate" type="date" onchange="renderLogs()">
+      </div>
+      <div>
+        <label>Loại hoạt động</label>
+        <select id="logActionFilter" onchange="renderLogs()">
+          <option value="all">Tất cả</option>
+        </select>
+      </div>
+      <div>
+        <label>Tìm kiếm</label>
+        <input id="logSearch" placeholder="Tên hàng, nhân viên, hóa đơn..." oninput="renderLogs()">
+      </div>
+      <button class="btn-blue" type="button" onclick="resetLogFilters()">Làm mới lọc</button>
+    </div>
+    <div id="logSummary" class="log-summary-box">Đang tải nhật ký...</div>
+    <div class="table-wrap"><table><thead><tr><th>STT</th><th>Thời gian</th><th>Nhân viên</th><th>Quyền</th><th>Hoạt động</th><th>Chi tiết</th></tr></thead><tbody id="logBody"></tbody></table></div>
+  </section>
 
 
 
@@ -2895,6 +3010,7 @@ const KPRODUCTS = 'v2_products';
 const KBILLS = 'v2_bills';
 const KMONEY = 'v2_money';
 const KLOGS = 'v2_logs';
+const KSTORE_SETTINGS = 'greenmarket_store_settings';
 const KIMPORTS = 'v2_import_history';
 const KLOGIN_SECURITY = 'v2_login_security'; // Bảo mật: lưu số lần đăng nhập sai + thời gian khóa tạm
 const KDEVICE_ID = 'green_market_device_id_v1'; // Bảo mật phiên: nhận diện trình duyệt/thiết bị
@@ -2957,6 +3073,93 @@ function splitReceiptDateTime(value){
   const time = m[1];
   const date = s.replace(time, '').replace(/[,，]/g, ' ').replace(/\s+/g, ' ').trim();
   return { date: date || s, time };
+}
+
+
+function isMobileDevice(){
+  return window.matchMedia('(max-width: 768px)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+}
+
+function gmPrint(){
+  if(isMobileDevice()){
+    alert('📵 Green Market đã chặn in trên điện thoại. Vui lòng in hóa đơn từ máy tính hoặc máy POS tại quầy thu ngân.');
+    return false;
+  }
+  window.print();
+  return true;
+}
+
+function getStoreSettings(){
+  try{return JSON.parse(localStorage.getItem(KSTORE_SETTINGS) || '{}') || {};}
+  catch(e){return {};}
+}
+
+function saveStoreSettings(settings){
+  localStorage.setItem(KSTORE_SETTINGS, JSON.stringify(settings || {}));
+}
+
+function getPaymentQrData(){
+  return getStoreSettings().paymentQr || '';
+}
+
+function renderPaymentQr(){
+  const panel = document.getElementById('paymentQrPanel');
+  if(panel) panel.classList.toggle('show', paymentMethod === 'qr');
+  const box = document.getElementById('paymentQrImageBox');
+  const empty = document.getElementById('paymentQrEmpty');
+  if(!box) return;
+  const qr = getPaymentQrData();
+  if(qr){
+    box.innerHTML = `<img src="${qr}" alt="QR thanh toán">`;
+    if(empty) empty.style.display = 'none';
+  }else{
+    box.innerHTML = '';
+    if(empty) empty.style.display = 'block';
+  }
+}
+
+function uploadPaymentQr(event){
+  const file = event?.target?.files?.[0];
+  if(!file) return;
+  if(!/^image\//.test(file.type || '')){
+    alert('Vui lòng chọn file hình ảnh QR.');
+    event.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const settings = getStoreSettings();
+    settings.paymentQr = e.target.result;
+    settings.paymentQrUpdatedAt = now();
+    settings.paymentQrUpdatedBy = current?.name || 'Hệ thống';
+    saveStoreSettings(settings);
+    try{ addLog('Cài QR thanh toán', 'Cập nhật ảnh QR thanh toán của cửa hàng'); }catch(err){}
+    try{ save(); }catch(err){}
+    renderPaymentQr();
+    alert('Đã lưu QR thanh toán cho cửa hàng.');
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function clearPaymentQr(){
+  if(!confirm('Xóa ảnh QR thanh toán hiện tại?')) return;
+  const settings = getStoreSettings();
+  delete settings.paymentQr;
+  settings.paymentQrUpdatedAt = now();
+  settings.paymentQrUpdatedBy = current?.name || 'Hệ thống';
+  saveStoreSettings(settings);
+  try{ addLog('Cài QR thanh toán', 'Xóa ảnh QR thanh toán của cửa hàng'); }catch(err){}
+  try{ save(); }catch(err){}
+  renderPaymentQr();
+}
+
+function buildReceiptQrBlock(){
+  const qr = getPaymentQrData();
+  if(qr){
+    return `<div style="text-align:center;margin-top:4px"><img src="${qr}" style="width:76px;height:76px;object-fit:contain;border:2px solid #000;padding:2px"><div>QR thanh toán</div></div>`;
+  }
+  return `<div style="text-align:center;margin-top:4px"><div class="qr"></div><div>QR thanh toán</div></div>`;
 }
 
 function makeBillCode(){
@@ -5635,6 +5838,7 @@ function renderCart(){
     posItemCount.textContent = cart.length + ' dòng';
   }
 
+  renderPaymentQr();
   updatePaymentBox();
 }
 
@@ -5703,9 +5907,9 @@ function updatePaymentBox(){
     }
   }else{
     if(document.getElementById('posCashText')) posCashText.textContent = '-';
-    if(document.getElementById('changeLabel')) changeLabel.textContent = 'Tiền thối lại';
+    if(document.getElementById('changeLabel')) changeLabel.textContent = paymentMethod === 'qr' ? 'Trạng thái QR' : 'Tiền thối lại';
     if(document.getElementById('posChange')){
-      posChange.textContent = '0 VNĐ';
+      posChange.textContent = paymentMethod === 'qr' ? 'Chờ xác nhận' : '0 VNĐ';
       posChange.style.color = '#16a34a';
     }
   }
@@ -5988,7 +6192,7 @@ function initReceiptCopiesSetting(){
   el.value = saved === '2' ? '2' : '1';
 }
 
-document.addEventListener('DOMContentLoaded', initReceiptCopiesSetting);
+document.addEventListener('DOMContentLoaded', () => { initReceiptCopiesSetting(); renderPaymentQr(); });
 
 /* =========================================================
    23. IN HÓA ĐƠN
@@ -6024,10 +6228,7 @@ function printReceipt(total, paymentText = 'Tiền mặt'){
         <span>${money(total)}</span>
       </div>
 
-      <div style="text-align:center;margin-top:4px">
-        <div class="qr"></div>
-        <div>QR thanh toán</div>
-      </div>
+      ${buildReceiptQrBlock()}
 
       <div style="text-align:center; margin-top:6px; font-size:14px; font-style:italic; font-weight:500;">
         Cảm ơn quý khách!<br>
@@ -6041,7 +6242,7 @@ function printReceipt(total, paymentText = 'Tiền mặt'){
   receiptPrint.classList.remove('hidden');
   receiptPrint.classList.add('receipt-sale');
   receiptPrint.innerHTML = buildSaleReceipt(copies === 2 ? 'LIÊN 1 - KHÁCH HÀNG' : '');
-  setTimeout(() => window.print(), 250);
+  setTimeout(() => gmPrint(), 250);
 
   if(copies === 2){
     setTimeout(() => {
@@ -6050,7 +6251,7 @@ function printReceipt(total, paymentText = 'Tiền mặt'){
         receiptPrint.classList.remove('hidden');
         receiptPrint.classList.add('receipt-sale');
         receiptPrint.innerHTML = buildSaleReceipt('LIÊN 2 - LƯU CỬA HÀNG');
-        setTimeout(() => window.print(), 250);
+        setTimeout(() => gmPrint(), 250);
       }
       setTimeout(() => {
         receiptPrint.classList.add('hidden');
@@ -6295,6 +6496,70 @@ async function delStaff(user){
   }
 }
 
+function parseLogDate(value){
+  const s = String(value || '').trim();
+  const m = s.match(/(\\d{1,2})\/(\\d{1,2})\/(\\d{4})/);
+  if(m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function startOfDay(d){return new Date(d.getFullYear(), d.getMonth(), d.getDate());}
+function endOfDay(d){return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);}
+function startOfWeekMonday(d){
+  const x = startOfDay(d);
+  const day = x.getDay() || 7;
+  x.setDate(x.getDate() - day + 1);
+  return x;
+}
+function toInputDateValue(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function getLogRangeDates(){
+  const range = document.getElementById('logRange')?.value || 'week';
+  const today = new Date();
+  let from = null, to = null;
+  if(range === 'today'){
+    from = startOfDay(today); to = endOfDay(today);
+  }else if(range === 'week'){
+    from = startOfWeekMonday(today); to = endOfDay(today);
+  }else if(range === 'month'){
+    from = new Date(today.getFullYear(), today.getMonth(), 1); to = endOfDay(today);
+  }else if(range === 'year'){
+    from = new Date(today.getFullYear(), 0, 1); to = endOfDay(today);
+  }else if(range === 'custom'){
+    const f = document.getElementById('logFromDate')?.value;
+    const t = document.getElementById('logToDate')?.value;
+    from = f ? new Date(f + 'T00:00:00') : null;
+    to = t ? new Date(t + 'T23:59:59') : null;
+  }
+  return {from, to, range};
+}
+
+function initLogActionFilter(){
+  const sel = document.getElementById('logActionFilter');
+  if(!sel) return;
+  const currentValue = sel.value || 'all';
+  const actions = [...new Set((logs || []).map(l => String(l.action || '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
+  sel.innerHTML = '<option value="all">Tất cả</option>' + actions.map(a => `<option value="${escapeHTML(a)}">${escapeHTML(a)}</option>`).join('');
+  sel.value = actions.includes(currentValue) ? currentValue : 'all';
+}
+
+function resetLogFilters(){
+  const range = document.getElementById('logRange');
+  if(range) range.value = 'week';
+  const f = document.getElementById('logFromDate');
+  const t = document.getElementById('logToDate');
+  if(f) f.value = '';
+  if(t) t.value = '';
+  const a = document.getElementById('logActionFilter');
+  if(a) a.value = 'all';
+  const q = document.getElementById('logSearch');
+  if(q) q.value = '';
+  renderLogs();
+}
+
 function renderLogs(){
   if(!['admin','manager'].includes(normalizeRole(current?.role))){
     const el = document.getElementById('logBody');
@@ -6302,7 +6567,36 @@ function renderLogs(){
     return;
   }
   if(!document.getElementById('logBody')) return;
- logBody.innerHTML = logs.map((l, i) => `
+  initLogActionFilter();
+
+  const {from, to, range} = getLogRangeDates();
+  const action = document.getElementById('logActionFilter')?.value || 'all';
+  const q = cleanText(document.getElementById('logSearch')?.value || '').toLowerCase();
+
+  const filtered = (logs || []).filter(l => {
+    const d = parseLogDate(l.time);
+    if(from && d && d < from) return false;
+    if(to && d && d > to) return false;
+    if(action !== 'all' && String(l.action || '') !== action) return false;
+    if(q){
+      const hay = [l.time,l.user,l.role,l.action,l.detail].map(x => String(x || '').toLowerCase()).join(' ');
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const summary = document.getElementById('logSummary');
+  if(summary){
+    const label = {today:'hôm nay', week:'tuần này', month:'tháng này', year:'năm nay', all:'tất cả nhật ký', custom:'khoảng ngày đã chọn'}[range] || 'nhật ký';
+    summary.innerHTML = `Đang hiển thị <b>${filtered.length}</b> / ${logs.length} dòng trong ${label}. Dữ liệu không bị xóa, chỉ lọc để tra cứu gọn hơn.`;
+  }
+
+  if(!filtered.length){
+    logBody.innerHTML = '<tr><td colspan="6">Không có nhật ký phù hợp với bộ lọc hiện tại.</td></tr>';
+    return;
+  }
+
+ logBody.innerHTML = filtered.map((l, i) => `
   <tr>
     <td>${i + 1}</td>
     <td>${escapeHTML(l.time)}</td>
@@ -6336,7 +6630,8 @@ function buildBackupData(){
     moneyList,
     logs,
     importHistory,
-    shifts: (typeof shifts !== 'undefined' && Array.isArray(shifts)) ? shifts : []
+    shifts: (typeof shifts !== 'undefined' && Array.isArray(shifts)) ? shifts : [],
+    storeSettings: getStoreSettings()
   };
 }
 
@@ -6427,6 +6722,7 @@ function applyBackupData(data){
   moneyList = data.moneyList || data.money || [];
   logs = data.logs || [];
   importHistory = data.importHistory || data.imports || [];
+  if(data.storeSettings) saveStoreSettings(data.storeSettings);
 
   if(typeof shifts !== 'undefined'){
     shifts = data.shifts || [];
@@ -10586,7 +10882,7 @@ function printReturnReceiptByIndex(index){
     <div class="receipt-spacer"></div>
   `;
 
-  window.print();
+  gmPrint();
 
   setTimeout(() => {
     receiptPrint.classList.add('hidden');
@@ -10702,10 +10998,7 @@ if(admin){
       <span>${money(b.total)}</span>
     </div>
 
-    <div style="text-align:center;margin-top:9px">
-      <div class="qr"></div>
-      <div>QR thanh toán</div>
-    </div>
+    ${buildReceiptQrBlock()}
 
     <div style="text-align:center; margin-top:6px; font-size:14px; font-style:italic; font-weight:500;">
       Cảm ơn quý khách!<br>
@@ -10715,7 +11008,7 @@ if(admin){
     <div class="receipt-spacer"></div>
   `;
 
-  window.print();
+  gmPrint();
 
   setTimeout(() => {
     receiptPrint.classList.add('hidden');
@@ -12240,7 +12533,8 @@ const CLOUD_KEYS = [
   "v2_logs",
   "v2_import_history",
   "shifts",
-  "green_market_backup_latest"
+  "green_market_backup_latest",
+  "greenmarket_store_settings"
 ];
 
 const originalSetItem = localStorage.setItem.bind(localStorage);
