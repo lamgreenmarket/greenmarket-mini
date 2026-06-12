@@ -2367,36 +2367,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 }
 .payment-qr-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
 .payment-qr-actions button{width:auto;min-width:130px}
-.payment-qr-config{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-  gap:8px;
-  margin:10px 0;
-  text-align:left;
-}
-.payment-qr-config label{
-  font-size:12px!important;
-  margin:4px 0 4px!important;
-  color:#0f4c81;
-}
-.payment-qr-config input,.payment-qr-config select{
-  height:38px!important;
-  padding:7px 10px!important;
-  border-radius:12px!important;
-  font-size:13px!important;
-}
-.payment-qr-info{
-  margin:8px 0 10px;
-  padding:10px 12px;
-  border-radius:14px;
-  background:#fff;
-  border:1px solid #bbf7d0;
-  color:#064e3b;
-  font-weight:800;
-  line-height:1.45;
-  text-align:left;
-}
-.payment-qr-info div{overflow-wrap:anywhere}
 .mobile-print-note{
   display:none;
   margin:10px 0;
@@ -2414,6 +2384,57 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   .mobile-print-note{display:block}
   .print-desktop-only{display:none!important}
 }
+
+
+/* =========================================================
+   QR THANH TOÁN - CẤU HÌNH KÍN TRONG MỤC DỮ LIỆU
+   ========================================================= */
+.qr-settings-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:40000;
+}
+.qr-settings-card{
+  width:min(760px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:white;
+  border-radius:24px;
+  padding:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.25);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.qr-settings-head h3{margin:0;color:#064e3b!important;font-size:22px}
+.qr-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.qr-settings-wide{grid-column:1/-1}
+.qr-settings-preview{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:240px 1fr;
+  gap:14px;
+  align-items:start;
+  padding:14px;
+  border-radius:20px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-image-box img{max-width:220px;max-height:220px;width:100%;object-fit:contain;background:white;border:1px solid #dce3ec;border-radius:16px;padding:8px;margin-top:8px}
+.qr-settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-content:start}
+.qr-settings-actions button{width:auto;min-width:160px}
+.payment-qr-meta{font-weight:900;color:#075985;line-height:1.45;margin-top:8px}
+.payment-qr-amount{font-size:24px;font-weight:900;color:#059669;margin:8px 0 4px}
+@media(max-width:768px){
+  .qr-settings-grid,.qr-settings-preview{grid-template-columns:1fr!important}
+  .qr-settings-actions{flex-direction:column}
+  .qr-settings-actions button{width:100%!important}
+}
+
 </style>
 </head>
 <body>
@@ -2454,6 +2475,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         <button type="button" onclick="downloadBackupToday();closeDataMenu()">💾 Tải backup hôm nay</button>
         <button type="button" onclick="greenMarketBackupFirebaseNow();closeDataMenu()">☁️ Backup Firebase ngay</button>
         <button type="button" onclick="greenMarketRestoreFirebaseBackup();closeDataMenu()">♻️ Khôi phục backup Firebase</button>
+        <button type="button" onclick="openQrSettings();closeDataMenu()">📱 QR thanh toán</button>
         <button type="button" onclick="exportData();closeDataMenu()">📤 Xuất dữ liệu</button>
         <button type="button" onclick="document.getElementById('importFile').click();closeDataMenu()">📥 Nhập dữ liệu</button>
         <button type="button" onclick="document.getElementById('restoreBackupFile').click();closeDataMenu()">♻️ Khôi phục backup</button>
@@ -2461,6 +2483,58 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
     </div>
     <input type="file" id="restoreBackupFile" accept=".json" class="hidden" onchange="restoreBackupFile(event)">
     <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+  </div>
+
+  <div id="qrSettingsModal" class="qr-settings-modal hidden">
+    <div class="qr-settings-card">
+      <div class="qr-settings-head">
+        <h3>📱 QR thanh toán</h3>
+        <button type="button" class="btn-gray" onclick="closeQrSettings()">Đóng</button>
+      </div>
+      <div class="qr-settings-grid">
+        <div>
+          <label>Ngân hàng / Ví</label>
+          <select id="qrBankType">
+            <option value="Vietcombank">Vietcombank</option>
+            <option value="BIDV">BIDV</option>
+            <option value="Agribank">Agribank</option>
+            <option value="MB Bank">MB Bank</option>
+            <option value="ACB">ACB</option>
+            <option value="ZaloPay QR">ZaloPay QR</option>
+            <option value="Khác">Khác</option>
+          </select>
+        </div>
+        <div>
+          <label>Tên hiển thị</label>
+          <input id="qrDisplayName" placeholder="Ví dụ: Green Market">
+        </div>
+        <div>
+          <label>Chủ tài khoản</label>
+          <input id="qrAccountName" placeholder="Tên chủ tài khoản">
+        </div>
+        <div>
+          <label>Số tài khoản / Số ví</label>
+          <input id="qrAccountNumber" placeholder="Số tài khoản hoặc số ví">
+        </div>
+        <div class="qr-settings-wide">
+          <label>Ghi chú</label>
+          <input id="qrPaymentNoteInput" placeholder="Quét mã để thanh toán">
+        </div>
+      </div>
+      <div class="qr-settings-preview">
+        <div>
+          <b>Ảnh QR hiện tại</b>
+          <div id="qrSettingsImageBox" class="qr-settings-image-box"></div>
+          <div id="qrSettingsEmpty" class="muted">Chưa có ảnh QR</div>
+        </div>
+        <div class="qr-settings-actions">
+          <button type="button" class="btn-blue" onclick="document.getElementById('qrSettingsFile').click()">Chọn ảnh QR</button>
+          <button type="button" class="btn-green" onclick="saveQrSettings()">Lưu QR thanh toán</button>
+          <button type="button" class="btn-gray" onclick="clearPaymentQr()">Xóa QR</button>
+          <input id="qrSettingsFile" class="hidden" type="file" accept="image/*" onchange="uploadPaymentQr(event)">
+        </div>
+      </div>
+    </div>
   </div>
 <!-- =========================================================
      11. HTML TRANG CHỦ
@@ -2657,47 +2731,12 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
         </div>
         <div id="paymentStatus" class="pos-status">💵 Đang chọn thanh toán tiền mặt. Hệ thống sẽ tính tiền thối lại.</div>
         <div id="paymentQrPanel" class="payment-qr-panel">
-          <b>📱 QR thanh toán của cửa hàng</b>
-          <div class="payment-qr-config">
-            <div>
-              <label>Ngân hàng / ví</label>
-              <select id="paymentQrBank" onchange="savePaymentQrInfo(false)">
-                <option value="Vietcombank">Vietcombank</option>
-                <option value="BIDV">BIDV</option>
-                <option value="Agribank">Agribank</option>
-                <option value="MB Bank">MB Bank</option>
-                <option value="ACB">ACB</option>
-                <option value="ZaloPay QR">ZaloPay QR</option>
-                <option value="Khác">Khác</option>
-              </select>
-            </div>
-            <div>
-              <label>Tên hiển thị</label>
-              <input id="paymentQrLabel" placeholder="VD: Tài khoản Green Market" onblur="savePaymentQrInfo(false)">
-            </div>
-            <div>
-              <label>Chủ tài khoản</label>
-              <input id="paymentQrOwner" placeholder="VD: NGUYEN THANH LAM" onblur="savePaymentQrInfo(false)">
-            </div>
-            <div>
-              <label>Số tài khoản / số ví</label>
-              <input id="paymentQrAccount" placeholder="Nhập số tài khoản" onblur="savePaymentQrInfo(false)">
-            </div>
-            <div style="grid-column:1/-1">
-              <label>Ghi chú hiển thị</label>
-              <input id="paymentQrNote" placeholder="Quét mã để thanh toán" onblur="savePaymentQrInfo(false)">
-            </div>
-          </div>
-          <div id="paymentQrInfo" class="payment-qr-info"></div>
+          <b>📱 QR thanh toán</b>
+          <div id="paymentQrMeta" class="payment-qr-meta"></div>
+          <div id="paymentQrAmount" class="payment-qr-amount">0 VNĐ</div>
           <div id="paymentQrImageBox" style="margin-top:8px"></div>
-          <div id="paymentQrEmpty" class="muted" style="margin-top:8px">Chưa cài ảnh QR. Admin/Quản lý chọn ngân hàng/ví, nhập thông tin rồi tải ảnh QR của cửa hàng lên.</div>
-          <div class="payment-qr-actions">
-            <button class="btn-blue" type="button" onclick="document.getElementById('paymentQrFile').click()">Tải ảnh QR</button>
-            <button class="btn-green" type="button" onclick="savePaymentQrInfo(true)">Lưu thông tin QR</button>
-            <button class="btn-gray" type="button" onclick="clearPaymentQr()">Xóa QR</button>
-          </div>
-          <input id="paymentQrFile" class="hidden" type="file" accept="image/*" onchange="uploadPaymentQr(event)">
-          <div class="muted" style="font-size:13px;margin-top:8px">Khách quét QR xong, thu ngân kiểm tra tiền vào tài khoản rồi mới hoàn tất hóa đơn.</div>
+          <div id="paymentQrEmpty" class="muted" style="margin-top:8px">Chưa cài QR thanh toán. Vào Dữ liệu → QR thanh toán để cài ảnh QR của cửa hàng.</div>
+          <div id="paymentQrNote" class="muted" style="font-size:13px;margin-top:8px">Khách quét QR xong, thu ngân kiểm tra tiền vào tài khoản rồi mới hoàn tất hóa đơn.</div>
         </div>
         <div class="mobile-print-note">📵 Điện thoại chỉ dùng để xem/quản lý. In hóa đơn vui lòng thực hiện trên máy tính hoặc máy POS tại quầy.</div>
         <div class="pos-pay-row"><span>Tổng hóa đơn</span><span id="posPayTotal">0 VNĐ</span></div>
@@ -3278,81 +3317,85 @@ function getPaymentQrData(){
   return getStoreSettings().paymentQr || '';
 }
 
-function getPaymentQrInfo(){
-  const settings = getStoreSettings();
-  return {
-    bank: settings.paymentQrBank || 'Vietcombank',
-    label: settings.paymentQrLabel || 'QR thanh toán Green Market',
-    owner: settings.paymentQrOwner || '',
-    account: settings.paymentQrAccount || '',
-    note: settings.paymentQrNote || 'Quét mã để thanh toán'
-  };
-}
-
-function setFieldValue(id, value){
-  const el = document.getElementById(id);
-  if(el && el.value !== String(value || '')) el.value = value || '';
-}
-
-function loadPaymentQrFields(){
-  const info = getPaymentQrInfo();
-  setFieldValue('paymentQrBank', info.bank);
-  setFieldValue('paymentQrLabel', info.label);
-  setFieldValue('paymentQrOwner', info.owner);
-  setFieldValue('paymentQrAccount', info.account);
-  setFieldValue('paymentQrNote', info.note);
-}
-
-function savePaymentQrInfo(showAlert = false){
-  const settings = getStoreSettings();
-  settings.paymentQrBank = document.getElementById('paymentQrBank')?.value || settings.paymentQrBank || 'Vietcombank';
-  settings.paymentQrLabel = document.getElementById('paymentQrLabel')?.value || settings.paymentQrLabel || 'QR thanh toán Green Market';
-  settings.paymentQrOwner = document.getElementById('paymentQrOwner')?.value || settings.paymentQrOwner || '';
-  settings.paymentQrAccount = document.getElementById('paymentQrAccount')?.value || settings.paymentQrAccount || '';
-  settings.paymentQrNote = document.getElementById('paymentQrNote')?.value || settings.paymentQrNote || 'Quét mã để thanh toán';
-  settings.paymentQrInfoUpdatedAt = now();
-  settings.paymentQrInfoUpdatedBy = current?.name || 'Hệ thống';
-  saveStoreSettings(settings);
-  try{ save(); }catch(err){}
-  renderPaymentQr();
-  if(showAlert){
-    try{ addLog('Cài QR thanh toán', `Lưu thông tin QR: ${settings.paymentQrBank || ''} - ${settings.paymentQrOwner || ''}`); }catch(err){}
-    alert('Đã lưu thông tin QR thanh toán.');
-  }
-}
-
 function renderPaymentQr(){
   const panel = document.getElementById('paymentQrPanel');
   if(panel) panel.classList.toggle('show', paymentMethod === 'qr');
-  loadPaymentQrFields();
-
   const box = document.getElementById('paymentQrImageBox');
   const empty = document.getElementById('paymentQrEmpty');
-  const infoBox = document.getElementById('paymentQrInfo');
-  const total = (typeof getCartTotal === 'function') ? getCartTotal() : 0;
-  const info = getPaymentQrInfo();
+  const meta = document.getElementById('paymentQrMeta');
+  const amount = document.getElementById('paymentQrAmount');
+  const note = document.getElementById('paymentQrNote');
+  const settings = getStoreSettings();
+  const qr = settings.paymentQr || '';
 
-  if(infoBox){
-    const parts = [];
-    parts.push(`<div><b>${escapeHTML(info.label)}</b></div>`);
-    parts.push(`<div>Ngân hàng/Ví: ${escapeHTML(info.bank)}</div>`);
-    if(info.owner) parts.push(`<div>Chủ TK: ${escapeHTML(info.owner)}</div>`);
-    if(info.account) parts.push(`<div>Số TK/Ví: ${escapeHTML(info.account)}</div>`);
-    parts.push(`<div>Số tiền: <b>${money(total)}</b></div>`);
-    parts.push(`<div>Nội dung: Mã hóa đơn sẽ ghi trên phiếu sau khi thanh toán</div>`);
-    if(info.note) parts.push(`<div>${escapeHTML(info.note)}</div>`);
-    infoBox.innerHTML = parts.join('');
+  if(amount) amount.textContent = money(getCartTotal ? getCartTotal() : 0);
+  if(meta){
+    const lines = [];
+    if(settings.qrBankType) lines.push(settings.qrBankType);
+    if(settings.qrDisplayName) lines.push(settings.qrDisplayName);
+    if(settings.qrAccountName) lines.push('Chủ TK: ' + settings.qrAccountName);
+    if(settings.qrAccountNumber) lines.push('STK/Ví: ' + settings.qrAccountNumber);
+    meta.innerHTML = lines.map(escapeHTML).join('<br>');
+  }
+  if(note) note.textContent = settings.qrNote || 'Khách quét QR xong, thu ngân kiểm tra tiền vào tài khoản rồi mới hoàn tất hóa đơn.';
+
+  if(box){
+    if(qr){
+      box.innerHTML = `<img src="${qr}" alt="QR thanh toán">`;
+      if(empty) empty.style.display = 'none';
+    }else{
+      box.innerHTML = '';
+      if(empty) empty.style.display = 'block';
+    }
   }
 
-  if(!box) return;
-  const qr = getPaymentQrData();
-  if(qr){
-    box.innerHTML = `<img src="${qr}" alt="QR thanh toán">`;
-    if(empty) empty.style.display = 'none';
-  }else{
-    box.innerHTML = '';
-    if(empty) empty.style.display = 'block';
+  const settingsBox = document.getElementById('qrSettingsImageBox');
+  const settingsEmpty = document.getElementById('qrSettingsEmpty');
+  if(settingsBox){
+    if(qr){
+      settingsBox.innerHTML = `<img src="${qr}" alt="QR thanh toán">`;
+      if(settingsEmpty) settingsEmpty.style.display = 'none';
+    }else{
+      settingsBox.innerHTML = '';
+      if(settingsEmpty) settingsEmpty.style.display = 'block';
+    }
   }
+}
+
+function openQrSettings(){
+  if(current && !['admin','manager'].includes(current.role)){
+    alert('Chỉ Admin hoặc Quản lý được cài QR thanh toán.');
+    return;
+  }
+  const settings = getStoreSettings();
+  const modal = document.getElementById('qrSettingsModal');
+  if(document.getElementById('qrBankType')) qrBankType.value = settings.qrBankType || 'Vietcombank';
+  if(document.getElementById('qrDisplayName')) qrDisplayName.value = settings.qrDisplayName || 'Green Market';
+  if(document.getElementById('qrAccountName')) qrAccountName.value = settings.qrAccountName || '';
+  if(document.getElementById('qrAccountNumber')) qrAccountNumber.value = settings.qrAccountNumber || '';
+  if(document.getElementById('qrPaymentNoteInput')) qrPaymentNoteInput.value = settings.qrNote || 'Quét mã để thanh toán';
+  renderPaymentQr();
+  modal?.classList.remove('hidden');
+}
+
+function closeQrSettings(){
+  document.getElementById('qrSettingsModal')?.classList.add('hidden');
+}
+
+function saveQrSettings(){
+  const settings = getStoreSettings();
+  settings.qrBankType = document.getElementById('qrBankType')?.value || 'Khác';
+  settings.qrDisplayName = document.getElementById('qrDisplayName')?.value || '';
+  settings.qrAccountName = document.getElementById('qrAccountName')?.value || '';
+  settings.qrAccountNumber = document.getElementById('qrAccountNumber')?.value || '';
+  settings.qrNote = document.getElementById('qrPaymentNoteInput')?.value || 'Quét mã để thanh toán';
+  settings.paymentQrUpdatedAt = now();
+  settings.paymentQrUpdatedBy = current?.name || 'Hệ thống';
+  saveStoreSettings(settings);
+  try{ addLog('Cài QR thanh toán', `Cập nhật thông tin QR: ${settings.qrBankType || ''} - ${settings.qrAccountName || ''}`); }catch(err){}
+  try{ save(); }catch(err){}
+  renderPaymentQr();
+  alert('Đã lưu cấu hình QR thanh toán.');
 }
 
 function uploadPaymentQr(event){
@@ -3363,7 +3406,6 @@ function uploadPaymentQr(event){
     event.target.value = '';
     return;
   }
-  savePaymentQrInfo(false);
   const reader = new FileReader();
   reader.onload = e => {
     const settings = getStoreSettings();
@@ -3371,17 +3413,17 @@ function uploadPaymentQr(event){
     settings.paymentQrUpdatedAt = now();
     settings.paymentQrUpdatedBy = current?.name || 'Hệ thống';
     saveStoreSettings(settings);
-    try{ addLog('Cài QR thanh toán', `Cập nhật ảnh QR thanh toán: ${settings.paymentQrBank || ''} - ${settings.paymentQrOwner || ''}`); }catch(err){}
+    try{ addLog('Cài QR thanh toán', 'Cập nhật ảnh QR thanh toán của cửa hàng'); }catch(err){}
     try{ save(); }catch(err){}
     renderPaymentQr();
-    alert('Đã lưu QR thanh toán cho cửa hàng.');
+    alert('Đã lưu ảnh QR thanh toán cho cửa hàng.');
   };
   reader.readAsDataURL(file);
   event.target.value = '';
 }
 
 function clearPaymentQr(){
-  if(!confirm('Xóa ảnh QR thanh toán hiện tại? Thông tin ngân hàng/ví vẫn được giữ lại.')) return;
+  if(!confirm('Xóa ảnh QR thanh toán hiện tại?')) return;
   const settings = getStoreSettings();
   delete settings.paymentQr;
   settings.paymentQrUpdatedAt = now();
@@ -3394,12 +3436,10 @@ function clearPaymentQr(){
 
 function buildReceiptQrBlock(){
   const qr = getPaymentQrData();
-  const info = getPaymentQrInfo();
-  const meta = `${escapeHTML(info.bank || '')}${info.account ? ' - ' + escapeHTML(info.account) : ''}`;
   if(qr){
-    return `<div style="text-align:center;margin-top:4px"><img src="${qr}" style="width:76px;height:76px;object-fit:contain;border:2px solid #000;padding:2px"><div>QR thanh toán</div><div style="font-size:10.5px;line-height:1.15">${meta}</div></div>`;
+    return `<div style="text-align:center;margin-top:4px"><img src="${qr}" style="width:76px;height:76px;object-fit:contain;border:2px solid #000;padding:2px"><div>QR thanh toán</div></div>`;
   }
-  return `<div style="text-align:center;margin-top:4px"><div class="qr"></div><div>QR thanh toán</div><div style="font-size:10.5px;line-height:1.15">${meta}</div></div>`;
+  return `<div style="text-align:center;margin-top:4px"><div class="qr"></div><div>QR thanh toán</div></div>`;
 }
 
 function makeBillCode(){
@@ -4946,6 +4986,57 @@ function printBarcodeA4(){
 }
 
 
+
+
+/* =========================================================
+   QR THANH TOÁN - CẤU HÌNH KÍN TRONG MỤC DỮ LIỆU
+   ========================================================= */
+.qr-settings-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:40000;
+}
+.qr-settings-card{
+  width:min(760px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:white;
+  border-radius:24px;
+  padding:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.25);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.qr-settings-head h3{margin:0;color:#064e3b!important;font-size:22px}
+.qr-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.qr-settings-wide{grid-column:1/-1}
+.qr-settings-preview{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:240px 1fr;
+  gap:14px;
+  align-items:start;
+  padding:14px;
+  border-radius:20px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-image-box img{max-width:220px;max-height:220px;width:100%;object-fit:contain;background:white;border:1px solid #dce3ec;border-radius:16px;padding:8px;margin-top:8px}
+.qr-settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-content:start}
+.qr-settings-actions button{width:auto;min-width:160px}
+.payment-qr-meta{font-weight:900;color:#075985;line-height:1.45;margin-top:8px}
+.payment-qr-amount{font-size:24px;font-weight:900;color:#059669;margin:8px 0 4px}
+@media(max-width:768px){
+  .qr-settings-grid,.qr-settings-preview{grid-template-columns:1fr!important}
+  .qr-settings-actions{flex-direction:column}
+  .qr-settings-actions button{width:100%!important}
+}
+
 </style>
 </head>
 <body>
@@ -5407,6 +5498,57 @@ tbody tr:hover td{background:#f8fffb!important}
   .profit-real-metric strong{font-size:21px!important}
 }
 
+
+
+
+/* =========================================================
+   QR THANH TOÁN - CẤU HÌNH KÍN TRONG MỤC DỮ LIỆU
+   ========================================================= */
+.qr-settings-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:40000;
+}
+.qr-settings-card{
+  width:min(760px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:white;
+  border-radius:24px;
+  padding:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.25);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.qr-settings-head h3{margin:0;color:#064e3b!important;font-size:22px}
+.qr-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.qr-settings-wide{grid-column:1/-1}
+.qr-settings-preview{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:240px 1fr;
+  gap:14px;
+  align-items:start;
+  padding:14px;
+  border-radius:20px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-image-box img{max-width:220px;max-height:220px;width:100%;object-fit:contain;background:white;border:1px solid #dce3ec;border-radius:16px;padding:8px;margin-top:8px}
+.qr-settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-content:start}
+.qr-settings-actions button{width:auto;min-width:160px}
+.payment-qr-meta{font-weight:900;color:#075985;line-height:1.45;margin-top:8px}
+.payment-qr-amount{font-size:24px;font-weight:900;color:#059669;margin:8px 0 4px}
+@media(max-width:768px){
+  .qr-settings-grid,.qr-settings-preview{grid-template-columns:1fr!important}
+  .qr-settings-actions{flex-direction:column}
+  .qr-settings-actions button{width:100%!important}
+}
 
 </style>
 
@@ -6128,7 +6270,6 @@ function setPaymentMethod(method){
   }
 
   updatePaymentBox();
-  renderPaymentQr();
 }
 
 function getPaymentText(){
@@ -6160,7 +6301,6 @@ function updatePaymentBox(){
       posChange.style.color = '#16a34a';
     }
   }
-  renderPaymentQr();
 }
 
 function findProductByKeyword(keyword){
@@ -8452,6 +8592,57 @@ function buildImportReceiptPrintHtml(data){
 }
 
 
+
+
+/* =========================================================
+   QR THANH TOÁN - CẤU HÌNH KÍN TRONG MỤC DỮ LIỆU
+   ========================================================= */
+.qr-settings-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:40000;
+}
+.qr-settings-card{
+  width:min(760px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:white;
+  border-radius:24px;
+  padding:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.25);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.qr-settings-head h3{margin:0;color:#064e3b!important;font-size:22px}
+.qr-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.qr-settings-wide{grid-column:1/-1}
+.qr-settings-preview{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:240px 1fr;
+  gap:14px;
+  align-items:start;
+  padding:14px;
+  border-radius:20px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-image-box img{max-width:220px;max-height:220px;width:100%;object-fit:contain;background:white;border:1px solid #dce3ec;border-radius:16px;padding:8px;margin-top:8px}
+.qr-settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-content:start}
+.qr-settings-actions button{width:auto;min-width:160px}
+.payment-qr-meta{font-weight:900;color:#075985;line-height:1.45;margin-top:8px}
+.payment-qr-amount{font-size:24px;font-weight:900;color:#059669;margin:8px 0 4px}
+@media(max-width:768px){
+  .qr-settings-grid,.qr-settings-preview{grid-template-columns:1fr!important}
+  .qr-settings-actions{flex-direction:column}
+  .qr-settings-actions button{width:100%!important}
+}
+
 </style>
 </head>
 <body>
@@ -8928,6 +9119,57 @@ tbody tr:hover td{background:#f8fffb!important}
 }
 
 
+
+
+/* =========================================================
+   QR THANH TOÁN - CẤU HÌNH KÍN TRONG MỤC DỮ LIỆU
+   ========================================================= */
+.qr-settings-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:40000;
+}
+.qr-settings-card{
+  width:min(760px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:white;
+  border-radius:24px;
+  padding:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.25);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.qr-settings-head h3{margin:0;color:#064e3b!important;font-size:22px}
+.qr-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.qr-settings-wide{grid-column:1/-1}
+.qr-settings-preview{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:240px 1fr;
+  gap:14px;
+  align-items:start;
+  padding:14px;
+  border-radius:20px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-image-box img{max-width:220px;max-height:220px;width:100%;object-fit:contain;background:white;border:1px solid #dce3ec;border-radius:16px;padding:8px;margin-top:8px}
+.qr-settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-content:start}
+.qr-settings-actions button{width:auto;min-width:160px}
+.payment-qr-meta{font-weight:900;color:#075985;line-height:1.45;margin-top:8px}
+.payment-qr-amount{font-size:24px;font-weight:900;color:#059669;margin:8px 0 4px}
+@media(max-width:768px){
+  .qr-settings-grid,.qr-settings-preview{grid-template-columns:1fr!important}
+  .qr-settings-actions{flex-direction:column}
+  .qr-settings-actions button{width:100%!important}
+}
+
 </style>
 
 </body>
@@ -9379,6 +9621,57 @@ function buildDailyImportReportPrintHtml(selected, list){
   .profit-real-metric strong{font-size:21px!important}
 }
 
+
+
+
+/* =========================================================
+   QR THANH TOÁN - CẤU HÌNH KÍN TRONG MỤC DỮ LIỆU
+   ========================================================= */
+.qr-settings-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:40000;
+}
+.qr-settings-card{
+  width:min(760px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:white;
+  border-radius:24px;
+  padding:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.25);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.qr-settings-head h3{margin:0;color:#064e3b!important;font-size:22px}
+.qr-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.qr-settings-wide{grid-column:1/-1}
+.qr-settings-preview{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:240px 1fr;
+  gap:14px;
+  align-items:start;
+  padding:14px;
+  border-radius:20px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-image-box img{max-width:220px;max-height:220px;width:100%;object-fit:contain;background:white;border:1px solid #dce3ec;border-radius:16px;padding:8px;margin-top:8px}
+.qr-settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-content:start}
+.qr-settings-actions button{width:auto;min-width:160px}
+.payment-qr-meta{font-weight:900;color:#075985;line-height:1.45;margin-top:8px}
+.payment-qr-amount{font-size:24px;font-weight:900;color:#059669;margin:8px 0 4px}
+@media(max-width:768px){
+  .qr-settings-grid,.qr-settings-preview{grid-template-columns:1fr!important}
+  .qr-settings-actions{flex-direction:column}
+  .qr-settings-actions button{width:100%!important}
+}
 
 </style>
 </head>
@@ -9854,6 +10147,57 @@ tbody tr:hover td{background:#f8fffb!important}
   .profit-real-metric strong{font-size:21px!important}
 }
 
+
+
+
+/* =========================================================
+   QR THANH TOÁN - CẤU HÌNH KÍN TRONG MỤC DỮ LIỆU
+   ========================================================= */
+.qr-settings-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:40000;
+}
+.qr-settings-card{
+  width:min(760px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:white;
+  border-radius:24px;
+  padding:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.25);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.qr-settings-head h3{margin:0;color:#064e3b!important;font-size:22px}
+.qr-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.qr-settings-wide{grid-column:1/-1}
+.qr-settings-preview{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:240px 1fr;
+  gap:14px;
+  align-items:start;
+  padding:14px;
+  border-radius:20px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-image-box img{max-width:220px;max-height:220px;width:100%;object-fit:contain;background:white;border:1px solid #dce3ec;border-radius:16px;padding:8px;margin-top:8px}
+.qr-settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-content:start}
+.qr-settings-actions button{width:auto;min-width:160px}
+.payment-qr-meta{font-weight:900;color:#075985;line-height:1.45;margin-top:8px}
+.payment-qr-amount{font-size:24px;font-weight:900;color:#059669;margin:8px 0 4px}
+@media(max-width:768px){
+  .qr-settings-grid,.qr-settings-preview{grid-template-columns:1fr!important}
+  .qr-settings-actions{flex-direction:column}
+  .qr-settings-actions button{width:100%!important}
+}
 
 </style>
 
@@ -11815,7 +12159,6 @@ function renderAll(){
   renderImportTrace();
   renderPosProducts();
   updatePaymentBox();
-  renderPaymentQr();
 
   
 
@@ -12853,6 +13196,57 @@ tbody tr:hover td{background:#f8fffb!important}
   .profit-real-metric strong{font-size:21px!important}
 }
 
+
+
+
+/* =========================================================
+   QR THANH TOÁN - CẤU HÌNH KÍN TRONG MỤC DỮ LIỆU
+   ========================================================= */
+.qr-settings-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:40000;
+}
+.qr-settings-card{
+  width:min(760px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:white;
+  border-radius:24px;
+  padding:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.25);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.qr-settings-head h3{margin:0;color:#064e3b!important;font-size:22px}
+.qr-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.qr-settings-wide{grid-column:1/-1}
+.qr-settings-preview{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:240px 1fr;
+  gap:14px;
+  align-items:start;
+  padding:14px;
+  border-radius:20px;
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1px solid rgba(14,165,233,.16);
+}
+.qr-settings-image-box img{max-width:220px;max-height:220px;width:100%;object-fit:contain;background:white;border:1px solid #dce3ec;border-radius:16px;padding:8px;margin-top:8px}
+.qr-settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-content:start}
+.qr-settings-actions button{width:auto;min-width:160px}
+.payment-qr-meta{font-weight:900;color:#075985;line-height:1.45;margin-top:8px}
+.payment-qr-amount{font-size:24px;font-weight:900;color:#059669;margin:8px 0 4px}
+@media(max-width:768px){
+  .qr-settings-grid,.qr-settings-preview{grid-template-columns:1fr!important}
+  .qr-settings-actions{flex-direction:column}
+  .qr-settings-actions button{width:100%!important}
+}
 
 </style>
 
