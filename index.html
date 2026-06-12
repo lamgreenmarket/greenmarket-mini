@@ -3325,11 +3325,20 @@ function isMobileDevice(){
   return window.matchMedia('(max-width: 768px)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
 }
 
-function gmPrint(){
+function showMobilePrintBlocked(actionLabel = 'in'){
+  alert(`📵 Chức năng ${actionLabel} chỉ sử dụng trên máy tính hoặc máy POS tại quầy thu ngân.\n\nĐiện thoại chỉ dùng để xem, quản lý và tra cứu.`);
+}
+
+function ensureDesktopPrint(actionLabel = 'in'){
   if(isMobileDevice()){
-    alert('📵 Green Market đã chặn in trên điện thoại. Vui lòng in hóa đơn từ máy tính hoặc máy POS tại quầy thu ngân.');
+    showMobilePrintBlocked(actionLabel);
     return false;
   }
+  return true;
+}
+
+function gmPrint(){
+  if(!ensureDesktopPrint('in hóa đơn')) return false;
   window.print();
   return true;
 }
@@ -4652,6 +4661,7 @@ function generateBarcodeLabels(){
 }
 
 function printBarcodeA4(){
+  if(!ensureDesktopPrint('in tem mã vạch A4')) return;
   generateBarcodeLabels();
 
   const area = document.getElementById('barcodePrintArea');
@@ -9207,6 +9217,7 @@ tbody tr:hover td{background:#f8fffb!important}
 }
 
 function openImportReceiptPrintWindow(data){
+  if(!ensureDesktopPrint('in phiếu nhập kho')) return false;
   if(!data.lines || !data.lines.length){
     alert('Phiếu chưa có dòng hàng để in');
     return false;
@@ -10667,6 +10678,7 @@ function exportAccountingExcel(){
 
 function printDailyImportReport(){
   if(!requireAdmin('in báo cáo nhập kho')) return;
+  if(!ensureDesktopPrint('in báo cáo nhập kho')) return;
   const {selected, list} = getDailyImportReportList();
   if(!list.length){
     alert('Ngày này chưa có dữ liệu nhập kho để in báo cáo');
@@ -11563,6 +11575,7 @@ function resetBillDetailForNewSession(){
 
 
 function printReturnReceiptByIndex(index){
+  if(!ensureDesktopPrint('in phiếu trả hàng')) return;
   const b = bills[index];
   if(!b){
     alert('Không tìm thấy hóa đơn để in phiếu trả hàng');
@@ -11651,6 +11664,7 @@ function printReturnReceiptByIndex(index){
 }
 
 function printBillReceiptByIndex(index){
+  if(!ensureDesktopPrint('in lại hóa đơn')) return;
   const b = bills[index];
   if(!b){
     alert('Không tìm thấy hóa đơn để in lại');
