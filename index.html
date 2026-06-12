@@ -3327,12 +3327,12 @@ function ensureDesktopPrint(actionLabel = 'in'){
 }
 
 /* =========================================================
-   QZ TRAY - IN THẲNG MÁY IN NHIỆT XPRINTER, KHÔNG PREVIEW
+    QZ TRAY - IN THẲNG MÁY IN NHIỆT XP-58 (COPY 4), KHÔNG PREVIEW
    - Chỉ áp dụng cho phiếu 58mm trong #receiptPrint.
-   - Nếu QZ Tray chưa chạy / chưa cấp quyền: tự chuyển về window.print() để không mất in.
+   - Nếu QZ Tray chưa chạy / chưa cấp quyền: tự chuyển về window.print().
    - Máy in A4/tem mã vạch vẫn dùng cơ chế in cũ.
    ========================================================= */
-const QZ_THERMAL_PRINTER_NAME = 'Xprinter (Printer001)';
+const QZ_THERMAL_PRINTER_NAME = 'XP-58 (copy 4)';
 let qzReadyPromise = null;
 let qzPrinterNameCached = '';
 
