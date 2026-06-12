@@ -2297,6 +2297,37 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   font-size:15px!important;
   padding:13px 14px!important;
 }
+.log-day-toggle{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  cursor:pointer;
+  user-select:none;
+}
+.log-day-title{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.log-day-count{
+  color:#0f4c81;
+  font-size:13px;
+  white-space:nowrap;
+}
+.log-day-arrow{
+  display:inline-block;
+  width:22px;
+  height:22px;
+  line-height:22px;
+  text-align:center;
+  border-radius:999px;
+  background:#ffffffbb;
+  color:#047857;
+  box-shadow:0 2px 8px rgba(15,76,129,.10);
+}
+.log-row-collapsed{display:none!important;}
 .log-action-badge{
   display:inline-flex;
   align-items:center;
@@ -6675,6 +6706,7 @@ function resetLogFilters(){
 function setLogRangeQuick(rangeValue){
   const range = document.getElementById('logRange');
   if(range) range.value = rangeValue || 'week';
+  collapsedLogDays = {};
   renderLogs();
 }
 
@@ -6743,6 +6775,17 @@ function getLogIcon(action){
   return '📌';
 }
 
+let collapsedLogDays = {};
+
+function toggleLogDay(dayKey){
+  collapsedLogDays[dayKey] = !collapsedLogDays[dayKey];
+  document.querySelectorAll(`[data-log-day-row="${dayKey}"]`).forEach(row => {
+    row.classList.toggle('log-row-collapsed', !!collapsedLogDays[dayKey]);
+  });
+  const arrow = document.querySelector(`[data-log-day-arrow="${dayKey}"]`);
+  if(arrow) arrow.textContent = collapsedLogDays[dayKey] ? '▶' : '▼';
+}
+
 function renderLogs(){
   if(!['admin','manager'].includes(normalizeRole(current?.role))){
     const el = document.getElementById('logBody');
@@ -6781,6 +6824,14 @@ function renderLogs(){
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   },{});
+
+  const dayOrder = [];
+  filtered.forEach(l => {
+    const key = getLogDayKey(l);
+    if(!dayOrder.includes(key)) dayOrder.push(key);
+  });
+  const newestDayKey = dayOrder[0] || '';
+
   let lastDay = '';
   let stt = 0;
   const rows = [];
@@ -6788,13 +6839,28 @@ function renderLogs(){
     const d = parseLogDate(l.time);
     const dayKey = getLogDayKey(l);
     if(dayKey !== lastDay){
-      rows.push(`<tr class="log-day-row"><td colspan="6">▼ ${escapeHTML(formatLogDayLabel(d))} <span style="color:#0f4c81">(${dayCounts[dayKey]} hoạt động)</span></td></tr>`);
+      if(collapsedLogDays[dayKey] === undefined){
+        collapsedLogDays[dayKey] = dayKey !== newestDayKey;
+      }
+      const isCollapsed = !!collapsedLogDays[dayKey];
+      const arrow = isCollapsed ? '▶' : '▼';
+      rows.push(`
+        <tr class="log-day-row">
+          <td colspan="6">
+            <div class="log-day-toggle" onclick="toggleLogDay('${escapeHTML(dayKey)}')" title="Bấm để thu gọn / mở rộng">
+              <span class="log-day-title"><span class="log-day-arrow" data-log-day-arrow="${escapeHTML(dayKey)}">${arrow}</span> ${escapeHTML(formatLogDayLabel(d))}</span>
+              <span class="log-day-count">${dayCounts[dayKey]} hoạt động</span>
+            </div>
+          </td>
+        </tr>
+      `);
       lastDay = dayKey;
     }
     stt++;
     const badgeClass = getLogBadgeClass(l.action);
+    const collapsedClass = collapsedLogDays[dayKey] ? 'log-row-collapsed' : '';
     rows.push(`
-      <tr>
+      <tr class="${collapsedClass}" data-log-day-row="${escapeHTML(dayKey)}">
         <td>${stt}</td>
         <td>${escapeHTML(l.time)}</td>
         <td>${escapeHTML(l.user)}</td>
