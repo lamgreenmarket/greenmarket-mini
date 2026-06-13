@@ -11937,19 +11937,19 @@ function printReturnReceiptByIndex(index){
     <div class="receipt-line"></div>
     <div class="receipt-return-money-block">
       <div class="receipt-return-money-row">
-        <div class="receipt-return-money-label">TỔNG GỐC:</div>
+        <div class="receipt-return-money-label">- TỔNG GỐC:</div>
         <div class="receipt-return-money-value">${money(getBillOriginalTotal(b))}</div>
       </div>
       <div class="receipt-return-money-row">
-        <div class="receipt-return-money-label">HOÀN LẦN NÀY:</div>
+        <div class="receipt-return-money-label">- HOÀN LẦN NÀY:</div>
         <div class="receipt-return-money-value">${money(returnAmount)}</div>
       </div>
       <div class="receipt-return-money-row">
-        <div class="receipt-return-money-label">ĐÃ HOÀN:</div>
+        <div class="receipt-return-money-label">- ĐÃ HOÀN:</div>
         <div class="receipt-return-money-value">${money(getBillReturnedAmount(b))}</div>
       </div>
       <div class="receipt-return-money-row receipt-return-money-row-final">
-        <div class="receipt-return-money-label">DOANH THU SAU TRẢ:</div>
+        <div class="receipt-return-money-label">- DOANH THU SAU TRẢ:</div>
         <div class="receipt-return-money-value">${money(b.total)}</div>
       </div>
     </div>
