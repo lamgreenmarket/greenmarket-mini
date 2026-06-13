@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Green Market POS - Quản lý đơn giản, bán hàng hiệu quả</title>
+<title>Green Market POS - Quản lý đơn giản - Bán hàng hiệu quả</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2716%27%20fill%3D%27%2523059669%27/%3E%3Ctext%20x%3D%2732%27%20y%3D%2742%27%20text-anchor%3D%27middle%27%20font-size%3D%2734%27%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E">
 <!-- Bản phân quyền an toàn: Kế toán chỉ xem, Quản lý sửa có nhật ký, Admin toàn quyền -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -2541,6 +2542,199 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   .app-brand p{font-size:12px!important}
 }
 </style>
+
+<style id="greenmarket-pos-logo-final-v2">
+/* =========================================================
+   GREEN MARKET POS - LOGO + BRANDING V2
+   Chỉ đổi giao diện thương hiệu: logo xanh, nền đăng nhập đầy hơn,
+   tên chuyên nghiệp. Không đổi logic bán hàng/kho/Firebase/in.
+   ========================================================= */
+:root{
+  --gm-primary:#059669;
+  --gm-primary-dark:#047857;
+  --gm-primary-soft:#d1fae5;
+  --gm-blue:#0284c7;
+  --gm-ink:#064e3b;
+}
+.login-wrap{
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(34,197,94,.24) 0 10%, transparent 27%),
+    radial-gradient(circle at 86% 10%, rgba(16,185,129,.22) 0 9%, transparent 28%),
+    radial-gradient(circle at 88% 86%, rgba(2,132,199,.18) 0 10%, transparent 30%),
+    linear-gradient(135deg,#e8fff5 0%,#f0fdf4 38%,#ecfeff 100%)!important;
+}
+.login-wrap:before,
+.login-wrap:after{
+  content:"";
+  position:absolute;
+  border-radius:999px;
+  pointer-events:none;
+  opacity:.72;
+}
+.login-wrap:before{
+  width:520px;height:520px;
+  left:-170px;bottom:-220px;
+  background:linear-gradient(135deg,rgba(5,150,105,.22),rgba(14,165,233,.10));
+}
+.login-wrap:after{
+  width:420px;height:420px;
+  right:-130px;top:-150px;
+  background:linear-gradient(135deg,rgba(34,197,94,.22),rgba(255,255,255,.18));
+}
+.login-card{
+  width:min(560px,100%);
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(5,150,105,.18)!important;
+  background:rgba(255,255,255,.94)!important;
+  backdrop-filter:blur(10px);
+  box-shadow:0 32px 80px rgba(5,150,105,.20)!important;
+}
+.login-card:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(34,197,94,.12), transparent 24%),
+    linear-gradient(135deg,rgba(240,253,244,.96),rgba(255,255,255,.78) 48%,rgba(236,254,255,.72));
+  pointer-events:none;
+}
+.login-card:after{
+  content:"";
+  position:absolute;
+  right:-60px;
+  bottom:-80px;
+  width:210px;
+  height:210px;
+  border-radius:55% 45% 60% 40%;
+  background:rgba(5,150,105,.10);
+  transform:rotate(-22deg);
+  pointer-events:none;
+}
+.login-card>*{position:relative;z-index:1}
+.brand-lockup{text-align:center;margin-bottom:28px}
+.gm-logo-mark{
+  width:92px;
+  height:92px;
+  margin:0 auto 14px;
+  border-radius:28px;
+  display:grid;
+  place-items:center;
+  position:relative;
+  background:linear-gradient(135deg,#10b981,#047857);
+  color:#fff;
+  box-shadow:0 18px 36px rgba(5,150,105,.28);
+}
+.gm-logo-mark:before{
+  content:"";
+  position:absolute;
+  inset:8px;
+  border-radius:22px;
+  border:2px solid rgba(255,255,255,.34);
+}
+.gm-cart{font-size:44px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.18))}
+.gm-leaf{
+  position:absolute;
+  right:15px;
+  top:12px;
+  width:16px;
+  height:24px;
+  border-radius:16px 16px 16px 3px;
+  background:#bbf7d0;
+  color:transparent;
+  transform:rotate(38deg);
+  box-shadow:0 0 0 3px rgba(255,255,255,.28);
+}
+.gm-logo-text,
+.logo{
+  font-family:Montserrat, Poppins, Inter, Arial, sans-serif!important;
+  color:var(--gm-ink)!important;
+  font-size:38px!important;
+  line-height:1.06!important;
+  letter-spacing:.8px!important;
+  text-align:center!important;
+  font-weight:900!important;
+}
+.slogan{
+  display:inline-block;
+  margin:12px auto 0!important;
+  padding:8px 16px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#dcfce7,#ecfeff);
+  color:var(--gm-primary-dark)!important;
+  font-family:Inter,Arial,sans-serif!important;
+  font-size:16px!important;
+  font-weight:900!important;
+  box-shadow:0 8px 18px rgba(5,150,105,.10);
+}
+#loginPage label{color:#064e3b!important}
+#loginPage input{
+  border:1.5px solid rgba(5,150,105,.22)!important;
+  background:#fff!important;
+}
+#loginPage input:focus{
+  border-color:#10b981!important;
+  outline:3px solid rgba(16,185,129,.16)!important;
+}
+#loginPage .btn-blue.full{
+  background:linear-gradient(135deg,#10b981,#047857)!important;
+  min-height:48px;
+  border-radius:16px!important;
+  font-size:16px!important;
+  box-shadow:0 14px 28px rgba(5,150,105,.25)!important;
+}
+.header-logo-mark{
+  display:inline-grid;
+  place-items:center;
+  width:38px;
+  height:38px;
+  margin-right:8px;
+  border-radius:13px;
+  background:linear-gradient(135deg,#10b981,#047857);
+  color:#fff;
+  box-shadow:0 8px 18px rgba(5,150,105,.22);
+  vertical-align:middle;
+  font-size:22px;
+}
+.app-brand h1{
+  font-family:Montserrat, Poppins, Inter, Arial, sans-serif!important;
+  color:#064e3b!important;
+  letter-spacing:.3px!important;
+}
+.app-brand p{
+  color:#047857!important;
+  font-weight:900!important;
+}
+.receipt-title{
+  font-family:Tahoma,Arial,sans-serif!important;
+  font-size:15.8px!important;
+  letter-spacing:0!important;
+  line-height:1.12!important;
+}
+.receipt-slogan{
+  text-align:center!important;
+  font-size:9.2px!important;
+  font-weight:900!important;
+  line-height:1.12!important;
+  margin:1px 0 4px!important;
+  white-space:nowrap!important;
+}
+@media(max-width:768px){
+  .login-card{padding:28px 18px!important;border-radius:28px!important}
+  .gm-logo-mark{width:78px;height:78px;border-radius:24px;margin-bottom:12px}
+  .gm-cart{font-size:36px}
+  .gm-logo-text,.logo{font-size:28px!important;letter-spacing:.3px!important}
+  .slogan{font-size:13.5px!important;padding:7px 11px!important;white-space:normal!important;line-height:1.25!important}
+  .header-logo-mark{width:34px;height:34px;font-size:20px;margin-right:5px}
+}
+@media print{
+  .receipt-title{font-size:15.2px!important}
+  #receiptPrint .receipt-slogan{font-size:8.8px!important;margin-bottom:3px!important;white-space:nowrap!important}
+}
+</style>
+
 </head>
 <body>
 <!-- =========================================================
@@ -2548,8 +2742,14 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
      ========================================================= -->
 <section id="loginPage" class="login-wrap">
   <div class="login-card">
-    <div class="logo"><span class="logo-icon">🛒</span> GREEN MARKET POS</div>
-    <div class="slogan">Quản lý đơn giản - Bán hàng hiệu quả</div>
+    <div class="brand-lockup">
+      <div class="gm-logo-mark" aria-hidden="true">
+        <span class="gm-cart">🛒</span>
+        <span class="gm-leaf">●</span>
+      </div>
+      <div class="logo gm-logo-text">GREEN MARKET POS</div>
+      <div class="slogan">Quản lý đơn giản - Bán hàng hiệu quả</div>
+    </div>
 
     <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" name="gm_login_user_manual_2026" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" placeholder="" value="">
     <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" name="gm_login_pass_manual_2026" type="password" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value=""><button class="eye" onclick="togglePass()">👁️</button></div>
@@ -2561,7 +2761,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 <!-- =========================================================
      10. HTML HEADER + MENU
      ========================================================= -->
-  <div class="header"><div class="app-brand"><h1>🛒 GREEN MARKET POS</h1><p>Quản lý đơn giản - Bán hàng hiệu quả</p></div><div>Xin chào: <b id="userName"></b> - Quyền: <b id="userRole"></b> <span id="firebaseSyncStatus" style="display:inline-block;margin-left:8px;padding:4px 10px;border-radius:999px;background:#eef7ff;color:#075985;font-weight:800;font-size:12px">☁️ Firebase</span> <button id="mainLogoutBtn" class="btn-gray" onclick="confirmLogout()">Đăng xuất</button></div></div>
+  <div class="header"><div class="app-brand"><h1><span class="header-logo-mark">🛒</span> GREEN MARKET POS</h1><p>Quản lý đơn giản - Bán hàng hiệu quả</p></div><div>Xin chào: <b id="userName"></b> - Quyền: <b id="userRole"></b> <span id="firebaseSyncStatus" style="display:inline-block;margin-left:8px;padding:4px 10px;border-radius:999px;background:#eef7ff;color:#075985;font-weight:800;font-size:12px">☁️ Firebase</span> <button id="mainLogoutBtn" class="btn-gray" onclick="confirmLogout()">Đăng xuất</button></div></div>
   <div class="menu">
     <button onclick="showPage('home')">🏠 Trang chủ</button>
     <button data-permission="shift" onclick="showPage('shift')">⏱ Ca làm việc</button>
