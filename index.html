@@ -3473,9 +3473,14 @@ function gmQzSetupSecurity(){
 }
 
 async function gmQzConnect(){
-  if(!window.qz) throw new Error('Chưa tải được thư viện QZ Tray. Kiểm tra Internet hoặc file qz-tray.js.');
+  if(!window.qz) throw new Error('Chưa tải được thư viện QZ Tray.');
+
   gmQzSetupSecurity();
-  if(qz.websocket.isActive()) return true;
+
+  if(qz.websocket.isActive()){
+    await qz.websocket.disconnect();
+  }
+
   await qz.websocket.connect({ retries: 2, delay: 1 });
   return true;
 }
