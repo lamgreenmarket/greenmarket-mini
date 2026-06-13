@@ -3474,18 +3474,18 @@ console.log('SET CERT');
 }
 
 async function gmQzConnect(){
-  if(!window.qz) throw new Error('Chưa tải được thư viện QZ Tray.');
+    if(!window.qz) throw new Error('Chưa tải được thư viện QZ Tray.');
 
-  gmQzSetupSecurity();
+    gmQzSetupSecurity();
 
-  if(qz.websocket.isActive()){
-    await qz.websocket.disconnect();
-  }
+    if(qz.websocket.isActive()){
+        await qz.websocket.disconnect();
+    }
 
-  await qz.websocket.connect({ retries: 2, delay: 1 });
-  return true;
+    await qz.websocket.connect({ retries: 2, delay: 1 });
+
+    return true;
 }
-
 
 function gmBuildQzReceiptHtml(receiptHtml){
   return `<!DOCTYPE html>
