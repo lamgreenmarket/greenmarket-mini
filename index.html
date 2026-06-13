@@ -3432,7 +3432,7 @@ function gmQzSetupSecurity(){
   if(gmQzSecurityReady || !window.qz) return;
 
   try{
-    if(qz.security.setSignatureAlgorithm)qz.security.setSignatureAlgorithm('SHA512');;
+    if(qz.security.setSignatureAlgorithm);
 
     qz.security.setCertificatePromise(function(resolve, reject){
       resolve(GM_QZ_CERTIFICATE);
@@ -3445,7 +3445,7 @@ function gmQzSetupSecurity(){
           const privateKey = await crypto.subtle.importKey(
             'pkcs8',
             keyBuffer,
-            {name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-512' },
+            {name: 'RSASSA-PKCS1-v1_5'},
             false,
             ['sign']
           );
