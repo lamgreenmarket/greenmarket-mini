@@ -2592,19 +2592,26 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
    GREEN MARKET POS - COPYRIGHT FOOTER
    ========================================================= */
 .footer-copyright{
-  position:fixed;
-  left:20px;
-  bottom:15px;
-  font-size:12px;
-  color:rgba(0,0,0,.55);
-  font-style:italic;
-  letter-spacing:.3px;
-  z-index:9999;
+  position:fixed!important;
+  left:22px!important;
+  bottom:16px!important;
+  font-size:12px!important;
+  color:rgba(15,23,42,.68)!important;
+  font-style:italic!important;
+  font-weight:600!important;
+  letter-spacing:.25px!important;
+  z-index:999999!important;
+  pointer-events:none!important;
+  background:rgba(255,255,255,.35);
+  padding:4px 8px;
+  border-radius:999px;
 }
 @media(max-width:768px){
   .footer-copyright{
     left:10px!important;
-    bottom:10px!important;
+    right:10px!important;
+    bottom:8px!important;
+    text-align:center!important;
     font-size:10px!important;
   }
 }
@@ -2805,6 +2812,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
 </head>
 <body>
+<div class="footer-copyright">© 2026 Green Market POS. Developed by Nguyễn Thanh Lâm. | greenmarketpos.vn</div>
 <!-- =========================================================
      09. HTML ĐĂNG NHẬP
      ========================================================= -->
@@ -3569,10 +3577,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
       </div>
     </div>
   </div>
-
-
-  <div class="footer-copyright">© 2026 Green Market POS. Developed by Nguyễn Thanh Lâm. | greenmarketpos.vn</div>
-  <div id="receiptPrint" class="receipt hidden"></div>
+<div id="receiptPrint" class="receipt hidden"></div>
 </section>
 
 <script>
