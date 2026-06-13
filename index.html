@@ -3442,9 +3442,11 @@ function gmQzSetupSecurity(){
   try{
     if(qz.security.setSignatureAlgorithm)qz.security.setSignatureAlgorithm('SHA256');
 
-    qz.security.setCertificatePromise(function(resolve, reject){
-      resolve(GM_QZ_CERTIFICATE);
-    });
+    qz.security.setSignaturePromise(function(toSign){
+  console.log('QZ SIGN CALLED', toSign);
+  return async function(resolve, reject){
+  }
+});
 console.log('SET CERT');
     qz.security.setSignaturePromise(function(toSign){
       return async function(resolve, reject){
