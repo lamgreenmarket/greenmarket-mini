@@ -3445,7 +3445,7 @@ function gmQzSetupSecurity(){
     qz.security.setCertificatePromise(function(resolve, reject){
       resolve(GM_QZ_CERTIFICATE);
     });
-
+console.log('SET CERT');
     qz.security.setSignaturePromise(function(toSign){
       return async function(resolve, reject){
         try{
@@ -3467,6 +3467,7 @@ function gmQzSetupSecurity(){
     });
 
     gmQzSecurityReady = true;
+    console.log('SECURITY READY');
   }catch(err){
     console.error('Không thiết lập được QZ security:', err);
   }
@@ -3484,6 +3485,7 @@ async function gmQzConnect(){
   await qz.websocket.connect({ retries: 2, delay: 1 });
   return true;
 }
+
 
 function gmBuildQzReceiptHtml(receiptHtml){
   return `<!DOCTYPE html>
