@@ -2541,6 +2541,52 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   .slogan{font-size:15px!important;margin:8px 0 22px!important}
   .app-brand p{font-size:12px!important}
 }
+
+
+/* =========================================================
+   FIX PHIẾU TRẢ HÀNG - THÊM GẠCH/DẤU CHẤM DẪN DÒNG
+   Áp dụng cho: TỔNG GỐC, HOÀN LẦN NÀY, ĐÃ HOÀN, DOANH THU SAU TRẢ.
+   Chỉ chỉnh hiển thị phiếu trả hàng, không đụng logic bán hàng/kho/Firebase.
+   ========================================================= */
+.receipt-return-money-label{
+  display:flex!important;
+  align-items:center!important;
+  gap:3px!important;
+}
+.receipt-return-money-label::after{
+  content:"";
+  flex:1 1 auto;
+  min-width:5mm;
+  border-bottom:1px dotted #000;
+  transform:translateY(-1px);
+}
+.receipt-return-money-row-final .receipt-return-money-label{
+  display:flex!important;
+  align-items:center!important;
+  gap:3px!important;
+}
+.receipt-return-money-row-final .receipt-return-money-label::after{
+  content:"";
+  flex:1 1 auto;
+  min-width:5mm;
+  border-bottom:1px dotted #000;
+  transform:translateY(-1px);
+}
+@media print{
+  #receiptPrint .receipt-return-money-label{
+    display:flex!important;
+    align-items:center!important;
+    gap:3px!important;
+  }
+  #receiptPrint .receipt-return-money-label::after{
+    content:""!important;
+    flex:1 1 auto!important;
+    min-width:5mm!important;
+    border-bottom:1px dotted #000!important;
+    transform:translateY(-1px)!important;
+  }
+}
+
 </style>
 
 <style id="greenmarket-pos-logo-final-v2">
@@ -2732,94 +2778,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 @media print{
   .receipt-title{font-size:15.2px!important}
   #receiptPrint .receipt-slogan{font-size:8.8px!important;margin-bottom:3px!important;white-space:nowrap!important}
-}
-</style>
-
-
-<style id="greenmarket-pos-login-desktop-size-final">
-/* =========================================================
-   GREEN MARKET POS - LOGIN SIZE FINAL
-   Mục tiêu: khung đăng nhập cân đối hơn trên desktop/laptop.
-   Mobile giữ nguyên để không ảnh hưởng iPhone/Samsung.
-   ========================================================= */
-@media (min-width: 769px){
-  #loginPage .login-card{
-    width: min(680px, calc(100vw - 40px)) !important;
-    padding: 52px 58px !important;
-    border-radius: 34px !important;
-  }
-
-  #loginPage .brand-lockup{
-    margin-bottom: 32px !important;
-  }
-
-  #loginPage .gm-logo-mark{
-    width: 104px !important;
-    height: 104px !important;
-    border-radius: 32px !important;
-    margin-bottom: 16px !important;
-  }
-
-  #loginPage .gm-cart{
-    font-size: 50px !important;
-  }
-
-  #loginPage .gm-logo-text,
-  #loginPage .logo{
-    font-size: 44px !important;
-    line-height: 1.05 !important;
-    letter-spacing: .6px !important;
-  }
-
-  #loginPage .slogan{
-    font-size: 17px !important;
-    padding: 9px 18px !important;
-    margin-top: 14px !important;
-    margin-bottom: 0 !important;
-  }
-
-  #loginPage label{
-    font-size: 15px !important;
-  }
-
-  #loginPage input{
-    height: 50px !important;
-    font-size: 16px !important;
-  }
-
-  #loginPage .eye{
-    height: 50px !important;
-    width: 68px !important;
-  }
-
-  #loginPage .btn-blue.full{
-    min-height: 52px !important;
-    font-size: 17px !important;
-    margin-top: 18px !important;
-  }
-}
-
-/* Giữ giao diện điện thoại gọn như bản trước */
-@media (max-width: 768px){
-  #loginPage .login-card{
-    width: 100% !important;
-    max-width: 420px !important;
-    padding: 28px 18px !important;
-  }
-
-  #loginPage .gm-logo-mark{
-    width: 78px !important;
-    height: 78px !important;
-  }
-
-  #loginPage .gm-logo-text,
-  #loginPage .logo{
-    font-size: 28px !important;
-  }
-
-  #loginPage .slogan{
-    font-size: 13.5px !important;
-  }
 }
 </style>
 
