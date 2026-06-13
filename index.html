@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siêu thị mini Green Market - PRO Dashboard</title>
+<title>Green Market POS - Quản lý đơn giản, bán hàng hiệu quả</title>
 <!-- Bản phân quyền an toàn: Kế toán chỉ xem, Quản lý sửa có nhật ký, Admin toàn quyền -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -2469,6 +2469,77 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   .payment-qr-panel img{width:200px!important;height:200px!important;}
 }
 
+
+
+/* =========================================================
+   GREEN MARKET POS BRANDING FINAL
+   Đồng bộ logo/slogan cho đăng nhập, header và phiếu in.
+   ========================================================= */
+.login-wrap{
+  background:
+    radial-gradient(circle at top left, rgba(34,197,94,.18), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(5,150,105,.18), transparent 32%),
+    linear-gradient(180deg,#ecfdf5 0%,#f8fffb 100%)!important;
+}
+.login-card{
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(5,150,105,.14);
+  box-shadow:0 28px 70px rgba(5,150,105,.16)!important;
+}
+.login-card:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(135deg,rgba(34,197,94,.08),transparent 42%);
+  pointer-events:none;
+}
+.login-card>*{position:relative;z-index:1}
+.logo{
+  font-family:Montserrat, Poppins, Arial, sans-serif!important;
+  color:#047857!important;
+  line-height:1.08!important;
+  letter-spacing:.5px;
+}
+.logo-icon{display:inline-block;margin-right:6px}
+.slogan{
+  font-family:Inter, Arial, sans-serif!important;
+  color:#059669!important;
+  font-size:18px!important;
+  font-weight:800!important;
+  margin:10px 0 28px!important;
+}
+.app-brand h1{margin:0!important}
+.app-brand p{
+  margin:5px 0 0!important;
+  color:#059669!important;
+  font-size:14px!important;
+  font-weight:900!important;
+}
+.receipt-title{
+  font-size:16px!important;
+  letter-spacing:.2px!important;
+}
+.receipt-slogan{
+  text-align:center;
+  font-size:9.8px;
+  font-weight:800;
+  line-height:1.12;
+  margin:0 0 4px;
+  white-space:nowrap;
+}
+@media print{
+  #receiptPrint .receipt-slogan{
+    font-size:9.3px!important;
+    white-space:nowrap!important;
+    margin-bottom:3px!important;
+  }
+}
+@media(max-width:768px){
+  .logo{font-size:30px!important}
+  .slogan{font-size:15px!important;margin:8px 0 22px!important}
+  .app-brand p{font-size:12px!important}
+}
 </style>
 </head>
 <body>
@@ -2477,8 +2548,9 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
      ========================================================= -->
 <section id="loginPage" class="login-wrap">
   <div class="login-card">
-    <div class="logo">🛒 SIÊU THỊ MINI GREEN MARKET</div>
-   
+    <div class="logo"><span class="logo-icon">🛒</span> GREEN MARKET POS</div>
+    <div class="slogan">Quản lý đơn giản - Bán hàng hiệu quả</div>
+
     <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" name="gm_login_user_manual_2026" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" placeholder="" value="">
     <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" name="gm_login_pass_manual_2026" type="password" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value=""><button class="eye" onclick="togglePass()">👁️</button></div>
     <button class="btn-blue full" onclick="login()">Đăng nhập</button><p id="loginMsg" class="msg"></p>
@@ -2489,7 +2561,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 <!-- =========================================================
      10. HTML HEADER + MENU
      ========================================================= -->
-  <div class="header"><h1>🛒 SIÊU THỊ MINI GREEN MARKET</h1><div>Xin chào: <b id="userName"></b> - Quyền: <b id="userRole"></b> <span id="firebaseSyncStatus" style="display:inline-block;margin-left:8px;padding:4px 10px;border-radius:999px;background:#eef7ff;color:#075985;font-weight:800;font-size:12px">☁️ Firebase</span> <button id="mainLogoutBtn" class="btn-gray" onclick="confirmLogout()">Đăng xuất</button></div></div>
+  <div class="header"><div class="app-brand"><h1>🛒 GREEN MARKET POS</h1><p>Quản lý đơn giản - Bán hàng hiệu quả</p></div><div>Xin chào: <b id="userName"></b> - Quyền: <b id="userRole"></b> <span id="firebaseSyncStatus" style="display:inline-block;margin-left:8px;padding:4px 10px;border-radius:999px;background:#eef7ff;color:#075985;font-weight:800;font-size:12px">☁️ Firebase</span> <button id="mainLogoutBtn" class="btn-gray" onclick="confirmLogout()">Đăng xuất</button></div></div>
   <div class="menu">
     <button onclick="showPage('home')">🏠 Trang chủ</button>
     <button data-permission="shift" onclick="showPage('shift')">⏱ Ca làm việc</button>
@@ -6625,7 +6697,8 @@ function printReceipt(total, paymentText = 'Tiền mặt'){
 
   function buildSaleReceipt(copyLabel = ''){
     return `
-      <div class="receipt-title">SIÊU THỊ MINI GREEN MARKET</div>
+      <div class="receipt-title">🛒 GREEN MARKET POS</div>
+      <div class="receipt-slogan">Quản lý đơn giản - Bán hàng hiệu quả</div>
       ${copyLabel ? `<div class="receipt-reprint-stamp">${copyLabel}</div>` : ''}
       <div class="receipt-line"></div>
 
@@ -8676,7 +8749,7 @@ function buildImportReceiptPrintHtml(data){
 <div class="print-actions"><button class="btn" onclick="window.print()">🖨️ In</button><button class="btn2" onclick="window.close()">Đóng</button></div>
 <div class="sheet">
   <div class="top">
-    <div class="brand"><h1>🛒 SIÊU THỊ MINI GREEN MARKET</h1><p>Phiếu dùng để đối chiếu nhập kho, giao hàng và vận tải</p></div>
+    <div class="brand"><h1>🛒 GREEN MARKET POS</h1><p>Phiếu dùng để đối chiếu nhập kho, giao hàng và vận tải</p></div>
     <div class="code">Mã phiếu nhập<div class="box">${escapeHTML(data.receiptCode || '-')}</div></div>
   </div>
   <h2>PHIẾU NHẬP KHO</h2>
@@ -9707,7 +9780,7 @@ function buildDailyImportReportPrintHtml(selected, list){
 <div class="print-actions"><button class="btn" onclick="window.print()">🖨️ In</button><button class="btn2" onclick="window.close()">Đóng</button></div>
 <div class="sheet">
   <div class="top">
-    <div class="brand"><h1>🛒 SIÊU THỊ MINI GREEN MARKET</h1><p>Báo cáo tổng hợp nhập kho theo ngày, dùng để lưu sổ và đối chiếu kế toán.</p></div>
+    <div class="brand"><h1>🛒 GREEN MARKET POS</h1><p>Báo cáo tổng hợp nhập kho theo ngày, dùng để lưu sổ và đối chiếu kế toán.</p></div>
     <div class="report-code">Ngày báo cáo<div class="box">${escapeHTML(reportDate)}</div></div>
   </div>
   <h2>BÁO CÁO NHẬP KHO THEO NGÀY</h2>
@@ -10419,7 +10492,7 @@ function exportDailyImportReportExcel(){
 
   const wb = XLSX.utils.book_new();
   const ws = makeMisaSheet(
-    'SIÊU THỊ MINI GREEN MARKET - BÁO CÁO NHẬP KHO',
+    'GREEN MARKET POS - BÁO CÁO NHẬP KHO',
     'Ngày báo cáo: ' + reportDate + ' | Xuất lúc: ' + now(),
     headers,
     dataRows,
@@ -10557,7 +10630,7 @@ function exportAccountingExcel(){
     ['Số mặt hàng trong kho', products.length + ' mặt hàng']
   ];
   const wsSummary = makeMisaSheet(
-    'SIÊU THỊ MINI GREEN MARKET - FILE KẾ TOÁN TỔNG HỢP',
+    'GREEN MARKET POS - FILE KẾ TOÁN TỔNG HỢP',
     'Xuất lúc: ' + exportedAt + ' | Thống kê đến ngày: ' + new Date().toLocaleDateString('vi-VN'),
     summaryHeaders,
     summaryRows,
@@ -11599,7 +11672,8 @@ function printReturnReceiptByIndex(index){
 
   receiptPrint.classList.remove('hidden');
   receiptPrint.innerHTML = `
-    <div class="receipt-title">SIÊU THỊ MINI GREEN MARKET</div>
+    <div class="receipt-title">🛒 GREEN MARKET POS</div>
+      <div class="receipt-slogan">Quản lý đơn giản - Bán hàng hiệu quả</div>
     <div class="receipt-return-stamp">PHIẾU TRẢ HÀNG</div>
     <div class="receipt-line"></div>
 
@@ -11734,7 +11808,8 @@ if(admin){
 
   receiptPrint.classList.remove('hidden');
   receiptPrint.innerHTML = `
-    <div class="receipt-title">SIÊU THỊ MINI GREEN MARKET</div>
+    <div class="receipt-title">🛒 GREEN MARKET POS</div>
+      <div class="receipt-slogan">Quản lý đơn giản - Bán hàng hiệu quả</div>
     <div class="receipt-reprint-stamp">BẢN IN LẠI</div>
     <div class="receipt-reprint-note">Lần in lại: ${nextCount}</div>
     <div class="receipt-line"></div>
