@@ -2588,20 +2588,40 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 }
 
 
-/* COPYRIGHT GREEN MARKET */
-.login-footer-copyright{
-    position: fixed;
-    left: 15px;
-    bottom: 10px;
-    font-size: 12px;
-    color: #666;
-    font-style: italic;
-    font-family: "Times New Roman", serif;
-    font-weight: 500;
-    letter-spacing: 0.3px;
-    opacity: 0.9;
-    z-index: 9999;
-    pointer-events: none;
+/* =========================================================
+   GREEN MARKET POS - COPYRIGHT FOOTER
+   ========================================================= */
+.footer-copyright{
+  position:fixed!important;
+  left:18px!important;
+  right:auto!important;
+  bottom:12px!important;
+  max-width:calc(100vw - 36px)!important;
+  font-size:12px!important;
+  color:rgba(15,23,42,.64)!important;
+  font-style:italic!important;
+  font-weight:600!important;
+  letter-spacing:.2px!important;
+  z-index:999999!important;
+  pointer-events:none!important;
+  background:transparent!important;
+  padding:0!important;
+  border-radius:0!important;
+  text-align:left!important;
+}
+@media(max-width:768px){
+  .footer-copyright{
+    left:12px!important;
+    right:auto!important;
+    bottom:8px!important;
+    max-width:calc(100vw - 24px)!important;
+    text-align:left!important;
+    font-size:10px!important;
+    line-height:1.35!important;
+  }
+}
+@media print{
+  .footer-copyright{display:none!important;}
 }
 
 </style>
@@ -2800,6 +2820,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
 </head>
 <body>
+<div class="footer-copyright">© 2026 Green Market POS. Developed by Nguyễn Thanh Lâm. | greenmarketpos.vn</div>
 <!-- =========================================================
      09. HTML ĐĂNG NHẬP
      ========================================================= -->
@@ -2817,7 +2838,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
     <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" name="gm_login_user_manual_2026" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" placeholder="" value="">
     <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" name="gm_login_pass_manual_2026" type="password" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value=""><button class="eye" onclick="togglePass()">👁️</button></div>
     <button class="btn-blue full" onclick="login()">Đăng nhập</button><p id="loginMsg" class="msg"></p>
-  </div>
+    </div>
 </section>
 
 <section id="appPage" class="app hidden">
@@ -3564,8 +3585,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
       </div>
     </div>
   </div>
-
-  <div id="receiptPrint" class="receipt hidden"></div>
+<div id="receiptPrint" class="receipt hidden"></div>
 </section>
 
 <script>
@@ -3661,7 +3681,94 @@ function ensureDesktopPrint(actionLabel = 'in'){
 
 function gmPrint(){
   if(!ensureDesktopPrint('in hóa đơn')) return false;
-  window.print();
+
+  // FIX IN NHIỆT XP-58:
+  // Không in trực tiếp cả trang Green Market nữa, vì Chrome/driver 58mm có thể hiểu
+  // trang web còn rất dài và kéo giấy liên tục. Ta mở một cửa sổ in riêng chỉ chứa phiếu.
+  const source = document.getElementById('receiptPrint');
+  if(!source || !source.innerHTML.trim()){
+    window.print();
+    return true;
+  }
+
+  const receiptHtml = source.innerHTML;
+  const approxHeightMm = Math.max(
+    88,
+    Math.min(220, Math.ceil((source.scrollHeight || 360) / 3.78) + 12)
+  );
+
+  const printWindow = window.open('', '_blank', 'width=360,height=650');
+  if(!printWindow){
+    alert('Trình duyệt đang chặn cửa sổ in. Vui lòng cho phép pop-up rồi in lại.');
+    return false;
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(`<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>In hóa đơn Green Market</title>
+<style>
+  @page{size:58mm ${approxHeightMm}mm;margin:0;}
+  html,body{
+    margin:0!important;
+    padding:0!important;
+    width:58mm!important;
+    min-height:0!important;
+    background:#fff!important;
+    overflow:hidden!important;
+  }
+  *{box-sizing:border-box!important;}
+  body{
+    font-family:Tahoma, Arial, sans-serif!important;
+    color:#000!important;
+  }
+  .receipt-print-page{
+    width:58mm!important;
+    margin:0!important;
+    padding:1.5mm 2.4mm 0 2.4mm!important;
+    overflow:hidden!important;
+  }
+  .receipt-title{
+    text-align:center!important;
+    font-size:15.2px!important;
+    font-weight:900!important;
+    line-height:1.12!important;
+    margin:0 0 3px!important;
+    white-space:nowrap!important;
+  }
+  .receipt-slogan{
+    text-align:center!important;
+    font-size:8.8px!important;
+    font-style:italic!important;
+    font-weight:700!important;
+    margin-bottom:3px!important;
+    white-space:nowrap!important;
+  }
+  .receipt-line{border-top:1px dashed #000!important;margin:5px 0!important;}
+  .receipt-item{font-size:14px!important;font-weight:700!important;margin:3px 0 1px!important;word-break:break-word!important;}
+  .receipt-money{font-size:13px!important;font-weight:700!important;line-height:1.25!important;}
+  .receipt-total{display:flex!important;justify-content:space-between!important;gap:5px!important;font-size:13.8px!important;font-weight:900!important;line-height:1.18!important;margin:2px 0!important;}
+  .receipt-total span:first-child{white-space:nowrap!important;}
+  .receipt-total span:last-child{text-align:right!important;white-space:nowrap!important;font-size:13.2px!important;}
+  .receipt-reprint-stamp{border:2px solid #000!important;padding:4px 3px!important;margin:5px 0 7px!important;text-align:center!important;font-size:15px!important;font-weight:900!important;}
+  .qr{width:82px!important;height:82px!important;border:2px solid #000!important;margin:8px auto 2px!important;display:block!important;}
+  img,svg,canvas{max-width:100%!important;}
+  .receipt-spacer{height:2mm!important;}
+</style>
+</head>
+<body>
+  <div class="receipt-print-page">${receiptHtml}</div>
+<script>
+  window.onload = function(){
+    setTimeout(function(){ window.print(); }, 120);
+    setTimeout(function(){ window.close(); }, 900);
+  };
+<\/script>
+</body>
+</html>`);
+  printWindow.document.close();
   return true;
 }
 
@@ -5913,11 +6020,6 @@ tbody tr:hover td{background:#f8fffb!important}
 }
 
 </style>
-
-
-<div class="login-footer-copyright">
-© 2026 Green Market POS. Developed by Nguyễn Thanh Lâm. | greenmarketpos.vn
-</div>
 
 </body>
 </html>`;
