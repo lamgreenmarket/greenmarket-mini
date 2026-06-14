@@ -2588,32 +2588,20 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 }
 
 
-/* =========================================================
-   GREEN MARKET POS - COPYRIGHT FOOTER
-   ========================================================= */
-.footer-copyright{
-  position:fixed!important;
-  left:22px!important;
-  bottom:16px!important;
-  font-size:12px!important;
-  color:rgba(15,23,42,.68)!important;
-  font-style:italic!important;
-  font-weight:600!important;
-  letter-spacing:.25px!important;
-  z-index:999999!important;
-  pointer-events:none!important;
-  background:rgba(255,255,255,.35);
-  padding:4px 8px;
-  border-radius:999px;
-}
-@media(max-width:768px){
-  .footer-copyright{
-    left:10px!important;
-    right:10px!important;
-    bottom:8px!important;
-    text-align:center!important;
-    font-size:10px!important;
-  }
+/* COPYRIGHT GREEN MARKET */
+.login-footer-copyright{
+    position: fixed;
+    left: 15px;
+    bottom: 10px;
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+    font-family: "Times New Roman", serif;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    opacity: 0.9;
+    z-index: 9999;
+    pointer-events: none;
 }
 
 </style>
@@ -2812,7 +2800,6 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
 </head>
 <body>
-<div class="footer-copyright">© 2026 Green Market POS. Developed by Nguyễn Thanh Lâm. | greenmarketpos.vn</div>
 <!-- =========================================================
      09. HTML ĐĂNG NHẬP
      ========================================================= -->
@@ -2830,7 +2817,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
     <label>Tên đăng nhập hoặc email Firebase</label><input id="loginUser" name="gm_login_user_manual_2026" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" placeholder="" value="">
     <label>Mật khẩu</label><div class="pass-row"><input id="loginPass" name="gm_login_pass_manual_2026" type="password" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value=""><button class="eye" onclick="togglePass()">👁️</button></div>
     <button class="btn-blue full" onclick="login()">Đăng nhập</button><p id="loginMsg" class="msg"></p>
-    </div>
+  </div>
 </section>
 
 <section id="appPage" class="app hidden">
@@ -3577,7 +3564,8 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
       </div>
     </div>
   </div>
-<div id="receiptPrint" class="receipt hidden"></div>
+
+  <div id="receiptPrint" class="receipt hidden"></div>
 </section>
 
 <script>
@@ -5925,6 +5913,11 @@ tbody tr:hover td{background:#f8fffb!important}
 }
 
 </style>
+
+
+<div class="login-footer-copyright">
+© 2026 Green Market POS. Developed by Nguyễn Thanh Lâm. | greenmarketpos.vn
+</div>
 
 </body>
 </html>`;
