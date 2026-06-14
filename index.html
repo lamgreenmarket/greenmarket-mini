@@ -2621,7 +2621,19 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
   }
 }
 @media print{
-  .footer-copyright{display:none!important;}
+  .footer-copyright,
+  body > .footer-copyright,
+  .no-print{
+    display:none!important;
+    visibility:hidden!important;
+    position:static!important;
+    width:0!important;
+    height:0!important;
+    max-height:0!important;
+    overflow:hidden!important;
+    margin:0!important;
+    padding:0!important;
+  }
 }
 
 </style>
@@ -2820,7 +2832,7 @@ body, input, select, button, table, th, td, label, .menu, .card, .page{
 
 </head>
 <body>
-<div class="footer-copyright">© 2026 Green Market POS. Developed by Nguyễn Thanh Lâm. | greenmarketpos.vn</div>
+<div class="footer-copyright no-print" aria-hidden="true">© 2026 Green Market POS. Developed by Nguyễn Thanh Lâm. | greenmarketpos.vn</div>
 <!-- =========================================================
      09. HTML ĐĂNG NHẬP
      ========================================================= -->
@@ -3755,6 +3767,7 @@ function gmPrint(){
   .receipt-reprint-stamp{border:2px solid #000!important;padding:4px 3px!important;margin:5px 0 7px!important;text-align:center!important;font-size:15px!important;font-weight:900!important;}
   .qr{width:82px!important;height:82px!important;border:2px solid #000!important;margin:8px auto 2px!important;display:block!important;}
   img,svg,canvas{max-width:100%!important;}
+  .footer-copyright,.no-print{display:none!important;visibility:hidden!important;height:0!important;overflow:hidden!important;}
   .receipt-spacer{height:2mm!important;}
 </style>
 </head>
