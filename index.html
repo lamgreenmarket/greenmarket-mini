@@ -306,7 +306,11 @@ tr:nth-child(even) td{
 .receipt-spacer{
   height:6mm;
 }
-
+.receipt-return-final-line {
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 700;
+}
 /* =========================================================
    DẤU BẢN IN LẠI HÓA ĐƠN
    ========================================================= */
@@ -11971,8 +11975,8 @@ function printReturnReceiptByIndex(index){
         <div class="receipt-return-money-value">${money(getBillReturnedAmount(b))}</div>
       </div>
       <div class="receipt-return-money-row receipt-return-money-row-final">
-        <div class="receipt-return-money-label">- DOANH THU SAU TRẢ:</div>
-        <div class="receipt-return-money-value">${money(b.total)}</div>
+  <div class="receipt-return-money-label receipt-return-final-line">
+    - DOANH THU SAU TRẢ: ${money(b.total)}
       </div>
     </div>
 
